@@ -1,0 +1,21 @@
+{
+  "CORSRules": [
+    {
+      "AllowedHeaders": ["*"],
+      "AllowedMethods": ["GET", "HEAD"],
+      "AllowedOrigins": [
+        "http://localhost:3000",
+        "http://localhost:3333",
+        "https://hymnotic.com",
+        "https://www.hymnotic.com",
+        "https://*.vercel.app"
+      ],
+      "ExposeHeaders": [
+        "Content-Length",
+        "Content-Range",
+        "Accept-Ranges"
+      ],
+      "MaxAgeSeconds": 86400
+    }
+  ]
+}
