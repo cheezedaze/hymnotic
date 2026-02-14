@@ -1,4 +1,4 @@
-import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, GetObjectCommand, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 // S3 client singleton
@@ -80,4 +80,35 @@ export function buildCollectionMediaUrls(collection: {
   return {
     artworkUrl: getMediaUrl(collection.artworkKey),
   };
+}
+
+/**
+ * Generate a presigned PUT URL for browser-to-S3 uploads.
+ */
+export async function getPresignedUploadUrl(
+  key: string,
+  contentType: string,
+  expiresIn: number = 3600
+): Promise<string> {
+  const client = getS3Client();
+  const command = new PutObjectCommand({
+    Bucket: BUCKET,
+    Key: key,
+    ContentType: contentType,
+    CacheControl: "public, max-age=31536000, immutable",
+  });
+  return getSignedUrl(client, command, { expiresIn });
+}
+
+/**
+ * Delete a media file from S3.
+ */
+export async function deleteMedia(key: string): Promise<void> {
+  const client = getS3Client();
+  await client.send(
+    new DeleteObjectCommand({
+      Bucket: BUCKET,
+      Key: key,
+    })
+  );
 }

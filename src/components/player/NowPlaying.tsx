@@ -2,9 +2,8 @@
 
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, Heart, Headphones, Share2 } from "lucide-react";
+import { ChevronDown, Heart, Headphones, Share2, Music } from "lucide-react";
 import { usePlayerStore } from "@/lib/store/playerStore";
-import { getCollectionById } from "@/lib/data/collections";
 import { AlbumArtBackdrop } from "./AlbumArtBackdrop";
 import { PlaybackControls } from "./PlaybackControls";
 import { LyricsDrawer } from "./LyricsDrawer";
@@ -19,8 +18,6 @@ export function NowPlaying() {
 
   if (!currentTrack) return null;
 
-  const collection = getCollectionById(currentTrack.collectionId);
-
   return (
     <motion.div
       initial={{ y: "100%", opacity: 0.8 }}
@@ -30,7 +27,7 @@ export function NowPlaying() {
       className="fixed inset-0 z-50 flex flex-col bg-midnight"
     >
       {/* Backdrop */}
-      <AlbumArtBackdrop src={currentTrack.artwork} alt={currentTrack.title} />
+      <AlbumArtBackdrop src={currentTrack.artworkUrl || ""} alt={currentTrack.title} />
 
       {/* Content */}
       <div className="relative z-10 flex flex-col h-full">
@@ -43,7 +40,7 @@ export function NowPlaying() {
             <ChevronDown size={26} />
           </button>
           <span className="text-display text-sm font-medium text-text-secondary">
-            {collection?.title ?? "Now Playing"}
+            Now Playing
           </span>
           <div className="w-10" />
         </div>
@@ -51,13 +48,19 @@ export function NowPlaying() {
         {/* Album artwork */}
         <div className="flex-1 flex items-center justify-center px-10 py-4">
           <div className="relative w-full max-w-[320px] aspect-square rounded-2xl overflow-hidden shadow-[var(--shadow-card)]">
-            <Image
-              src={currentTrack.artwork}
-              alt={currentTrack.title}
-              fill
-              className="object-cover"
-              priority
-            />
+            {currentTrack.artworkUrl ? (
+              <Image
+                src={currentTrack.artworkUrl}
+                alt={currentTrack.title}
+                fill
+                className="object-cover"
+                priority
+              />
+            ) : (
+              <div className="w-full h-full bg-white/5 flex items-center justify-center">
+                <Music size={48} className="text-text-dim" />
+              </div>
+            )}
           </div>
         </div>
 

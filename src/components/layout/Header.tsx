@@ -18,21 +18,6 @@ export function Header() {
     };
   }, []);
 
-  // #region agent log
-  useEffect(() => {
-    fetch("/api/debug-log", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        location: "Header.tsx:mount",
-        message: "Header mounted",
-        data: {},
-        timestamp: Date.now(),
-        hypothesisId: "H4",
-      }),
-    }).catch(() => {});
-  }, []);
-  // #endregion
   return (
     <header className="sticky top-0 z-30 flex items-center justify-center py-4 pt-[calc(1rem+var(--safe-top))]">
       <div className="flex w-full flex-col items-center gap-1">

@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Play, Pause } from "lucide-react";
+import { Play, Pause, Music } from "lucide-react";
 import { usePlayerStore } from "@/lib/store/playerStore";
 import { cn } from "@/lib/utils/cn";
 
@@ -32,13 +32,19 @@ export function MiniPlayer() {
         className="flex items-center gap-3 w-full px-3 py-2 text-left"
       >
         {/* Artwork */}
-        <Image
-          src={currentTrack.artwork}
-          alt={currentTrack.title}
-          width={40}
-          height={40}
-          className="rounded-lg flex-shrink-0"
-        />
+        {currentTrack.artworkUrl ? (
+          <Image
+            src={currentTrack.artworkUrl}
+            alt={currentTrack.title}
+            width={40}
+            height={40}
+            className="rounded-lg flex-shrink-0"
+          />
+        ) : (
+          <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center flex-shrink-0">
+            <Music size={16} className="text-text-dim" />
+          </div>
+        )}
 
         {/* Track info */}
         <div className="flex-1 min-w-0">

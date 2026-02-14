@@ -4,21 +4,6 @@ import { useEffect, useRef, useCallback } from "react";
 import { usePlayerStore } from "@/lib/store/playerStore";
 
 export function useAudioPlayer() {
-  // #region agent log
-  useEffect(() => {
-    fetch("/api/debug-log", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        location: "useAudioPlayer.ts:hook",
-        message: "useAudioPlayer hook ran",
-        data: {},
-        timestamp: Date.now(),
-        hypothesisId: "H2",
-      }),
-    }).catch(() => {});
-  }, []);
-  // #endregion
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -39,13 +24,13 @@ export function useAudioPlayer() {
 
     clearSimulation();
 
-    if (currentTrack.audioSrc) {
+    if (currentTrack.audioUrl) {
       // Real audio mode
       if (!audioRef.current) {
         audioRef.current = new Audio();
       }
       const audio = audioRef.current;
-      audio.src = currentTrack.audioSrc;
+      audio.src = currentTrack.audioUrl;
 
       const onLoaded = () => {
         usePlayerStore.getState().setDuration(audio.duration);
@@ -60,6 +45,9 @@ export function useAudioPlayer() {
       audio.addEventListener("loadedmetadata", onLoaded);
       audio.addEventListener("timeupdate", onTimeUpdate);
       audio.addEventListener("ended", onEnded);
+
+      // Increment play count
+      fetch(`/api/tracks/${currentTrack.id}/play`, { method: "POST" }).catch(() => {});
 
       return () => {
         audio.removeEventListener("loadedmetadata", onLoaded);
@@ -76,7 +64,7 @@ export function useAudioPlayer() {
   useEffect(() => {
     if (!currentTrack) return;
 
-    if (currentTrack.audioSrc && audioRef.current) {
+    if (currentTrack.audioUrl && audioRef.current) {
       if (isPlaying) {
         audioRef.current.play().catch(() => {});
       } else {
@@ -105,7 +93,7 @@ export function useAudioPlayer() {
   // Handle seek
   const seekTo = useCallback(
     (time: number) => {
-      if (audioRef.current && currentTrack?.audioSrc) {
+      if (audioRef.current && currentTrack?.audioUrl) {
         audioRef.current.currentTime = time;
       }
       usePlayerStore.getState().seekTo(time);

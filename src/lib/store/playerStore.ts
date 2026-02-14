@@ -1,12 +1,12 @@
 import { create } from "zustand";
-import { type Track } from "@/lib/data/tracks";
+import { type ApiTrack } from "@/lib/types";
 
 export type RepeatMode = "off" | "all" | "one";
 
 interface PlayerState {
-  queue: Track[];
+  queue: ApiTrack[];
   currentIndex: number;
-  currentTrack: Track | null;
+  currentTrack: ApiTrack | null;
 
   isPlaying: boolean;
   currentTime: number;
@@ -27,8 +27,8 @@ interface PlayerState {
   next: () => void;
   previous: () => void;
   seekTo: (time: number) => void;
-  setQueue: (tracks: Track[], startIndex?: number) => void;
-  playTrack: (track: Track, queue?: Track[]) => void;
+  setQueue: (tracks: ApiTrack[], startIndex?: number) => void;
+  playTrack: (track: ApiTrack, queue?: ApiTrack[]) => void;
   setCurrentTime: (time: number) => void;
   setDuration: (duration: number) => void;
   toggleShuffle: () => void;

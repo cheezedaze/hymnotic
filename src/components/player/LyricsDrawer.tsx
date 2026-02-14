@@ -1,9 +1,9 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { usePlayerStore } from "@/lib/store/playerStore";
-import { getLyricsByTrackId, type LyricLine } from "@/lib/data/lyrics";
+import { type ApiLyricLine } from "@/lib/types";
 import { PlaybackControls } from "./PlaybackControls";
 import { cn } from "@/lib/utils/cn";
 
@@ -15,7 +15,32 @@ export function LyricsDrawer() {
   const lyricsContainerRef = useRef<HTMLDivElement>(null);
   const activeLineRef = useRef<HTMLDivElement>(null);
 
-  const lyrics = currentTrack ? getLyricsByTrackId(currentTrack.id) : [];
+  const [lyrics, setLyrics] = useState<ApiLyricLine[]>([]);
+
+  // Fetch lyrics from API when track changes
+  useEffect(() => {
+    if (!currentTrack) {
+      setLyrics([]);
+      return;
+    }
+
+    let cancelled = false;
+    fetch(`/api/tracks/${currentTrack.id}/lyrics`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (!cancelled) {
+          setLyrics(Array.isArray(data) ? data : []);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setLyrics([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentTrack?.id]);
+
   const hasLyrics = lyrics.length > 0;
 
   // Auto-scroll to active lyric
@@ -28,8 +53,6 @@ export function LyricsDrawer() {
     }
   }, [currentTime]);
 
-  // Don't early-return here — parent controls mounting. AnimatePresence needs
-  // the motion.div to stay mounted during exit so the slide-down animation plays.
   const getActiveLineIndex = () => {
     for (let i = lyrics.length - 1; i >= 0; i--) {
       if (currentTime >= lyrics[i].startTime) return i;
@@ -74,7 +97,7 @@ export function LyricsDrawer() {
               const isPast = index < activeIndex;
               return (
                 <div
-                  key={index}
+                  key={line.id || index}
                   ref={isActive ? activeLineRef : undefined}
                   className={cn(
                     "text-lg leading-relaxed transition-all duration-300 text-display",

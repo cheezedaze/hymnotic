@@ -1,10 +1,10 @@
 "use client";
 
-import { type Track } from "@/lib/data/tracks";
+import { type ApiTrack } from "@/lib/types";
 import { TrackItem } from "./TrackItem";
 
 interface TrackListProps {
-  tracks: Track[];
+  tracks: ApiTrack[];
 }
 
 export function TrackList({ tracks }: TrackListProps) {

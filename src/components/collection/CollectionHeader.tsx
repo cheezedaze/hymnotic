@@ -3,15 +3,16 @@
 import { useRef, useState, useEffect } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
-import { type Collection } from "@/lib/data/collections";
+import { ArrowLeft, Disc3 } from "lucide-react";
+import { type ApiCollection } from "@/lib/types";
 import { cn } from "@/lib/utils/cn";
 
 interface CollectionHeaderProps {
-  collection: Collection;
+  collection: ApiCollection;
+  trackCount: number;
 }
 
-export function CollectionHeader({ collection }: CollectionHeaderProps) {
+export function CollectionHeader({ collection, trackCount }: CollectionHeaderProps) {
   const router = useRouter();
   const headerRef = useRef<HTMLDivElement>(null);
   const [scrollY, setScrollY] = useState(0);
@@ -52,7 +53,6 @@ export function CollectionHeader({ collection }: CollectionHeaderProps) {
       {/* Hero artwork */}
       <div ref={headerRef} className="relative w-full">
         <div className="relative w-full aspect-[4/3] overflow-hidden">
-          {/* Image parallax: stays in place, scales and blurs on scroll */}
           <div
             className="absolute inset-0"
             style={{
@@ -62,15 +62,20 @@ export function CollectionHeader({ collection }: CollectionHeaderProps) {
               WebkitFilter: `blur(${artworkBlur}px)`,
             }}
           >
-            <Image
-              src={collection.artwork}
-              alt={collection.title}
-              fill
-              className="object-cover"
-              priority
-            />
+            {collection.artworkUrl ? (
+              <Image
+                src={collection.artworkUrl}
+                alt={collection.title}
+                fill
+                className="object-cover"
+                priority
+              />
+            ) : (
+              <div className="w-full h-full bg-white/5 flex items-center justify-center">
+                <Disc3 size={64} className="text-text-dim" />
+              </div>
+            )}
           </div>
-          {/* Gradient stays full size, fades and blurs on scroll */}
           <div
             className="absolute inset-0 bg-gradient-to-t from-midnight via-midnight/40 to-transparent pointer-events-none"
             style={{
@@ -81,7 +86,7 @@ export function CollectionHeader({ collection }: CollectionHeaderProps) {
           />
         </div>
 
-        {/* Back button (visible when not scrolled) */}
+        {/* Back button */}
         <button
           onClick={() => router.back()}
           className={cn(
@@ -99,7 +104,7 @@ export function CollectionHeader({ collection }: CollectionHeaderProps) {
             {collection.title}
           </h1>
           <p className="text-sm text-text-muted mt-1">
-            {collection.trackCount} songs
+            {trackCount} songs
           </p>
         </div>
       </div>

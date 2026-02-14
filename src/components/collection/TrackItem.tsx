@@ -1,15 +1,15 @@
 "use client";
 
 import Image from "next/image";
-import { Play, Heart, Eye, MoreHorizontal, Video } from "lucide-react";
-import { type Track } from "@/lib/data/tracks";
+import { Play, Heart, MoreHorizontal, Video, Music } from "lucide-react";
+import { type ApiTrack } from "@/lib/types";
 import { usePlayerStore } from "@/lib/store/playerStore";
 import { WaveformIcon } from "@/components/player/WaveformIcon";
 import { cn } from "@/lib/utils/cn";
 
 interface TrackItemProps {
-  track: Track;
-  queue: Track[];
+  track: ApiTrack;
+  queue: ApiTrack[];
 }
 
 function formatCount(n: number): string {
@@ -41,12 +41,18 @@ export function TrackItem({ track, queue }: TrackItemProps) {
     >
       {/* Thumbnail / Waveform */}
       <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
-        <Image
-          src={track.artwork}
-          alt={track.title}
-          fill
-          className="object-cover"
-        />
+        {track.artworkUrl ? (
+          <Image
+            src={track.artworkUrl}
+            alt={track.title}
+            fill
+            className="object-cover"
+          />
+        ) : (
+          <div className="w-full h-full bg-white/5 flex items-center justify-center">
+            <Music size={16} className="text-text-dim" />
+          </div>
+        )}
         {isActive && (
           <div className="absolute inset-0 bg-midnight/70 flex items-center justify-center">
             <WaveformIcon active={isCurrentlyPlaying} />

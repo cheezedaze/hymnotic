@@ -2,7 +2,7 @@
   "CORSRules": [
     {
       "AllowedHeaders": ["*"],
-      "AllowedMethods": ["GET", "HEAD"],
+      "AllowedMethods": ["GET", "HEAD", "PUT", "POST"],
       "AllowedOrigins": [
         "http://localhost:3000",
         "http://localhost:3333",
@@ -13,7 +13,8 @@
       "ExposeHeaders": [
         "Content-Length",
         "Content-Range",
-        "Accept-Ranges"
+        "Accept-Ranges",
+        "ETag"
       ],
       "MaxAgeSeconds": 86400
     }

@@ -4,10 +4,10 @@ import { Download, Share2, Shuffle, Play, Pause } from "lucide-react";
 import { IconButton } from "@/components/ui/IconButton";
 import { GlowButton } from "@/components/ui/GlowButton";
 import { usePlayerStore } from "@/lib/store/playerStore";
-import { type Track } from "@/lib/data/tracks";
+import { type ApiTrack } from "@/lib/types";
 
 interface ActionRowProps {
-  tracks: Track[];
+  tracks: ApiTrack[];
 }
 
 export function ActionRow({ tracks }: ActionRowProps) {

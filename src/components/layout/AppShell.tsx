@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import { usePlayerStore } from "@/lib/store/playerStore";
 import { useAudioPlayer } from "@/lib/hooks/useAudioPlayer";
 import { NavBar } from "./NavBar";
@@ -9,21 +8,6 @@ import { NowPlaying } from "@/components/player/NowPlaying";
 import { AnimatePresence } from "framer-motion";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  // #region agent log
-  useEffect(() => {
-    fetch("/api/debug-log", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        location: "AppShell.tsx:mount",
-        message: "AppShell mounted",
-        data: { phase: "before_useAudioPlayer" },
-        timestamp: Date.now(),
-        hypothesisId: "H1",
-      }),
-    }).catch(() => {});
-  }, []);
-  // #endregion
   useAudioPlayer();
 
   const isMiniPlayerVisible = usePlayerStore((s) => s.isMiniPlayerVisible);
