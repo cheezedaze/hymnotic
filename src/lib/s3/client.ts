@@ -12,6 +12,12 @@ function getS3Client(): S3Client {
         accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
       },
+      // Force virtual-hosted style URLs (bucket.s3.region.amazonaws.com)
+      forcePathStyle: false,
+      // Disable automatic checksums — SDK v3.990+ adds CRC32 by default,
+      // which causes CORS preflight failures on browser-to-S3 uploads.
+      requestChecksumCalculation: "WHEN_REQUIRED",
+      responseChecksumValidation: "WHEN_REQUIRED",
     });
   }
   return s3Client;
@@ -62,12 +68,33 @@ export function buildTrackMediaUrls(track: {
   audioKey: string | null;
   videoKey: string | null;
   videoThumbnailKey: string | null;
+  originalAudioKey?: string | null;
 }) {
   return {
     artworkUrl: getMediaUrl(track.artworkKey),
     audioUrl: getMediaUrl(track.audioKey),
     videoUrl: getMediaUrl(track.videoKey),
     videoThumbnailUrl: getMediaUrl(track.videoThumbnailKey),
+    originalAudioUrl: getMediaUrl(track.originalAudioKey),
+  };
+}
+
+/**
+ * Build media URLs for a track, including the parent collection's artwork as fallback.
+ */
+export function buildTrackMediaUrlsWithFallback(
+  track: {
+    artworkKey: string | null;
+    audioKey: string | null;
+    videoKey: string | null;
+    videoThumbnailKey: string | null;
+    originalAudioKey?: string | null;
+  },
+  collectionArtworkKey: string | null
+) {
+  return {
+    ...buildTrackMediaUrls(track),
+    collectionArtworkUrl: getMediaUrl(collectionArtworkKey),
   };
 }
 

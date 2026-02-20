@@ -2,7 +2,7 @@ import { User, Settings, Palette, Volume2 } from "lucide-react";
 
 export default function ProfilePage() {
   return (
-    <div className="min-h-dvh px-4 sm:px-6 py-8 pb-32">
+    <div className="min-h-dvh px-4 sm:px-6 pt-[calc(2rem+var(--safe-top))] pb-4">
       <div className="max-w-2xl mx-auto space-y-6">
         {/* Profile header */}
         <div className="glass-heavy rounded-2xl p-6 flex items-center gap-4">

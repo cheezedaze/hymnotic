@@ -16,7 +16,7 @@ export function NavBar() {
   const pathname = usePathname();
 
   return (
-    <nav className="py-2">
+    <nav className="pt-2">
       <div className="flex items-center justify-around">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
@@ -66,7 +66,7 @@ export function NavBar() {
               WebkitMaskSize: "contain",
               WebkitMaskRepeat: "no-repeat",
               WebkitMaskPosition: "center",
-              backgroundColor: "currentColor",
+              backgroundColor: "#FFFFFF",
             }}
             aria-hidden
           />

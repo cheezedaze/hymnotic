@@ -6,6 +6,9 @@ import {
   Disc3,
   Music,
   Star,
+  Video,
+  FileText,
+  Settings,
   LogOut,
 } from "lucide-react";
 import Image from "next/image";
@@ -16,6 +19,9 @@ const navItems = [
   { href: "/admin/collections", label: "Collections", icon: Disc3 },
   { href: "/admin/tracks", label: "Tracks", icon: Music },
   { href: "/admin/featured", label: "Featured", icon: Star },
+  { href: "/admin/videos", label: "Videos", icon: Video },
+  { href: "/admin/content", label: "Content", icon: FileText },
+  { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
 export function AdminNav() {
@@ -47,7 +53,7 @@ export function AdminNav() {
           </div>
 
           {/* Nav tabs */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 overflow-x-auto">
             {navItems.map((item) => {
               const isActive =
                 item.href === "/admin"

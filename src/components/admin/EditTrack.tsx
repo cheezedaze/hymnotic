@@ -1,17 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import {
   ArrowLeft,
   Save,
-  Music,
   Plus,
-  Trash2,
   FileText,
 } from "lucide-react";
 import { AdminFileUpload } from "./AdminFileUpload";
+import { AdminAudioPlayer } from "./AdminAudioPlayer";
+import { LyricsImporter } from "./LyricsImporter";
+import { LrcTimingEditor } from "./LrcTimingEditor";
+import type { UseAdminAudioPlayerReturn } from "@/lib/hooks/useAdminAudioPlayer";
 import { formatTime } from "@/lib/utils/formatTime";
 
 interface LyricLine {
@@ -34,14 +36,18 @@ interface EditTrackProps {
     audioUrl: string | null;
     audioKey: string | null;
     audioFormat: string | null;
+    originalAudioKey: string | null;
+    originalAudioUrl: string | null;
     videoUrl: string | null;
     videoKey: string | null;
     duration: number;
     trackNumber: number;
     playCount: number;
     favoriteCount: number;
+    isActive: boolean;
     hasVideo: boolean;
     hasLyrics: boolean;
+    youtubeUrl: string | null;
   };
   lyrics: LyricLine[];
   collections: Array<{ id: string; title: string }>;
@@ -60,8 +66,11 @@ export function EditTrack({ track, lyrics: initialLyrics, collections }: EditTra
     artworkKey: track.artworkKey || "",
     audioKey: track.audioKey || "",
     audioFormat: track.audioFormat || "",
+    originalAudioKey: track.originalAudioKey || "",
     videoKey: track.videoKey || "",
+    isActive: track.isActive,
     hasVideo: track.hasVideo,
+    youtubeUrl: track.youtubeUrl || "",
   });
   const [artworkPreview, setArtworkPreview] = useState(track.artworkUrl || "");
   const [audioUploaded, setAudioUploaded] = useState(!!track.audioUrl);
@@ -77,6 +86,27 @@ export function EditTrack({ track, lyrics: initialLyrics, collections }: EditTra
       : []
   );
   const [savingLyrics, setSavingLyrics] = useState(false);
+
+  // Admin audio player (independent from global player)
+  const audioPlayerRef = useRef<UseAdminAudioPlayerReturn | null>(null);
+  const [audioCurrentTime, setAudioCurrentTime] = useState(0);
+
+  // Build audio URL: use track.audioUrl if available, otherwise null
+  // After a new upload within this session, the audioKey changes but we don't
+  // have a CDN URL for it yet until the track is saved and page refreshed.
+  const audioUrl = track.audioUrl;
+
+  // Import lyrics from pasted text
+  const handleLyricsImport = (textLines: string[]) => {
+    const newLines: LyricLine[] = textLines.map((text, i) => ({
+      lineNumber: i + 1,
+      startTime: -1,
+      endTime: -1,
+      text,
+      isChorus: false,
+    }));
+    setLyricLines(newLines);
+  };
 
   // Save track metadata
   const handleSaveTrack = async (e: React.FormEvent) => {
@@ -120,8 +150,8 @@ export function EditTrack({ track, lyrics: initialLyrics, collections }: EditTra
         body: JSON.stringify({
           lines: lyricLines.map((line, i) => ({
             lineNumber: i + 1,
-            startTime: line.startTime,
-            endTime: line.endTime,
+            startTime: Math.max(0, line.startTime),
+            endTime: Math.max(0, line.endTime),
             text: line.text,
             isChorus: line.isChorus,
           })),
@@ -145,33 +175,17 @@ export function EditTrack({ track, lyrics: initialLyrics, collections }: EditTra
   // Add lyric line
   const addLyricLine = () => {
     const lastLine = lyricLines[lyricLines.length - 1];
-    const newStart = lastLine ? lastLine.endTime : 0;
+    const hasLastTime = lastLine && lastLine.endTime >= 0;
     setLyricLines([
       ...lyricLines,
       {
         lineNumber: lyricLines.length + 1,
-        startTime: newStart,
-        endTime: newStart + 10,
+        startTime: hasLastTime ? lastLine.endTime : -1,
+        endTime: hasLastTime ? lastLine.endTime + 10 : -1,
         text: "",
         isChorus: false,
       },
     ]);
-  };
-
-  const removeLyricLine = (index: number) => {
-    setLyricLines(lyricLines.filter((_, i) => i !== index));
-  };
-
-  const updateLyricLine = (
-    index: number,
-    field: keyof LyricLine,
-    value: string | number | boolean
-  ) => {
-    setLyricLines(
-      lyricLines.map((line, i) =>
-        i === index ? { ...line, [field]: value } : line
-      )
-    );
   };
 
   return (
@@ -247,7 +261,7 @@ export function EditTrack({ track, lyrics: initialLyrics, collections }: EditTra
           </div>
           <div>
             <label className="block text-xs font-medium text-text-secondary mb-1.5">
-              Duration (seconds) *
+              Duration (seconds, auto-filled from audio) *
             </label>
             <input
               type="number"
@@ -280,6 +294,22 @@ export function EditTrack({ track, lyrics: initialLyrics, collections }: EditTra
           </div>
         </div>
 
+        {/* YouTube URL */}
+        <div>
+          <label className="block text-xs font-medium text-text-secondary mb-1.5">
+            YouTube URL (optional)
+          </label>
+          <input
+            type="url"
+            value={form.youtubeUrl}
+            onChange={(e) =>
+              setForm({ ...form, youtubeUrl: e.target.value })
+            }
+            placeholder="https://youtu.be/..."
+            className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-text-primary focus:outline-none focus:border-accent/50 transition-colors"
+          />
+        </div>
+
         {/* File uploads */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {/* Audio upload */}
@@ -291,12 +321,25 @@ export function EditTrack({ track, lyrics: initialLyrics, collections }: EditTra
               label={audioUploaded ? "Replace audio" : "Upload audio"}
               accept="audio/*"
               folder="audio/tracks"
-              onUploadComplete={({ key }) => {
-                const ext = key.split(".").pop() || "mp3";
-                setForm({ ...form, audioKey: key, audioFormat: ext });
+              maxSizeMB={150}
+              onUploadComplete={({ key, audioDuration, originalKey, converted }) => {
+                setForm((prev) => ({
+                  ...prev,
+                  audioKey: key,
+                  audioFormat: converted ? "mp3" : (key.split(".").pop() || "mp3"),
+                  originalAudioKey: originalKey || prev.originalAudioKey,
+                  ...(audioDuration != null && audioDuration > 0
+                    ? { duration: Math.round(audioDuration * 10) / 10 }
+                    : {}),
+                }));
                 setAudioUploaded(true);
               }}
             />
+            {form.originalAudioKey && (
+              <p className="text-xs text-accent mt-1">
+                WAV original stored (converted to MP3 for playback)
+              </p>
+            )}
           </div>
 
           {/* Artwork upload */}
@@ -345,6 +388,19 @@ export function EditTrack({ track, lyrics: initialLyrics, collections }: EditTra
           </div>
         </div>
 
+        {/* Active toggle */}
+        <label className="flex items-center gap-3 cursor-pointer w-fit">
+          <input
+            type="checkbox"
+            checked={form.isActive}
+            onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
+            className="w-4 h-4 rounded accent-accent"
+          />
+          <span className="text-sm font-medium text-text-secondary">
+            Active <span className="text-text-dim font-normal">(visible to users)</span>
+          </span>
+        </label>
+
         {error && <p className="text-red-400 text-sm">{error}</p>}
         {success && <p className="text-green-400 text-sm">{success}</p>}
 
@@ -386,82 +442,38 @@ export function EditTrack({ track, lyrics: initialLyrics, collections }: EditTra
           </div>
         </div>
 
-        {lyricLines.length === 0 ? (
+        {/* Audio player for timing */}
+        <AdminAudioPlayer
+          audioUrl={audioUrl}
+          duration={form.duration}
+          onTimeUpdate={setAudioCurrentTime}
+          audioPlayerRef={audioPlayerRef}
+        />
+
+        {/* Paste and import lyrics */}
+        <LyricsImporter
+          onImport={handleLyricsImport}
+          existingLineCount={lyricLines.length}
+        />
+
+        {/* LRC timing grid */}
+        {lyricLines.length > 0 ? (
+          <LrcTimingEditor
+            lines={lyricLines}
+            onLinesChange={setLyricLines}
+            getCurrentTime={() =>
+              audioPlayerRef.current?.getCurrentTime() ?? 0
+            }
+            isAudioLoaded={audioPlayerRef.current?.state.isLoaded ?? false}
+            trackDuration={form.duration}
+            audioCurrentTime={audioCurrentTime}
+          />
+        ) : (
           <div className="text-center py-6">
             <FileText size={24} className="text-text-dim mx-auto mb-2" />
             <p className="text-text-muted text-sm">
-              No lyrics yet. Click &quot;Add Line&quot; to start.
+              No lyrics yet. Paste lyrics above or click &quot;Add Line&quot;.
             </p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {/* Header */}
-            <div className="grid grid-cols-[60px_60px_1fr_60px_40px] gap-2 px-2 text-[10px] font-medium text-text-dim uppercase">
-              <span>Start</span>
-              <span>End</span>
-              <span>Text</span>
-              <span>Chorus</span>
-              <span></span>
-            </div>
-
-            {lyricLines.map((line, index) => (
-              <div
-                key={index}
-                className="grid grid-cols-[60px_60px_1fr_60px_40px] gap-2 items-center"
-              >
-                <input
-                  type="number"
-                  step="0.1"
-                  value={line.startTime}
-                  onChange={(e) =>
-                    updateLyricLine(
-                      index,
-                      "startTime",
-                      parseFloat(e.target.value) || 0
-                    )
-                  }
-                  className="px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-text-primary focus:outline-none focus:border-accent/50 transition-colors"
-                />
-                <input
-                  type="number"
-                  step="0.1"
-                  value={line.endTime}
-                  onChange={(e) =>
-                    updateLyricLine(
-                      index,
-                      "endTime",
-                      parseFloat(e.target.value) || 0
-                    )
-                  }
-                  className="px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-text-primary focus:outline-none focus:border-accent/50 transition-colors"
-                />
-                <input
-                  type="text"
-                  value={line.text}
-                  onChange={(e) =>
-                    updateLyricLine(index, "text", e.target.value)
-                  }
-                  placeholder="Lyric text..."
-                  className="px-2 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-text-primary placeholder:text-text-dim focus:outline-none focus:border-accent/50 transition-colors"
-                />
-                <label className="flex items-center justify-center">
-                  <input
-                    type="checkbox"
-                    checked={line.isChorus}
-                    onChange={(e) =>
-                      updateLyricLine(index, "isChorus", e.target.checked)
-                    }
-                    className="w-3.5 h-3.5 rounded border-white/20 bg-white/5 text-accent focus:ring-accent/50"
-                  />
-                </label>
-                <button
-                  onClick={() => removeLyricLine(index)}
-                  className="p-1 rounded hover:bg-red-500/10 text-text-dim hover:text-red-400 transition-colors mx-auto"
-                >
-                  <Trash2 size={12} />
-                </button>
-              </div>
-            ))}
           </div>
         )}
       </div>

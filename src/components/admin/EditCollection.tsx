@@ -178,6 +178,7 @@ export function EditCollection({ collection, tracks }: EditCollectionProps) {
               label="Upload artwork"
               accept="image/*"
               folder="images/artwork"
+              currentFile={artworkPreview || undefined}
               onUploadComplete={({ key, cdnUrl }) => {
                 setForm({ ...form, artworkKey: key });
                 setArtworkPreview(cdnUrl);

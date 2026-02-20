@@ -16,6 +16,8 @@ export function HeroCard({ featuredTrack, queue }: HeroCardProps) {
 
   if (!featuredTrack) return null;
 
+  const displayArtworkUrl = featuredTrack.artworkUrl || featuredTrack.collectionArtworkUrl;
+
   const handlePlay = () => {
     playTrack(featuredTrack, queue);
     expandNowPlaying();
@@ -26,23 +28,13 @@ export function HeroCard({ featuredTrack, queue }: HeroCardProps) {
       <button onClick={handlePlay} className="relative w-full rounded-2xl group">
         {/* Background image */}
         <div className="relative aspect-[16/10] w-full overflow-hidden rounded-2xl">
-          {featuredTrack.artworkUrl ? (
-            <Image
-              src={featuredTrack.artworkUrl}
-              alt="Featured"
-              fill
-              className="object-cover"
-              priority
-            />
-          ) : (
-            <Image
-              src="/images/image-1.png"
-              alt="Featured"
-              fill
-              className="object-cover"
-              priority
-            />
-          )}
+          <Image
+            src={displayArtworkUrl || "/images/image-1.png"}
+            alt="Featured"
+            fill
+            className="object-cover"
+            priority
+          />
           {/* Gradient overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-midnight-deep/90 via-midnight/40 to-transparent" />
         </div>

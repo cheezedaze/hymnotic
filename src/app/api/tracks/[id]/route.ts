@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { getTrackById } from "@/lib/db/queries";
-import { buildTrackMediaUrls } from "@/lib/s3/client";
+import { getTrackById, getCollectionById } from "@/lib/db/queries";
+import { buildTrackMediaUrlsWithFallback } from "@/lib/s3/client";
 
 /**
  * GET /api/tracks/:id
@@ -21,6 +21,8 @@ export async function GET(
       );
     }
 
+    const collection = await getCollectionById(track.collectionId);
+
     const response = {
       id: track.id,
       collectionId: track.collectionId,
@@ -33,7 +35,7 @@ export async function GET(
       hasVideo: track.hasVideo,
       videoCount: track.videoCount,
       hasLyrics: track.hasLyrics,
-      ...buildTrackMediaUrls(track),
+      ...buildTrackMediaUrlsWithFallback(track, collection?.artworkKey ?? null),
     };
 
     return NextResponse.json(response);

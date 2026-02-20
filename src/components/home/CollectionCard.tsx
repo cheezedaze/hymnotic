@@ -2,8 +2,9 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Disc3 } from "lucide-react";
+import { Disc3, Heart } from "lucide-react";
 import { type ApiCollection } from "@/lib/types";
+import { useNavigationStore } from "@/lib/store/navigationStore";
 
 interface CollectionCardProps {
   collection: ApiCollection;
@@ -12,9 +13,16 @@ interface CollectionCardProps {
 export function CollectionCard({ collection }: CollectionCardProps) {
   const router = useRouter();
 
+  const handleClick = () => {
+    const store = useNavigationStore.getState();
+    store.setDirection("forward");
+    store.startTransition();
+    router.push(`/collection/${collection.id}`);
+  };
+
   return (
     <button
-      onClick={() => router.push(`/collection/${collection.id}`)}
+      onClick={handleClick}
       className="group block text-left w-full"
     >
       <div className="relative aspect-square rounded-2xl overflow-hidden shadow-[var(--shadow-card)]">
@@ -27,7 +35,11 @@ export function CollectionCard({ collection }: CollectionCardProps) {
           />
         ) : (
           <div className="w-full h-full bg-white/5 flex items-center justify-center">
-            <Disc3 size={40} className="text-text-dim" />
+            {collection.id === "favorites" ? (
+              <Heart size={40} className="text-accent" fill="currentColor" />
+            ) : (
+              <Disc3 size={40} className="text-text-dim" />
+            )}
           </div>
         )}
       </div>

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getCollectionWithTracks } from "@/lib/db/queries";
 import {
   buildCollectionMediaUrls,
-  buildTrackMediaUrls,
+  buildTrackMediaUrlsWithFallback,
 } from "@/lib/s3/client";
 
 /**
@@ -42,7 +42,7 @@ export async function GET(
         hasVideo: track.hasVideo,
         videoCount: track.videoCount,
         hasLyrics: track.hasLyrics,
-        ...buildTrackMediaUrls(track),
+        ...buildTrackMediaUrlsWithFallback(track, collection.artworkKey),
       })),
     };
 

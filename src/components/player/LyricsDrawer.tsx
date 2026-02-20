@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { useRef, useEffect, useState, useCallback } from "react";
+import { motion, useDragControls, useMotionValue, useTransform, type PanInfo } from "framer-motion";
 import { usePlayerStore } from "@/lib/store/playerStore";
 import { type ApiLyricLine } from "@/lib/types";
 import { PlaybackControls } from "./PlaybackControls";
@@ -14,6 +14,58 @@ export function LyricsDrawer() {
 
   const lyricsContainerRef = useRef<HTMLDivElement>(null);
   const activeLineRef = useRef<HTMLDivElement>(null);
+  const dragControls = useDragControls();
+  const dragY = useMotionValue(0);
+  const backdropOpacity = useTransform(dragY, [0, 300], [1, 0.3]);
+
+  // Track whether the lyrics container is scrolled to top
+  const isAtTopRef = useRef(true);
+  const touchStartYRef = useRef(0);
+  const isDraggingFromContentRef = useRef(false);
+
+  const handleDragEnd = (_: unknown, info: PanInfo) => {
+    if (info.offset.y > 100 || info.velocity.y > 500) {
+      setLyricsOpen(false);
+    }
+  };
+
+  // Allow swiping down from the lyrics content when scrolled to top
+  const handleContentPointerDown = useCallback((e: React.PointerEvent) => {
+    const container = lyricsContainerRef.current;
+    if (container && container.scrollTop <= 0) {
+      isAtTopRef.current = true;
+      touchStartYRef.current = e.clientY;
+    } else {
+      isAtTopRef.current = false;
+    }
+  }, []);
+
+  const handleContentPointerMove = useCallback((e: React.PointerEvent) => {
+    if (!isAtTopRef.current) return;
+
+    const deltaY = e.clientY - touchStartYRef.current;
+    // Only initiate drag if swiping downward and at top of scroll
+    if (deltaY > 10 && !isDraggingFromContentRef.current) {
+      const container = lyricsContainerRef.current;
+      if (container && container.scrollTop <= 0) {
+        isDraggingFromContentRef.current = true;
+        // Prevent scroll and start the drag
+        container.style.overflowY = "hidden";
+        dragControls.start(e);
+      }
+    }
+  }, [dragControls]);
+
+  const handleContentPointerUp = useCallback(() => {
+    if (isDraggingFromContentRef.current) {
+      isDraggingFromContentRef.current = false;
+      const container = lyricsContainerRef.current;
+      if (container) {
+        container.style.overflowY = "auto";
+      }
+    }
+    isAtTopRef.current = true;
+  }, []);
 
   const [lyrics, setLyrics] = useState<ApiLyricLine[]>([]);
 
@@ -68,10 +120,20 @@ export function LyricsDrawer() {
       animate={{ y: 0 }}
       exit={{ y: "100%" }}
       transition={{ type: "spring", damping: 30, stiffness: 300 }}
+      style={{ y: dragY, opacity: backdropOpacity }}
+      drag="y"
+      dragControls={dragControls}
+      dragConstraints={{ top: 0, bottom: 0 }}
+      dragElastic={{ top: 0, bottom: 0.6 }}
+      dragListener={false}
+      onDragEnd={handleDragEnd}
       className="absolute inset-0 z-50 flex flex-col bg-teal-solid"
     >
-      {/* Header with drag handle */}
-      <div className="flex-shrink-0 pt-[calc(0.75rem+var(--safe-top))]">
+      {/* Header with drag handle - swipe down to dismiss */}
+      <div
+        className="flex-shrink-0 pt-[calc(0.75rem+var(--safe-top))] touch-none cursor-grab active:cursor-grabbing"
+        onPointerDown={(e) => dragControls.start(e)}
+      >
         <button
           onClick={() => setLyricsOpen(false)}
           className="w-full py-3"
@@ -89,6 +151,10 @@ export function LyricsDrawer() {
       <div
         ref={lyricsContainerRef}
         className="flex-1 overflow-y-auto px-6 py-6 scrollbar-hide"
+        onPointerDown={handleContentPointerDown}
+        onPointerMove={handleContentPointerMove}
+        onPointerUp={handleContentPointerUp}
+        onPointerCancel={handleContentPointerUp}
       >
         {hasLyrics ? (
           <div className="space-y-4 pb-8">

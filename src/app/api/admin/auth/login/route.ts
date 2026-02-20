@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 import {
   verifyPassword,
   createSession,
-  setSessionCookie,
 } from "@/lib/auth/session";
+
+const SESSION_COOKIE = "hymnotic_admin_session";
+const SESSION_MAX_AGE = 24 * 60 * 60; // 24 hours
 
 export async function POST(request: Request) {
   try {
@@ -24,9 +26,18 @@ export async function POST(request: Request) {
     }
 
     const token = createSession();
-    await setSessionCookie(token);
 
-    return NextResponse.json({ success: true });
+    // Set cookie directly on the response to ensure it's sent
+    const response = NextResponse.json({ success: true });
+    response.cookies.set(SESSION_COOKIE, token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: SESSION_MAX_AGE,
+      path: "/",
+    });
+
+    return response;
   } catch (error) {
     console.error("Login error:", error);
     return NextResponse.json(

@@ -27,6 +27,8 @@ export interface ApiTrack {
   audioKey: string | null;
   audioUrl: string | null;
   audioFormat: string | null;
+  originalAudioKey: string | null;
+  originalAudioUrl: string | null;
   videoKey: string | null;
   videoUrl: string | null;
   videoThumbnailKey: string | null;
@@ -38,7 +40,40 @@ export interface ApiTrack {
   hasVideo: boolean;
   videoCount: number;
   hasLyrics: boolean;
+  isActive: boolean;
+  youtubeUrl: string | null;
+  collectionArtworkUrl: string | null;
   createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ApiVideo {
+  id: number;
+  title: string;
+  youtubeUrl: string;
+  thumbnailUrl: string | null;
+  trackId: string | null;
+  sortOrder: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ApiContentBlock {
+  id: number;
+  page: string;
+  sectionKey: string;
+  title: string;
+  body: string;
+  icon: string | null;
+  sortOrder: number;
+  active: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ApiSiteSetting {
+  key: string;
+  value: string;
   updatedAt: Date;
 }
 

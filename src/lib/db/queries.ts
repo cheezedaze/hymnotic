@@ -1,13 +1,18 @@
-import { eq, asc, desc, sql } from "drizzle-orm";
+import { eq, asc, desc, sql, inArray, and, isNotNull } from "drizzle-orm";
 import { db } from "./index";
 import {
   collections,
   tracks,
   lyrics,
   featuredContent,
+  videos,
+  siteSettings,
+  contentBlocks,
   type NewCollection,
   type NewTrack,
   type NewLyric,
+  type NewVideo,
+  type NewContentBlock,
 } from "./schema";
 
 // =============================================================================
@@ -71,6 +76,9 @@ export async function updateCollection(
 }
 
 export async function deleteCollection(id: string) {
+  if (id === "favorites") {
+    throw new Error("Cannot delete the Favorites collection");
+  }
   // Check for tracks first
   const collectionTracks = await getTracksByCollection(id);
   if (collectionTracks.length > 0) {
@@ -84,6 +92,14 @@ export async function deleteCollection(id: string) {
 // =============================================================================
 
 export async function getTracksByCollection(collectionId: string) {
+  return db
+    .select()
+    .from(tracks)
+    .where(and(eq(tracks.collectionId, collectionId), eq(tracks.isActive, true)))
+    .orderBy(asc(tracks.trackNumber));
+}
+
+export async function getAllTracksByCollection(collectionId: string) {
   return db
     .select()
     .from(tracks)
@@ -132,12 +148,15 @@ export async function createTrack(data: {
   artworkKey?: string;
   audioKey?: string;
   audioFormat?: string;
+  originalAudioKey?: string;
   duration: number;
   trackNumber: number;
+  isActive?: boolean;
   hasVideo?: boolean;
   videoKey?: string;
   videoThumbnailKey?: string;
   hasLyrics?: boolean;
+  youtubeUrl?: string;
 }) {
   const result = await db.insert(tracks).values(data).returning();
   return result[0];
@@ -152,12 +171,15 @@ export async function updateTrack(
     artworkKey: string;
     audioKey: string;
     audioFormat: string;
+    originalAudioKey: string | null;
     duration: number;
     trackNumber: number;
+    isActive: boolean;
     hasVideo: boolean;
     videoKey: string;
     videoThumbnailKey: string;
     hasLyrics: boolean;
+    youtubeUrl: string | null;
   }>
 ) {
   const result = await db
@@ -175,8 +197,17 @@ export async function deleteTrack(id: string) {
   await db.delete(tracks).where(eq(tracks.id, id));
 }
 
+export async function getTracksByIds(ids: string[]) {
+  if (ids.length === 0) return [];
+  return db.select().from(tracks).where(inArray(tracks.id, ids));
+}
+
 export async function getAllTracks() {
   return db.select().from(tracks).orderBy(asc(tracks.collectionId), asc(tracks.trackNumber));
+}
+
+export async function getActiveTracks() {
+  return db.select().from(tracks).where(eq(tracks.isActive, true)).orderBy(asc(tracks.collectionId), asc(tracks.trackNumber));
 }
 
 // =============================================================================
@@ -310,4 +341,175 @@ export async function getAdminStats() {
     totalPlays: totalPlays.total,
     featured: featuredCount.count,
   };
+}
+
+// =============================================================================
+// Video Queries
+// =============================================================================
+
+export async function getAllVideos() {
+  return db.select().from(videos).orderBy(asc(videos.sortOrder));
+}
+
+/** Tracks that have a youtubeUrl but no corresponding row in the videos table. */
+export async function getTracksWithVideos() {
+  const allVideos = await db.select({ trackId: videos.trackId }).from(videos);
+  const linkedTrackIds = allVideos
+    .map((v) => v.trackId)
+    .filter((id): id is string => id !== null);
+
+  const tracksWithYt = await db
+    .select({
+      id: tracks.id,
+      title: tracks.title,
+      youtubeUrl: tracks.youtubeUrl,
+      videoThumbnailKey: tracks.videoThumbnailKey,
+      collectionId: tracks.collectionId,
+    })
+    .from(tracks)
+    .where(isNotNull(tracks.youtubeUrl));
+
+  // Filter out tracks already represented in the videos table
+  return tracksWithYt.filter((t) => !linkedTrackIds.includes(t.id));
+}
+
+export async function getVideoById(id: number) {
+  const result = await db
+    .select()
+    .from(videos)
+    .where(eq(videos.id, id))
+    .limit(1);
+  return result[0] ?? null;
+}
+
+export async function createVideo(data: {
+  title: string;
+  youtubeUrl: string;
+  thumbnailUrl?: string;
+  trackId?: string;
+  sortOrder?: number;
+}) {
+  const result = await db.insert(videos).values(data).returning();
+  return result[0];
+}
+
+export async function updateVideo(
+  id: number,
+  data: Partial<{
+    title: string;
+    youtubeUrl: string;
+    thumbnailUrl: string | null;
+    trackId: string | null;
+    sortOrder: number;
+  }>
+) {
+  const result = await db
+    .update(videos)
+    .set({ ...data, updatedAt: new Date() })
+    .where(eq(videos.id, id))
+    .returning();
+  return result[0] ?? null;
+}
+
+export async function deleteVideo(id: number) {
+  await db.delete(videos).where(eq(videos.id, id));
+}
+
+// =============================================================================
+// Site Settings Queries
+// =============================================================================
+
+export async function getSetting(key: string) {
+  const result = await db
+    .select()
+    .from(siteSettings)
+    .where(eq(siteSettings.key, key))
+    .limit(1);
+  return result[0] ?? null;
+}
+
+export async function getAllSettings() {
+  return db.select().from(siteSettings);
+}
+
+export async function upsertSetting(key: string, value: string) {
+  const result = await db
+    .insert(siteSettings)
+    .values({ key, value, updatedAt: new Date() })
+    .onConflictDoUpdate({
+      target: siteSettings.key,
+      set: { value, updatedAt: new Date() },
+    })
+    .returning();
+  return result[0];
+}
+
+// =============================================================================
+// Content Block Queries
+// =============================================================================
+
+export async function getContentBlocksByPage(page: string) {
+  return db
+    .select()
+    .from(contentBlocks)
+    .where(eq(contentBlocks.page, page))
+    .orderBy(asc(contentBlocks.sortOrder));
+}
+
+export async function getActiveContentBlocksByPage(page: string) {
+  return db
+    .select()
+    .from(contentBlocks)
+    .where(
+      and(eq(contentBlocks.page, page), eq(contentBlocks.active, true))
+    )
+    .orderBy(asc(contentBlocks.sortOrder));
+}
+
+export async function getContentBlockById(id: number) {
+  const result = await db
+    .select()
+    .from(contentBlocks)
+    .where(eq(contentBlocks.id, id))
+    .limit(1);
+  return result[0] ?? null;
+}
+
+export async function createContentBlock(data: {
+  page: string;
+  sectionKey: string;
+  title: string;
+  body: string;
+  icon?: string;
+  sortOrder?: number;
+  active?: boolean;
+}) {
+  const result = await db
+    .insert(contentBlocks)
+    .values({ ...data, active: data.active ?? true })
+    .returning();
+  return result[0];
+}
+
+export async function updateContentBlock(
+  id: number,
+  data: Partial<{
+    title: string;
+    body: string;
+    icon: string | null;
+    sectionKey: string;
+    sortOrder: number;
+    active: boolean;
+  }>
+) {
+  const result = await db
+    .update(contentBlocks)
+    .set({ ...data, updatedAt: new Date() })
+    .where(eq(contentBlocks.id, id))
+    .returning();
+  return result[0] ?? null;
+}
+
+export async function deleteContentBlock(id: number) {
+  await db.delete(contentBlocks).where(eq(contentBlocks.id, id));
 }

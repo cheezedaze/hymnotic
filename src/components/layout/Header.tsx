@@ -19,7 +19,7 @@ export function Header() {
   }, []);
 
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-center py-4 pt-[calc(1rem+var(--safe-top))]">
+    <header className="flex items-center justify-center py-4 pt-[calc(1.5rem+var(--safe-top))]">
       <div className="flex w-full flex-col items-center gap-1">
         <div className="relative flex min-w-[366px] items-center justify-center overflow-visible">
           {/* Back layer: cyan #00FFFB, 13.4px blur, 30% larger than logo, no drop-shadow */}

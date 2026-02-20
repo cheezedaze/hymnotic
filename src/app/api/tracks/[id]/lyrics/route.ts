@@ -20,18 +20,15 @@ export async function GET(
       );
     }
 
-    // Return in the format the frontend expects
-    const response = {
-      trackId: id,
-      lines: trackLyrics.map((line) => ({
+    // Return as a flat array — LyricsDrawer expects Array.isArray(data)
+    return NextResponse.json(
+      trackLyrics.map((line) => ({
         startTime: line.startTime,
         endTime: line.endTime,
         text: line.text,
         isChorus: line.isChorus,
-      })),
-    };
-
-    return NextResponse.json(response);
+      }))
+    );
   } catch (error) {
     console.error("Error fetching lyrics:", error);
     return NextResponse.json(

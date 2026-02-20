@@ -5,9 +5,15 @@ import crypto from "crypto";
 const SESSION_COOKIE = "hymnotic_admin_session";
 const SESSION_MAX_AGE = 24 * 60 * 60; // 24 hours in seconds
 
-// In-memory session store (sufficient for single-admin app)
-// In production with multiple instances, use Redis or DB
-const sessions = new Map<string, { createdAt: number }>();
+/**
+ * Get the signing secret — derived from ADMIN_PASSWORD so we don't need
+ * a separate env var. The HMAC ensures the cookie can't be forged.
+ */
+function getSecret(): string {
+  const pw = process.env.ADMIN_PASSWORD;
+  if (!pw) throw new Error("ADMIN_PASSWORD env var is not set");
+  return crypto.createHash("sha256").update(pw).digest("hex");
+}
 
 /**
  * Verify a password against the ADMIN_PASSWORD env var.
@@ -18,7 +24,6 @@ export function verifyPassword(input: string): boolean {
     console.error("ADMIN_PASSWORD environment variable is not set");
     return false;
   }
-  // Constant-time comparison to prevent timing attacks
   const inputBuf = Buffer.from(input);
   const passwordBuf = Buffer.from(adminPassword);
   if (inputBuf.length !== passwordBuf.length) return false;
@@ -26,38 +31,49 @@ export function verifyPassword(input: string): boolean {
 }
 
 /**
- * Create a new session and return the token.
+ * Create a signed session token.
+ * Format: `timestamp.signature`
  */
 export function createSession(): string {
-  const token = crypto.randomBytes(32).toString("hex");
-  sessions.set(token, { createdAt: Date.now() });
-  return token;
+  const timestamp = Date.now().toString();
+  const signature = crypto
+    .createHmac("sha256", getSecret())
+    .update(timestamp)
+    .digest("hex");
+  return `${timestamp}.${signature}`;
 }
 
 /**
- * Validate a session token.
+ * Validate a signed session token.
+ * Checks signature integrity and that the token hasn't expired.
  */
 export function validateSession(token: string): boolean {
-  const session = sessions.get(token);
-  if (!session) return false;
+  const parts = token.split(".");
+  if (parts.length !== 2) return false;
 
-  const age = (Date.now() - session.createdAt) / 1000;
-  if (age > SESSION_MAX_AGE) {
-    sessions.delete(token);
-    return false;
-  }
-  return true;
+  const [timestamp, signature] = parts;
+  if (!timestamp || !signature) return false;
+
+  // Verify signature
+  const expectedSig = crypto
+    .createHmac("sha256", getSecret())
+    .update(timestamp)
+    .digest("hex");
+
+  const sigBuf = Buffer.from(signature, "hex");
+  const expectedBuf = Buffer.from(expectedSig, "hex");
+  if (sigBuf.length !== expectedBuf.length) return false;
+  if (!crypto.timingSafeEqual(sigBuf, expectedBuf)) return false;
+
+  // Check expiry
+  const created = parseInt(timestamp, 10);
+  if (isNaN(created)) return false;
+  const ageSeconds = (Date.now() - created) / 1000;
+  return ageSeconds <= SESSION_MAX_AGE;
 }
 
 /**
- * Destroy a session.
- */
-export function destroySession(token: string): void {
-  sessions.delete(token);
-}
-
-/**
- * Set the session cookie on a response.
+ * Set the session cookie on a response (unused now but kept for reference).
  */
 export async function setSessionCookie(token: string): Promise<void> {
   const cookieStore = await cookies();
@@ -79,7 +95,7 @@ export async function clearSessionCookie(): Promise<void> {
 }
 
 /**
- * Get the session token from cookies.
+ * Get the session token from cookies (for server components).
  */
 export async function getSessionTokenFromCookies(): Promise<string | null> {
   const cookieStore = await cookies();

@@ -18,6 +18,13 @@ export async function PATCH(
     const { id } = await params;
     const body = await request.json();
 
+    // Normalize empty strings to null for nullable fields
+    if (body.youtubeUrl === "") body.youtubeUrl = null;
+    if (body.videoKey === "") body.videoKey = null;
+    if (body.artworkKey === "") body.artworkKey = null;
+    if (body.audioKey === "") body.audioKey = null;
+    if (body.originalAudioKey === "") body.originalAudioKey = null;
+
     const track = await updateTrack(id, body);
 
     if (!track) {

@@ -16,6 +16,7 @@ export function MiniPlayer() {
   if (!currentTrack) return null;
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const displayArtworkUrl = currentTrack.artworkUrl || currentTrack.collectionArtworkUrl;
 
   return (
     <div className="glass mx-2 mb-1 rounded-2xl overflow-hidden">
@@ -32,9 +33,9 @@ export function MiniPlayer() {
         className="flex items-center gap-3 w-full px-3 py-2 text-left"
       >
         {/* Artwork */}
-        {currentTrack.artworkUrl ? (
+        {displayArtworkUrl ? (
           <Image
-            src={currentTrack.artworkUrl}
+            src={displayArtworkUrl}
             alt={currentTrack.title}
             width={40}
             height={40}

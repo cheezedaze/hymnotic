@@ -1,14 +1,15 @@
-import { Header } from "@/components/layout/Header";
+import { HomeParallaxWrapper } from "@/components/home/HomeParallaxWrapper";
 import { HeroCard } from "@/components/home/HeroCard";
 import { SectionDivider } from "@/components/home/SectionDivider";
 import { CollectionGrid } from "@/components/home/CollectionGrid";
 import {
   getAllCollections,
+  getCollectionById,
   getFeaturedContent,
   getTrackById,
   getTracksByCollection,
 } from "@/lib/db/queries";
-import { buildCollectionMediaUrls, buildTrackMediaUrls } from "@/lib/s3/client";
+import { buildCollectionMediaUrls, buildTrackMediaUrlsWithFallback } from "@/lib/s3/client";
 import { type ApiTrack } from "@/lib/types";
 
 export default async function HomePage() {
@@ -31,23 +32,22 @@ export default async function HomePage() {
   if (featuredItem) {
     const track = await getTrackById(featuredItem.referenceId);
     if (track) {
-      featuredTrack = { ...track, ...buildTrackMediaUrls(track) };
+      const collection = await getCollectionById(track.collectionId);
+      const collectionArtworkKey = collection?.artworkKey ?? null;
+      featuredTrack = { ...track, ...buildTrackMediaUrlsWithFallback(track, collectionArtworkKey) };
       const queueTracks = await getTracksByCollection(track.collectionId);
       featuredQueue = queueTracks.map((t) => ({
         ...t,
-        ...buildTrackMediaUrls(t),
+        ...buildTrackMediaUrlsWithFallback(t, collectionArtworkKey),
       }));
     }
   }
 
   return (
-    <div className="min-h-dvh">
-      <Header />
-      <div className="relative z-40">
-        <HeroCard featuredTrack={featuredTrack} queue={featuredQueue} />
-        <SectionDivider title="Collections" />
-        <CollectionGrid collections={collectionsWithUrls} />
-      </div>
-    </div>
+    <HomeParallaxWrapper>
+      <HeroCard featuredTrack={featuredTrack} queue={featuredQueue} />
+      <SectionDivider title="Collections" />
+      <CollectionGrid collections={collectionsWithUrls} />
+    </HomeParallaxWrapper>
   );
 }

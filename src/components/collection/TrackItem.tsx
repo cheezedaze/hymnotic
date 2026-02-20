@@ -1,9 +1,10 @@
 "use client";
 
 import Image from "next/image";
-import { Play, Heart, MoreHorizontal, Video, Music } from "lucide-react";
+import { Play, Heart, Video, Music } from "lucide-react";
 import { type ApiTrack } from "@/lib/types";
 import { usePlayerStore } from "@/lib/store/playerStore";
+import { useFavoritesStore } from "@/lib/store/favoritesStore";
 import { WaveformIcon } from "@/components/player/WaveformIcon";
 import { cn } from "@/lib/utils/cn";
 
@@ -24,8 +25,12 @@ export function TrackItem({ track, queue }: TrackItemProps) {
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const playTrack = usePlayerStore((s) => s.playTrack);
 
+  const favoriteIds = useFavoritesStore((s) => s.favoriteIds);
+  const toggleFavorite = useFavoritesStore((s) => s.toggleFavorite);
+
   const isActive = currentTrack?.id === track.id;
   const isCurrentlyPlaying = isActive && isPlaying;
+  const isFavorited = favoriteIds.includes(track.id);
 
   const handlePlay = () => {
     playTrack(track, queue);
@@ -41,9 +46,9 @@ export function TrackItem({ track, queue }: TrackItemProps) {
     >
       {/* Thumbnail / Waveform */}
       <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
-        {track.artworkUrl ? (
+        {(track.artworkUrl || track.collectionArtworkUrl) ? (
           <Image
-            src={track.artworkUrl}
+            src={(track.artworkUrl || track.collectionArtworkUrl)!}
             alt={track.title}
             fill
             className="object-cover"
@@ -97,8 +102,21 @@ export function TrackItem({ track, queue }: TrackItemProps) {
         </span>
       )}
 
-      {/* More button */}
-      <MoreHorizontal size={18} className="text-text-muted flex-shrink-0" />
+      {/* Favorite button */}
+      <div
+        onClick={(e) => {
+          e.stopPropagation();
+          toggleFavorite(track.id);
+        }}
+        className={cn(
+          "flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0 transition-all",
+          isFavorited
+            ? "text-accent drop-shadow-[0_0_6px_rgba(0,255,251,0.4)]"
+            : "text-text-muted hover:text-text-secondary"
+        )}
+      >
+        <Heart size={16} fill={isFavorited ? "currentColor" : "none"} />
+      </div>
     </button>
   );
 }

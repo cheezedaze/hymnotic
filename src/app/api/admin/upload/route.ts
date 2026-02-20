@@ -1,17 +1,50 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth/session";
-import { getPresignedUploadUrl, getMediaUrl } from "@/lib/s3/client";
+import { getMediaUrl } from "@/lib/s3/client";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { convertWavToMp3 } from "@/lib/audio/convertWavToMp3";
 
-export async function POST(request: Request) {
+// Separate S3 client for uploads to avoid singleton caching issues
+function getUploadClient(): S3Client {
+  return new S3Client({
+    region: process.env.AWS_REGION || "us-west-2",
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+    },
+    requestChecksumCalculation: "WHEN_REQUIRED",
+    responseChecksumValidation: "WHEN_REQUIRED",
+  });
+}
+
+const BUCKET = process.env.AWS_S3_BUCKET || "hymnotic-media";
+
+// App Router uses formData() directly — no bodyParser config needed.
+// For large uploads, set the max size via route segment config:
+export const maxDuration = 60;
+
+function isWavFile(fileName: string, mimeType: string): boolean {
+  const ext = fileName.split(".").pop()?.toLowerCase();
+  return (
+    ext === "wav" ||
+    mimeType === "audio/wav" ||
+    mimeType === "audio/x-wav" ||
+    mimeType === "audio/vnd.wave"
+  );
+}
+
+export async function POST(request: NextRequest) {
   const auth = requireAdmin(request);
   if (!auth.authorized) return auth.response!;
 
   try {
-    const { fileName, contentType, folder } = await request.json();
+    const formData = await request.formData();
+    const file = formData.get("file") as File | null;
+    const folder = formData.get("folder") as string | null;
 
-    if (!fileName || !contentType || !folder) {
+    if (!file || !folder) {
       return NextResponse.json(
-        { error: "fileName, contentType, and folder are required" },
+        { error: "file and folder are required" },
         { status: 400 }
       );
     }
@@ -20,6 +53,7 @@ export async function POST(request: Request) {
     const validFolders = [
       "audio/tracks",
       "audio/previews",
+      "audio/originals",
       "images/artwork",
       "images/artists",
       "images/misc",
@@ -34,19 +68,95 @@ export async function POST(request: Request) {
       );
     }
 
-    // Generate unique key: folder/filename-timestamp.ext
-    const ext = fileName.split(".").pop() || "";
-    const baseName = fileName.replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9-_]/g, "-");
-    const key = `${folder}/${baseName}-${Date.now()}.${ext}`;
+    // Generate unique key parts
+    const ext = file.name.split(".").pop() || "";
+    const baseName = file.name
+      .replace(/\.[^/.]+$/, "")
+      .replace(/[^a-zA-Z0-9-_]/g, "-");
+    const timestamp = Date.now();
 
-    const uploadUrl = await getPresignedUploadUrl(key, contentType);
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const client = getUploadClient();
+
+    // WAV-to-MP3 conversion: when uploading a WAV to audio/tracks,
+    // store the original WAV in audio/originals/ and convert to MP3
+    if (isWavFile(file.name, file.type) && folder === "audio/tracks") {
+      // 1. Upload original WAV to audio/originals/
+      const originalKey = `audio/originals/${baseName}-${timestamp}.wav`;
+      await client.send(
+        new PutObjectCommand({
+          Bucket: BUCKET,
+          Key: originalKey,
+          Body: buffer,
+          ContentType: "audio/wav",
+          CacheControl: "public, max-age=31536000, immutable",
+        })
+      );
+
+      // 2. Convert WAV to MP3
+      let mp3Buffer: Buffer;
+      let durationSeconds: number;
+      try {
+        const result = await convertWavToMp3(buffer);
+        mp3Buffer = result.mp3Buffer;
+        durationSeconds = result.durationSeconds;
+      } catch (conversionError) {
+        console.error("WAV-to-MP3 conversion failed:", conversionError);
+        return NextResponse.json(
+          {
+            error:
+              "WAV uploaded but MP3 conversion failed. The original WAV has been saved.",
+            originalKey,
+            conversionFailed: true,
+          },
+          { status: 207 }
+        );
+      }
+
+      // 3. Upload converted MP3 to audio/tracks/
+      const mp3Key = `audio/tracks/${baseName}-${timestamp}.mp3`;
+      await client.send(
+        new PutObjectCommand({
+          Bucket: BUCKET,
+          Key: mp3Key,
+          Body: mp3Buffer,
+          ContentType: "audio/mpeg",
+          CacheControl: "public, max-age=31536000, immutable",
+        })
+      );
+
+      const cdnUrl = getMediaUrl(mp3Key);
+
+      return NextResponse.json({
+        key: mp3Key,
+        cdnUrl,
+        originalKey,
+        converted: true,
+        duration: durationSeconds,
+      });
+    }
+
+    // Non-WAV path: upload directly as before
+    const key = `${folder}/${baseName}-${timestamp}.${ext}`;
+
+    await client.send(
+      new PutObjectCommand({
+        Bucket: BUCKET,
+        Key: key,
+        Body: buffer,
+        ContentType: file.type,
+        CacheControl: "public, max-age=31536000, immutable",
+      })
+    );
+
     const cdnUrl = getMediaUrl(key);
 
-    return NextResponse.json({ uploadUrl, key, cdnUrl });
+    return NextResponse.json({ key, cdnUrl });
   } catch (error) {
-    console.error("Upload presign error:", error);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("Upload error:", message, error);
     return NextResponse.json(
-      { error: "Failed to generate upload URL" },
+      { error: `Upload failed: ${message}` },
       { status: 500 }
     );
   }

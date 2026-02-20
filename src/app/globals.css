@@ -58,12 +58,22 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overscroll-behavior-y: contain;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    &::-webkit-scrollbar {
+      display: none;
+    }
   }
 
   body {
     min-height: 100dvh;
     overflow-x: hidden;
     background-color: var(--color-midnight);
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    &::-webkit-scrollbar {
+      display: none;
+    }
   }
 
   * {

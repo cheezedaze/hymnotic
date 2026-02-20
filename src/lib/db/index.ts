@@ -14,10 +14,14 @@ if (!connectionString) {
 
 // Create postgres connection
 // In production, use connection pooling (Railway provides this)
+// prepare: false is required for Next.js/serverless environments where
+// the module may be re-evaluated between requests (Turbopack HMR, edge),
+// which causes "Failed query" errors from stale prepared statement caches.
 const client = postgres(connectionString, {
   max: 10, // connection pool size
   idle_timeout: 20,
   connect_timeout: 10,
+  prepare: false,
 });
 
 // Create drizzle instance with schema

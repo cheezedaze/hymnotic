@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Disc3 } from "lucide-react";
 import { type ApiCollection } from "@/lib/types";
 import { cn } from "@/lib/utils/cn";
+import { useNavigationStore } from "@/lib/store/navigationStore";
 
 interface CollectionHeaderProps {
   collection: ApiCollection;
@@ -42,7 +43,7 @@ export function CollectionHeader({ collection, trackCount }: CollectionHeaderPro
         className="fixed top-0 left-0 right-0 z-30 glass-heavy px-4 py-3 pt-[calc(0.75rem+var(--safe-top))] flex items-center gap-3 transition-opacity duration-200"
         style={{ opacity: stickyOpacity, pointerEvents: stickyOpacity > 0 ? "auto" : "none" }}
       >
-        <button onClick={() => router.back()} className="text-text-secondary hover:text-text-primary transition-colors">
+        <button onClick={() => { useNavigationStore.getState().setDirection("back"); router.back(); }} className="text-text-secondary hover:text-text-primary transition-colors">
           <ArrowLeft size={22} />
         </button>
         <h1 className="text-display text-base font-semibold text-text-primary truncate">
@@ -88,7 +89,7 @@ export function CollectionHeader({ collection, trackCount }: CollectionHeaderPro
 
         {/* Back button */}
         <button
-          onClick={() => router.back()}
+          onClick={() => { useNavigationStore.getState().setDirection("back"); router.back(); }}
           className={cn(
             "absolute top-4 left-4 z-20 w-10 h-10 rounded-full glass flex items-center justify-center transition-opacity",
             stickyOpacity > 0 ? "opacity-0 pointer-events-none" : "opacity-100"

@@ -3,10 +3,11 @@ import {
   getCollectionById,
   getTracksByCollection,
 } from "@/lib/db/queries";
-import { buildCollectionMediaUrls, buildTrackMediaUrls } from "@/lib/s3/client";
+import { buildCollectionMediaUrls, buildTrackMediaUrlsWithFallback } from "@/lib/s3/client";
 import { CollectionHeader } from "@/components/collection/CollectionHeader";
 import { ActionRow } from "@/components/collection/ActionRow";
 import { TrackList } from "@/components/collection/TrackList";
+import { FavoritesCollection } from "@/components/collection/FavoritesCollection";
 
 interface CollectionPageProps {
   params: Promise<{ id: string }>;
@@ -14,6 +15,16 @@ interface CollectionPageProps {
 
 export default async function CollectionPage({ params }: CollectionPageProps) {
   const { id } = await params;
+
+  // Favorites collection: tracks are determined client-side
+  if (id === "favorites") {
+    const collection = await getCollectionById("favorites");
+    const collectionWithUrls = collection
+      ? { ...collection, ...buildCollectionMediaUrls(collection) }
+      : null;
+    return <FavoritesCollection collection={collectionWithUrls} />;
+  }
+
   const collection = await getCollectionById(id);
 
   if (!collection) {
@@ -30,7 +41,7 @@ export default async function CollectionPage({ params }: CollectionPageProps) {
 
   const tracks = rawTracks.map((t) => ({
     ...t,
-    ...buildTrackMediaUrls(t),
+    ...buildTrackMediaUrlsWithFallback(t, collection.artworkKey),
   }));
 
   const trackCount = tracks.length;

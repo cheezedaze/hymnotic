@@ -22,6 +22,7 @@ interface TrackRow {
   duration: number;
   trackNumber: number;
   playCount: number;
+  isActive: boolean;
   hasVideo: boolean;
   hasLyrics: boolean;
   artworkUrl: string | null;
@@ -33,11 +34,13 @@ interface TracksManagerProps {
   collections: Array<{ id: string; title: string }>;
 }
 
-export function TracksManager({ tracks, collections }: TracksManagerProps) {
+export function TracksManager({ tracks: initialTracks, collections }: TracksManagerProps) {
   const router = useRouter();
+  const [tracks, setTracks] = useState<TrackRow[]>(initialTracks);
   const [showForm, setShowForm] = useState(false);
   const [filter, setFilter] = useState("");
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [togglingActive, setTogglingActive] = useState<string | null>(null);
   const [form, setForm] = useState({
     id: "",
     collectionId: collections[0]?.id || "",
@@ -46,8 +49,16 @@ export function TracksManager({ tracks, collections }: TracksManagerProps) {
     duration: 0,
     trackNumber: 1,
   });
+  const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+  const titleToSlug = (title: string) =>
+    title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 60);
 
   const filteredTracks = filter
     ? tracks.filter((t) => t.collectionId === filter)
@@ -94,11 +105,34 @@ export function TracksManager({ tracks, collections }: TracksManagerProps) {
         alert("Failed to delete track");
         return;
       }
+      setTracks((prev) => prev.filter((t) => t.id !== id));
       router.refresh();
     } catch {
       alert("Something went wrong");
     } finally {
       setDeleting(null);
+    }
+  };
+
+  const handleToggleActive = async (id: string, currentValue: boolean) => {
+    setTogglingActive(id);
+    try {
+      const res = await fetch(`/api/admin/tracks/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: !currentValue }),
+      });
+      if (!res.ok) {
+        alert("Failed to update track");
+        return;
+      }
+      setTracks((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, isActive: !currentValue } : t))
+      );
+    } catch {
+      alert("Something went wrong");
+    } finally {
+      setTogglingActive(null);
     }
   };
 
@@ -115,7 +149,12 @@ export function TracksManager({ tracks, collections }: TracksManagerProps) {
           </p>
         </div>
         <button
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => {
+            setShowForm(!showForm);
+            setSlugManuallyEdited(false);
+            setForm({ id: "", collectionId: collections[0]?.id || "", title: "", artist: "Hymnotic", duration: 0, trackNumber: 1 });
+            setError("");
+          }}
           className="flex items-center gap-2 px-4 py-2.5 bg-gold/15 border border-gold/25 text-gold rounded-xl text-sm font-medium hover:bg-gold/25 transition-colors"
         >
           <Plus size={16} />
@@ -164,15 +203,39 @@ export function TracksManager({ tracks, collections }: TracksManagerProps) {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-medium text-text-secondary mb-1.5">
+                Title *
+              </label>
+              <input
+                type="text"
+                value={form.title}
+                onChange={(e) => {
+                  const title = e.target.value;
+                  setForm((prev) => ({
+                    ...prev,
+                    title,
+                    id: slugManuallyEdited ? prev.id : titleToSlug(title),
+                  }));
+                }}
+                placeholder="Track title"
+                required
+                className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-text-primary placeholder:text-text-dim focus:outline-none focus:border-accent/50 transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-text-secondary mb-1.5">
                 ID (slug) *
               </label>
               <input
                 type="text"
                 value={form.id}
-                onChange={(e) =>
-                  setForm({ ...form, id: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-") })
-                }
-                placeholder="e.g., sands-08"
+                onChange={(e) => {
+                  setSlugManuallyEdited(true);
+                  setForm((prev) => ({
+                    ...prev,
+                    id: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"),
+                  }));
+                }}
+                placeholder="auto-derived from title"
                 required
                 className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-text-primary placeholder:text-text-dim focus:outline-none focus:border-accent/50 transition-colors"
               />
@@ -195,19 +258,6 @@ export function TracksManager({ tracks, collections }: TracksManagerProps) {
                   </option>
                 ))}
               </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1.5">
-                Title *
-              </label>
-              <input
-                type="text"
-                value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
-                placeholder="Track title"
-                required
-                className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-text-primary placeholder:text-text-dim focus:outline-none focus:border-accent/50 transition-colors"
-              />
             </div>
             <div>
               <label className="block text-xs font-medium text-text-secondary mb-1.5">
@@ -265,7 +315,7 @@ export function TracksManager({ tracks, collections }: TracksManagerProps) {
             </button>
             <button
               type="button"
-              onClick={() => setShowForm(false)}
+              onClick={() => { setShowForm(false); setSlugManuallyEdited(false); setError(""); }}
               className="px-4 py-2 bg-white/5 border border-white/10 text-text-secondary rounded-xl text-sm font-medium hover:bg-white/10 transition-colors"
             >
               Cancel
@@ -344,6 +394,22 @@ export function TracksManager({ tracks, collections }: TracksManagerProps) {
                   </span>
                 )}
               </div>
+
+              {/* Active toggle */}
+              <button
+                onClick={() => handleToggleActive(track.id, track.isActive)}
+                disabled={togglingActive === track.id}
+                title={track.isActive ? "Active (click to deactivate)" : "Inactive (click to activate)"}
+                className={cn(
+                  "flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors disabled:opacity-50",
+                  track.isActive
+                    ? "bg-green-500/15 text-green-400 hover:bg-green-500/25"
+                    : "bg-white/5 text-text-dim hover:bg-white/10"
+                )}
+              >
+                <span className={cn("w-1.5 h-1.5 rounded-full", track.isActive ? "bg-green-400" : "bg-white/30")} />
+                {track.isActive ? "Active" : "Inactive"}
+              </button>
 
               {/* Actions */}
               <div className="flex items-center gap-1">

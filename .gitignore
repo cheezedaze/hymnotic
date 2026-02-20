@@ -40,6 +40,11 @@ yarn-error.log*
 # cursor debug logs
 .cursor/
 
+# Capacitor iOS
+ios/App/Pods/
+ios/App/App/public/
+ios/App/output/
+
 # vercel
 .vercel
 

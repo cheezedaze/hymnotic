@@ -16,6 +16,8 @@ interface PlayerState {
   shuffle: boolean;
   repeat: RepeatMode;
 
+  history: ApiTrack[];
+
   isNowPlayingExpanded: boolean;
   isLyricsOpen: boolean;
   isMiniPlayerVisible: boolean;
@@ -53,6 +55,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   shuffle: false,
   repeat: "off",
 
+  history: [],
+
   isNowPlayingExpanded: false,
   isLyricsOpen: false,
   isMiniPlayerVisible: false,
@@ -63,18 +67,25 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   togglePlayPause: () => set((s) => ({ isPlaying: !s.isPlaying })),
 
   next: () => {
-    const { queue, currentIndex, repeat, shuffle } = get();
+    const { queue, currentIndex, repeat, shuffle, currentTrack, history } =
+      get();
     if (queue.length === 0) return;
 
     let nextIndex: number;
     if (repeat === "one") {
-      nextIndex = currentIndex;
       set({ currentTime: 0 });
       return;
     }
 
     if (shuffle) {
-      nextIndex = Math.floor(Math.random() * queue.length);
+      if (queue.length === 1) {
+        nextIndex = 0;
+      } else {
+        // Avoid picking the same track consecutively
+        do {
+          nextIndex = Math.floor(Math.random() * queue.length);
+        } while (nextIndex === currentIndex);
+      }
     } else {
       nextIndex = currentIndex + 1;
       if (nextIndex >= queue.length) {
@@ -87,23 +98,47 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       }
     }
 
+    const newHistory = currentTrack
+      ? [...history, currentTrack].slice(-50)
+      : history;
+
     set({
       currentIndex: nextIndex,
       currentTrack: queue[nextIndex],
       currentTime: 0,
       duration: queue[nextIndex].duration,
+      history: newHistory,
     });
   },
 
   previous: () => {
-    const { queue, currentIndex, currentTime } = get();
-    if (queue.length === 0) return;
+    const { queue, currentIndex, currentTime, history, currentTrack } = get();
+    if (queue.length === 0 && !currentTrack) return;
 
+    // More than 3 seconds in — restart current track
     if (currentTime > 3) {
       set({ currentTime: 0 });
       return;
     }
 
+    // History has entries — pop and play the previous track
+    if (history.length > 0) {
+      const newHistory = [...history];
+      const prevTrack = newHistory.pop()!;
+      const queueIndex = queue.findIndex((t) => t.id === prevTrack.id);
+
+      set({
+        currentTrack: prevTrack,
+        currentIndex: queueIndex !== -1 ? queueIndex : currentIndex,
+        currentTime: 0,
+        duration: prevTrack.duration,
+        history: newHistory,
+      });
+      return;
+    }
+
+    // No history — fall back to queue-based navigation
+    if (queue.length === 0) return;
     const prevIndex = currentIndex <= 0 ? queue.length - 1 : currentIndex - 1;
     set({
       currentIndex: prevIndex,
@@ -115,7 +150,13 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
   seekTo: (time) => set({ currentTime: time }),
 
-  setQueue: (tracks, startIndex = 0) =>
+  setQueue: (tracks, startIndex = 0) => {
+    const { currentTrack, history } = get();
+    const newHistory =
+      currentTrack && currentTrack.id !== tracks[startIndex]?.id
+        ? [...history, currentTrack].slice(-50)
+        : history;
+
     set({
       queue: tracks,
       currentIndex: startIndex,
@@ -124,10 +165,25 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       duration: tracks[startIndex]?.duration ?? 0,
       isPlaying: true,
       isMiniPlayerVisible: true,
-    }),
+      history: newHistory,
+    });
+  },
 
   playTrack: (track, queue) => {
     const state = get();
+
+    // If the same track is already loaded, just ensure it's playing — don't restart
+    if (state.currentTrack?.id === track.id) {
+      if (!state.isPlaying) {
+        set({ isPlaying: true });
+      }
+      return;
+    }
+
+    const newHistory = state.currentTrack
+      ? [...state.history, state.currentTrack].slice(-50)
+      : state.history;
+
     const q = queue ?? state.queue;
     const index = q.findIndex((t) => t.id === track.id);
 
@@ -140,6 +196,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         duration: track.duration,
         isPlaying: true,
         isMiniPlayerVisible: true,
+        history: newHistory,
       });
     } else {
       set({
@@ -150,6 +207,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         duration: track.duration,
         isPlaying: true,
         isMiniPlayerVisible: true,
+        history: newHistory,
       });
     }
   },

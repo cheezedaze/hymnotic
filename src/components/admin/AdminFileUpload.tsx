@@ -7,6 +7,9 @@ import { Upload, File, X, CheckCircle, AlertCircle, Image as ImageIcon } from "l
 interface UploadResult {
   key: string;
   cdnUrl: string;
+  audioDuration?: number;
+  originalKey?: string;
+  converted?: boolean;
 }
 
 interface AdminFileUploadProps {
@@ -40,6 +43,7 @@ export function AdminFileUpload({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isConverting, setIsConverting] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const isImageAccept = accept.startsWith("image/") || accept === "image/*";
@@ -71,10 +75,16 @@ export function AdminFileUpload({
         }
       }
 
+      const fileIsWav =
+        file.name.toLowerCase().endsWith(".wav") ||
+        file.type === "audio/wav" ||
+        file.type === "audio/x-wav";
+
       setFileName(file.name);
       setUploadError(null);
       setStatus("uploading");
       setProgress(0);
+      setIsConverting(fileIsWav && folder === "audio/tracks");
 
       // Generate image preview if applicable
       if (file.type.startsWith("image/")) {
@@ -85,55 +95,96 @@ export function AdminFileUpload({
         setPreviewUrl(null);
       }
 
-      try {
-        // Step 1: Get presigned URL from our API
-        const presignRes = await fetch("/api/admin/upload", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            fileName: file.name,
-            contentType: file.type,
-            folder,
-          }),
-        });
-
-        if (!presignRes.ok) {
-          const body = await presignRes.json().catch(() => ({}));
-          throw new Error(body.error || "Failed to get upload URL");
+      // Extract audio duration if this is an audio file
+      let audioDuration: number | undefined;
+      if (file.type.startsWith("audio/")) {
+        try {
+          audioDuration = await new Promise<number>((resolve, reject) => {
+            const audioEl = new Audio();
+            const objectUrl = URL.createObjectURL(file);
+            audioEl.addEventListener("loadedmetadata", () => {
+              const dur = audioEl.duration;
+              URL.revokeObjectURL(objectUrl);
+              resolve(isFinite(dur) ? dur : 0);
+            });
+            audioEl.addEventListener("error", () => {
+              URL.revokeObjectURL(objectUrl);
+              reject(new Error("Could not read audio duration"));
+            });
+            audioEl.src = objectUrl;
+          });
+        } catch {
+          // Duration extraction failed — continue with upload anyway
         }
+      }
 
-        const { uploadUrl, key, cdnUrl } = await presignRes.json();
+      try {
+        // Upload via our API proxy (avoids S3 CORS issues)
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("folder", folder);
 
-        // Step 2: Upload directly to S3 via presigned PUT URL
-        await new Promise<void>((resolve, reject) => {
-          const xhr = new XMLHttpRequest();
+        const xhr = new XMLHttpRequest();
 
-          xhr.upload.addEventListener("progress", (e) => {
-            if (e.lengthComputable) {
-              setProgress(Math.round((e.loaded / e.total) * 100));
-            }
-          });
+        const result = await new Promise<{
+          key: string;
+          cdnUrl: string;
+          originalKey?: string;
+          converted?: boolean;
+          duration?: number;
+        }>(
+          (resolve, reject) => {
+            xhr.upload.addEventListener("progress", (e) => {
+              if (e.lengthComputable) {
+                setProgress(Math.round((e.loaded / e.total) * 100));
+              }
+            });
 
-          xhr.addEventListener("load", () => {
-            if (xhr.status >= 200 && xhr.status < 300) {
-              resolve();
-            } else {
-              reject(new Error(`Upload failed with status ${xhr.status}`));
-            }
-          });
+            xhr.addEventListener("load", () => {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                try {
+                  resolve(JSON.parse(xhr.responseText));
+                } catch {
+                  reject(new Error("Invalid response from server"));
+                }
+              } else if (xhr.status === 207) {
+                // Partial success — WAV saved but conversion failed
+                try {
+                  const body = JSON.parse(xhr.responseText);
+                  reject(new Error(body.error || "Conversion failed"));
+                } catch {
+                  reject(new Error("WAV conversion failed"));
+                }
+              } else {
+                try {
+                  const body = JSON.parse(xhr.responseText);
+                  reject(new Error(body.error || `Upload failed (${xhr.status})`));
+                } catch {
+                  reject(new Error(`Upload failed with status ${xhr.status}`));
+                }
+              }
+            });
 
-          xhr.addEventListener("error", () => reject(new Error("Upload failed")));
-          xhr.addEventListener("abort", () => reject(new Error("Upload aborted")));
+            xhr.addEventListener("error", () => reject(new Error("Upload failed")));
+            xhr.addEventListener("abort", () => reject(new Error("Upload aborted")));
 
-          xhr.open("PUT", uploadUrl);
-          xhr.setRequestHeader("Content-Type", file.type);
-          xhr.send(file);
-        });
+            xhr.open("POST", "/api/admin/upload");
+            xhr.send(formData);
+          }
+        );
 
-        // Step 3: Notify parent of completion
+        // Prefer server-provided duration (from ffprobe) over client-extracted
+        const finalDuration = result.duration ?? audioDuration;
+
         setStatus("success");
         setProgress(100);
-        onUploadComplete({ key, cdnUrl });
+        onUploadComplete({
+          key: result.key,
+          cdnUrl: result.cdnUrl,
+          audioDuration: finalDuration,
+          originalKey: result.originalKey,
+          converted: result.converted,
+        });
       } catch (err) {
         const message = err instanceof Error ? err.message : "Upload failed";
         setUploadError(message);
@@ -175,6 +226,7 @@ export function AdminFileUpload({
     setFileName(null);
     setPreviewUrl(null);
     setUploadError(null);
+    setIsConverting(false);
     if (inputRef.current) inputRef.current.value = "";
   };
 
@@ -251,13 +303,20 @@ export function AdminFileUpload({
                 {fileName}
               </span>
               <span className="text-xs text-text-muted ml-auto shrink-0">
-                {progress}%
+                {progress >= 100 && isConverting
+                  ? "Converting to MP3..."
+                  : `${progress}%`}
               </span>
             </div>
             <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
               <div
-                className="h-full bg-accent rounded-full transition-all duration-300 ease-out"
-                style={{ width: `${progress}%` }}
+                className={cn(
+                  "h-full rounded-full transition-all duration-300 ease-out",
+                  progress >= 100 && isConverting
+                    ? "bg-accent/60 animate-pulse"
+                    : "bg-accent"
+                )}
+                style={{ width: `${Math.min(progress, 100)}%` }}
               />
             </div>
           </div>

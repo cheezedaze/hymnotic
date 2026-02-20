@@ -2,13 +2,16 @@
 
 import { usePlayerStore } from "@/lib/store/playerStore";
 import { useAudioPlayer } from "@/lib/hooks/useAudioPlayer";
+import { useMediaSession } from "@/lib/hooks/useMediaSession";
 import { NavBar } from "./NavBar";
 import { MiniPlayer } from "./MiniPlayer";
 import { NowPlaying } from "@/components/player/NowPlaying";
+import { PageTransition } from "./PageTransition";
 import { AnimatePresence } from "framer-motion";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   useAudioPlayer();
+  useMediaSession();
 
   const isMiniPlayerVisible = usePlayerStore((s) => s.isMiniPlayerVisible);
   const isNowPlayingExpanded = usePlayerStore((s) => s.isNowPlayingExpanded);
@@ -16,11 +19,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const showMiniPlayer = isMiniPlayerVisible && !isNowPlayingExpanded;
 
   return (
-    <div className="relative min-h-dvh bg-midnight">
-      <main className={showMiniPlayer ? "pb-36" : "pb-24"}>{children}</main>
+    <div className="relative min-h-dvh bg-midnight overflow-x-hidden">
+      <main className={showMiniPlayer ? "pb-[calc(9rem+var(--safe-bottom))]" : "pb-[calc(6rem+var(--safe-bottom))]"}>
+        {children}
+      </main>
+
+      {/* Slide-in overlay for page transitions */}
+      <PageTransition />
 
       {/* Bottom bar area - separate blur layer so backdrop-filter works reliably */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 rounded-t-2xl px-2 pt-2 pb-[calc(0.5rem+var(--safe-bottom))]">
+      <div className="fixed bottom-0 left-0 right-0 z-40 rounded-t-2xl px-2 pt-2 pb-[var(--safe-bottom)]">
         {/* Blur layer - sits behind nav content, blurs main content */}
         <div
           className="absolute inset-0 rounded-t-2xl"
