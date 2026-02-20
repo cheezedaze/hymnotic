@@ -1,8 +1,23 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Allow images from CloudFront CDN and S3
+  // Exclude ffmpeg packages from Turbopack bundling (they use dynamic require)
+  serverExternalPackages: ["@ffmpeg-installer/ffmpeg", "fluent-ffmpeg"],
+
+  // Allow large file uploads (WAV files can be 100MB+)
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "200mb",
+    },
+  },
+
+  // Allow images from CloudFront CDN and S3.
+  // unoptimized: true bypasses the /_next/image proxy, which fails on
+  // iOS Safari / Capacitor WebView when fetching remote CDN images.
+  // Since artwork is already optimized and cached by CloudFront, the
+  // Next.js image optimizer adds overhead without benefit.
   images: {
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: "https",
@@ -11,6 +26,10 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "hymnotic-media.s3.us-west-2.amazonaws.com",
+      },
+      {
+        protocol: "https",
+        hostname: "img.youtube.com",
       },
     ],
   },
