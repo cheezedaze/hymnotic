@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import {
   Shuffle,
   SkipBack,
@@ -10,7 +11,7 @@ import {
   Repeat1,
 } from "lucide-react";
 import { usePlayerStore } from "@/lib/store/playerStore";
-import { useAudioPlayer } from "@/lib/hooks/useAudioPlayer";
+import { seekAudio } from "@/lib/audio/audioContext";
 import { IconButton } from "@/components/ui/IconButton";
 import { formatTime } from "@/lib/utils/formatTime";
 import { cn } from "@/lib/utils/cn";
@@ -30,11 +31,12 @@ export function PlaybackControls({ compact = false }: PlaybackControlsProps) {
   const previous = usePlayerStore((s) => s.previous);
   const toggleShuffle = usePlayerStore((s) => s.toggleShuffle);
   const cycleRepeat = usePlayerStore((s) => s.cycleRepeat);
-  const { seekTo } = useAudioPlayer();
 
-  const handleScrub = (e: React.ChangeEvent<HTMLInputElement>) => {
-    seekTo(parseFloat(e.target.value));
-  };
+  const handleScrub = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const time = parseFloat(e.target.value);
+    seekAudio(time);
+    usePlayerStore.getState().seekTo(time);
+  }, []);
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
