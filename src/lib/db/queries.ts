@@ -8,6 +8,9 @@ import {
   videos,
   siteSettings,
   contentBlocks,
+  users,
+  userTrackPlays,
+  userFavorites,
   type NewCollection,
   type NewTrack,
   type NewLyric,
@@ -334,12 +337,16 @@ export async function getAdminStats() {
     .select({ count: sql<number>`count(*)::int` })
     .from(featuredContent)
     .where(eq(featuredContent.active, true));
+  const [userCount] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(users);
 
   return {
     collections: collectionCount.count,
     tracks: trackCount.count,
     totalPlays: totalPlays.total,
     featured: featuredCount.count,
+    users: userCount.count,
   };
 }
 
@@ -512,4 +519,140 @@ export async function updateContentBlock(
 
 export async function deleteContentBlock(id: number) {
   await db.delete(contentBlocks).where(eq(contentBlocks.id, id));
+}
+
+// =============================================================================
+// User Queries
+// =============================================================================
+
+export async function getAllUsers() {
+  return db.select().from(users).orderBy(desc(users.createdAt));
+}
+
+export async function getUserById(id: string) {
+  const result = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, id))
+    .limit(1);
+  return result[0] ?? null;
+}
+
+export async function getUserCount() {
+  const [result] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(users);
+  return result.count;
+}
+
+// =============================================================================
+// Per-User Play Count Queries
+// =============================================================================
+
+export async function incrementUserPlayCount(userId: string, trackId: string) {
+  const existing = await db
+    .select()
+    .from(userTrackPlays)
+    .where(
+      and(
+        eq(userTrackPlays.userId, userId),
+        eq(userTrackPlays.trackId, trackId)
+      )
+    )
+    .limit(1);
+
+  if (existing[0]) {
+    const result = await db
+      .update(userTrackPlays)
+      .set({
+        playCount: existing[0].playCount + 1,
+        lastPlayedAt: new Date(),
+      })
+      .where(eq(userTrackPlays.id, existing[0].id))
+      .returning();
+    return result[0];
+  } else {
+    const result = await db
+      .insert(userTrackPlays)
+      .values({ userId, trackId, playCount: 1 })
+      .returning();
+    return result[0];
+  }
+}
+
+export async function getUserPlayCounts(userId: string, trackIds?: string[]) {
+  if (trackIds && trackIds.length === 0) return [];
+
+  if (trackIds) {
+    return db
+      .select()
+      .from(userTrackPlays)
+      .where(
+        and(
+          eq(userTrackPlays.userId, userId),
+          inArray(userTrackPlays.trackId, trackIds)
+        )
+      );
+  }
+
+  return db
+    .select()
+    .from(userTrackPlays)
+    .where(eq(userTrackPlays.userId, userId));
+}
+
+export async function getUserTotalPlays(userId: string) {
+  const [result] = await db
+    .select({ total: sql<number>`coalesce(sum(play_count), 0)::int` })
+    .from(userTrackPlays)
+    .where(eq(userTrackPlays.userId, userId));
+  return result.total;
+}
+
+// =============================================================================
+// Per-User Favorites Queries
+// =============================================================================
+
+export async function getUserFavoriteIds(userId: string) {
+  const rows = await db
+    .select({ trackId: userFavorites.trackId })
+    .from(userFavorites)
+    .where(eq(userFavorites.userId, userId))
+    .orderBy(desc(userFavorites.createdAt));
+  return rows.map((r) => r.trackId);
+}
+
+export async function addUserFavorite(userId: string, trackId: string) {
+  await db
+    .insert(userFavorites)
+    .values({ userId, trackId })
+    .onConflictDoNothing();
+
+  // Increment global favorite count
+  await db
+    .update(tracks)
+    .set({ favoriteCount: sql`${tracks.favoriteCount} + 1` })
+    .where(eq(tracks.id, trackId));
+}
+
+export async function removeUserFavorite(userId: string, trackId: string) {
+  const deleted = await db
+    .delete(userFavorites)
+    .where(
+      and(
+        eq(userFavorites.userId, userId),
+        eq(userFavorites.trackId, trackId)
+      )
+    )
+    .returning();
+
+  if (deleted.length > 0) {
+    // Decrement global favorite count (min 0)
+    await db
+      .update(tracks)
+      .set({
+        favoriteCount: sql`greatest(${tracks.favoriteCount} - 1, 0)`,
+      })
+      .where(eq(tracks.id, trackId));
+  }
 }

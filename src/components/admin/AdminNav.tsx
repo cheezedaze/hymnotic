@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
+import { signOut } from "next-auth/react";
 import {
   LayoutDashboard,
   Disc3,
@@ -10,6 +11,7 @@ import {
   FileText,
   Settings,
   LogOut,
+  Users,
 } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils/cn";
@@ -21,6 +23,7 @@ const navItems = [
   { href: "/admin/featured", label: "Featured", icon: Star },
   { href: "/admin/videos", label: "Videos", icon: Video },
   { href: "/admin/content", label: "Content", icon: FileText },
+  { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
@@ -29,9 +32,7 @@ export function AdminNav() {
   const router = useRouter();
 
   const handleLogout = async () => {
-    await fetch("/api/admin/auth/logout", { method: "POST" });
-    router.push("/admin/login");
-    router.refresh();
+    await signOut({ redirectTo: "/auth/signin" });
   };
 
   return (

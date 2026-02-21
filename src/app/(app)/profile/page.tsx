@@ -1,6 +1,15 @@
-import { User, Settings, Palette, Volume2 } from "lucide-react";
+import { User, Settings, Palette, Volume2, Play } from "lucide-react";
+import { auth } from "@/lib/auth/auth";
+import { redirect } from "next/navigation";
+import { getUserTotalPlays } from "@/lib/db/queries";
+import { SignOutButton } from "@/components/auth/SignOutButton";
 
-export default function ProfilePage() {
+export default async function ProfilePage() {
+  const session = await auth();
+  if (!session?.user) redirect("/auth/signin");
+
+  const totalPlays = await getUserTotalPlays(session.user.id!);
+
   return (
     <div className="min-h-dvh px-4 sm:px-6 pt-[calc(2rem+var(--safe-top))] pb-4">
       <div className="max-w-2xl mx-auto space-y-6">
@@ -9,13 +18,34 @@ export default function ProfilePage() {
           <div className="w-16 h-16 rounded-full bg-accent/15 border border-accent/25 flex items-center justify-center">
             <User size={28} className="text-accent" />
           </div>
-          <div>
+          <div className="flex-1">
             <h1 className="text-display text-xl font-bold text-text-primary">
-              Listener
+              {session.user.name || "Listener"}
             </h1>
             <p className="text-text-muted text-xs mt-0.5">
-              Welcome to Hymnotic
+              {session.user.email}
             </p>
+          </div>
+        </div>
+
+        {/* Listening stats */}
+        <div className="glass-heavy rounded-2xl p-6 space-y-4">
+          <div className="flex items-center gap-2">
+            <Play size={16} className="text-green-400" />
+            <h2 className="text-sm font-semibold text-text-primary">
+              Listening Stats
+            </h2>
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-text-secondary">Total Plays</p>
+              <p className="text-xs text-text-dim">
+                Your personal play count
+              </p>
+            </div>
+            <span className="text-lg font-bold text-accent">
+              {totalPlays.toLocaleString()}
+            </span>
           </div>
         </div>
 
@@ -100,6 +130,9 @@ export default function ProfilePage() {
             </div>
           </div>
         </div>
+
+        {/* Sign out */}
+        <SignOutButton />
       </div>
     </div>
   );

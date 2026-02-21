@@ -76,10 +76,12 @@ export function TrackItem({ track, queue }: TrackItemProps) {
           {track.title}
         </p>
         <div className="flex items-center gap-3 mt-0.5">
-          <span className="flex items-center gap-1 text-xs text-text-muted">
-            <Play size={10} className="opacity-60" />
-            {formatCount(track.playCount)}
-          </span>
+          {(track.userPlayCount ?? 0) > 0 && (
+            <span className="flex items-center gap-1 text-xs text-text-muted">
+              <Play size={10} className="opacity-60" />
+              {formatCount(track.userPlayCount!)}
+            </span>
+          )}
           <span className="flex items-center gap-1 text-xs text-text-muted">
             <Heart size={10} className="opacity-60" />
             {formatCount(track.favoriteCount)}

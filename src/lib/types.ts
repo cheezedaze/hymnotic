@@ -36,6 +36,7 @@ export interface ApiTrack {
   duration: number;
   trackNumber: number;
   playCount: number;
+  userPlayCount?: number;
   favoriteCount: number;
   hasVideo: boolean;
   videoCount: number;

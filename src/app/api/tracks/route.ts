@@ -3,21 +3,26 @@ import {
   getTracksByCollection,
   getCollectionById,
   getActiveTracks,
+  getUserPlayCounts,
 } from "@/lib/db/queries";
 import { buildTrackMediaUrlsWithFallback } from "@/lib/s3/client";
+import { auth } from "@/lib/auth/auth";
 
 /**
  * GET /api/tracks?collection=sands-of-the-sea
  * Returns tracks for a collection with resolved media URLs.
  * If no collection param, returns all tracks.
+ * Includes per-user play counts when authenticated.
  */
 export async function GET(request: Request) {
   try {
+    const session = await auth();
+    const userId = session?.user?.id;
+
     const { searchParams } = new URL(request.url);
     const collectionId = searchParams.get("collection");
 
     if (!collectionId) {
-      // Return only active tracks with resolved media URLs
       const allTracks = await getActiveTracks();
       const collectionIds = [
         ...new Set(allTracks.map((t) => t.collectionId)),
@@ -29,6 +34,18 @@ export async function GET(request: Request) {
           collectionMap.set(cid, col?.artworkKey ?? null);
         })
       );
+
+      // Get per-user play counts
+      const userPlays = userId
+        ? await getUserPlayCounts(
+            userId,
+            allTracks.map((t) => t.id)
+          )
+        : [];
+      const userPlayMap = new Map(
+        userPlays.map((p) => [p.trackId, p.playCount])
+      );
+
       const tracksWithUrls = allTracks.map((track) => ({
         id: track.id,
         collectionId: track.collectionId,
@@ -37,6 +54,7 @@ export async function GET(request: Request) {
         duration: track.duration,
         trackNumber: track.trackNumber,
         playCount: track.playCount,
+        userPlayCount: userPlayMap.get(track.id) ?? 0,
         favoriteCount: track.favoriteCount,
         isActive: track.isActive,
         hasVideo: track.hasVideo,
@@ -59,6 +77,17 @@ export async function GET(request: Request) {
 
     const collectionArtworkKey = collection?.artworkKey ?? null;
 
+    // Get per-user play counts
+    const userPlays = userId
+      ? await getUserPlayCounts(
+          userId,
+          collectionTracks.map((t) => t.id)
+        )
+      : [];
+    const userPlayMap = new Map(
+      userPlays.map((p) => [p.trackId, p.playCount])
+    );
+
     const tracksWithUrls = collectionTracks.map((track) => ({
       id: track.id,
       collectionId: track.collectionId,
@@ -67,6 +96,7 @@ export async function GET(request: Request) {
       duration: track.duration,
       trackNumber: track.trackNumber,
       playCount: track.playCount,
+      userPlayCount: userPlayMap.get(track.id) ?? 0,
       favoriteCount: track.favoriteCount,
       hasVideo: track.hasVideo,
       videoCount: track.videoCount,

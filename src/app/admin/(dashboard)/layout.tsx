@@ -1,8 +1,5 @@
 import { redirect } from "next/navigation";
-import {
-  getSessionTokenFromCookies,
-  validateSession,
-} from "@/lib/auth/session";
+import { auth } from "@/lib/auth/auth";
 import { AdminNav } from "@/components/admin/AdminNav";
 
 export default async function AdminLayout({
@@ -10,12 +7,10 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Server-side auth check (middleware does initial redirect,
-  // this validates the actual session)
-  const token = await getSessionTokenFromCookies();
+  const session = await auth();
 
-  if (!token || !validateSession(token)) {
-    redirect("/admin/login");
+  if (!session?.user || (session.user as { role?: string }).role !== "ADMIN") {
+    redirect("/auth/signin");
   }
 
   return (

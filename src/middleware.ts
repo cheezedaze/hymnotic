@@ -1,28 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const SESSION_COOKIE = "hymnotic_admin_session";
+const PUBLIC_PATHS = ["/auth/signin", "/auth/accept-invite", "/api/auth"];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Skip the login page itself
-  if (pathname === "/admin/login") {
+  // Allow public auth paths
+  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();
   }
 
-  // Check for admin session cookie
-  const sessionToken = request.cookies.get(SESSION_COOKIE)?.value;
+  // Check for Auth.js session cookie
+  const hasSession =
+    request.cookies.has("authjs.session-token") ||
+    request.cookies.has("__Secure-authjs.session-token");
 
-  if (!sessionToken) {
-    const loginUrl = new URL("/admin/login", request.url);
-    return NextResponse.redirect(loginUrl);
+  if (!hasSession) {
+    const signInUrl = new URL("/auth/signin", request.url);
+    return NextResponse.redirect(signInUrl);
   }
 
-  // Note: We can't validate the in-memory session from middleware (runs on edge).
-  // The admin layout will do full validation server-side.
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: [
+    // Match everything except static files, _next internals, favicon, and public assets
+    "/((?!_next/static|_next/image|favicon\\.ico|icons|images|manifest|sw\\.js|workbox-).*)",
+  ],
 };

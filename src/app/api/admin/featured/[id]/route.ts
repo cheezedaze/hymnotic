@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireAuthAdmin } from "@/lib/auth/auth";
 import {
   getFeaturedContentById,
   updateFeaturedContent,
@@ -14,8 +14,8 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = requireAdmin(request);
-  if (!auth.authorized) return auth.response!;
+  const session = await requireAuthAdmin();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
     const { id } = await params;
@@ -48,8 +48,8 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = requireAdmin(request);
-  if (!auth.authorized) return auth.response!;
+  const session = await requireAuthAdmin();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
     const { id } = await params;

@@ -162,6 +162,94 @@ export const contentBlocks = pgTable(
 );
 
 // =============================================================================
+// Users
+// =============================================================================
+export const users = pgTable(
+  "users",
+  {
+    id: varchar("id", { length: 128 }).primaryKey(),
+    email: varchar("email", { length: 255 }).notNull(),
+    name: text("name"),
+    passwordHash: text("password_hash").notNull(),
+    role: varchar("role", { length: 20 }).notNull().default("USER"), // "ADMIN" | "USER"
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex("idx_users_email").on(table.email)]
+);
+
+// =============================================================================
+// Invitations
+// =============================================================================
+export const invitations = pgTable(
+  "invitations",
+  {
+    id: serial("id").primaryKey(),
+    email: varchar("email", { length: 255 }).notNull(),
+    token: varchar("token", { length: 255 }).notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    usedAt: timestamp("used_at"),
+    invitedById: varchar("invited_by_id", { length: 128 }).references(
+      () => users.id
+    ),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_invitations_token").on(table.token),
+    index("idx_invitations_email").on(table.email),
+  ]
+);
+
+// =============================================================================
+// Per-User Play Tracking
+// =============================================================================
+export const userTrackPlays = pgTable(
+  "user_track_plays",
+  {
+    id: serial("id").primaryKey(),
+    userId: varchar("user_id", { length: 128 })
+      .notNull()
+      .references(() => users.id),
+    trackId: varchar("track_id", { length: 128 })
+      .notNull()
+      .references(() => tracks.id),
+    playCount: integer("play_count").default(0).notNull(),
+    lastPlayedAt: timestamp("last_played_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_user_track_plays_user_track").on(
+      table.userId,
+      table.trackId
+    ),
+    index("idx_user_track_plays_user").on(table.userId),
+  ]
+);
+
+// =============================================================================
+// Per-User Favorites
+// =============================================================================
+export const userFavorites = pgTable(
+  "user_favorites",
+  {
+    id: serial("id").primaryKey(),
+    userId: varchar("user_id", { length: 128 })
+      .notNull()
+      .references(() => users.id),
+    trackId: varchar("track_id", { length: 128 })
+      .notNull()
+      .references(() => tracks.id),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_user_favorites_user_track").on(
+      table.userId,
+      table.trackId
+    ),
+    index("idx_user_favorites_user").on(table.userId),
+  ]
+);
+
+// =============================================================================
 // Type exports for use in API routes
 // =============================================================================
 export type Collection = typeof collections.$inferSelect;
@@ -176,3 +264,8 @@ export type NewVideo = typeof videos.$inferInsert;
 export type SiteSetting = typeof siteSettings.$inferSelect;
 export type ContentBlock = typeof contentBlocks.$inferSelect;
 export type NewContentBlock = typeof contentBlocks.$inferInsert;
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
+export type Invitation = typeof invitations.$inferSelect;
+export type UserTrackPlay = typeof userTrackPlays.$inferSelect;
+export type UserFavorite = typeof userFavorites.$inferSelect;

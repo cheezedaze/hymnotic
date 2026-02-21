@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   // Exclude ffmpeg packages from Turbopack bundling (they use dynamic require)
-  serverExternalPackages: ["@ffmpeg-installer/ffmpeg", "fluent-ffmpeg"],
+  serverExternalPackages: ["@ffmpeg-installer/ffmpeg", "fluent-ffmpeg", "bcryptjs"],
 
   // Allow large file uploads (WAV files can be 100MB+)
   experimental: {

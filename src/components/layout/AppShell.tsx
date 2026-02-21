@@ -1,56 +1,27 @@
 "use client";
 
-import { usePlayerStore } from "@/lib/store/playerStore";
+import { useEffect } from "react";
+import { useFavoritesStore } from "@/lib/store/favoritesStore";
 import { useAudioPlayer } from "@/lib/hooks/useAudioPlayer";
 import { useMediaSession } from "@/lib/hooks/useMediaSession";
-import { NavBar } from "./NavBar";
-import { MiniPlayer } from "./MiniPlayer";
-import { NowPlaying } from "@/components/player/NowPlaying";
-import { PageTransition } from "./PageTransition";
-import { AnimatePresence } from "framer-motion";
+import { useIsDesktop } from "@/lib/hooks/useIsDesktop";
+import { MobileLayout } from "./MobileLayout";
+import { DesktopLayout } from "./DesktopLayout";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   useAudioPlayer();
   useMediaSession();
 
-  const isMiniPlayerVisible = usePlayerStore((s) => s.isMiniPlayerVisible);
-  const isNowPlayingExpanded = usePlayerStore((s) => s.isNowPlayingExpanded);
+  // Load server-backed favorites on mount
+  useEffect(() => {
+    useFavoritesStore.getState().loadFavorites();
+  }, []);
 
-  const showMiniPlayer = isMiniPlayerVisible && !isNowPlayingExpanded;
+  const isDesktop = useIsDesktop();
 
-  return (
-    <div className="relative min-h-dvh bg-midnight overflow-x-hidden">
-      <main className={showMiniPlayer ? "pb-[calc(9rem+var(--safe-bottom))]" : "pb-[calc(6rem+var(--safe-bottom))]"}>
-        {children}
-      </main>
+  if (isDesktop) {
+    return <DesktopLayout>{children}</DesktopLayout>;
+  }
 
-      {/* Slide-in overlay for page transitions */}
-      <PageTransition />
-
-      {/* Bottom bar area - separate blur layer so backdrop-filter works reliably */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 rounded-t-2xl px-2 pt-2 pb-[var(--safe-bottom)]">
-        {/* Blur layer - sits behind nav content, blurs main content */}
-        <div
-          className="absolute inset-0 rounded-t-2xl"
-          style={{
-            background: "rgba(20, 26, 36, 0.60)",
-            WebkitBackdropFilter: "blur(23.4px)",
-            backdropFilter: "blur(23.4px)",
-            border: "1px solid rgba(255, 255, 255, 0.06)",
-            transform: "translateZ(0)",
-          }}
-          aria-hidden
-        />
-        <div className="relative z-10">
-          {showMiniPlayer && <MiniPlayer />}
-          <NavBar />
-        </div>
-      </div>
-
-      {/* Now Playing overlay */}
-      <AnimatePresence>
-        {isNowPlayingExpanded && <NowPlaying />}
-      </AnimatePresence>
-    </div>
-  );
+  return <MobileLayout>{children}</MobileLayout>;
 }

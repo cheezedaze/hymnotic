@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireAuthAdmin } from "@/lib/auth/auth";
 import { getMediaUrl } from "@/lib/s3/client";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { convertWavToMp3 } from "@/lib/audio/convertWavToMp3";
@@ -34,8 +34,8 @@ function isWavFile(fileName: string, mimeType: string): boolean {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = requireAdmin(request);
-  if (!auth.authorized) return auth.response!;
+  const session = await requireAuthAdmin();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
     const formData = await request.formData();

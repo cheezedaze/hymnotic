@@ -11,11 +11,13 @@
 
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
+import bcrypt from "bcryptjs";
 import {
   collections,
   tracks,
   lyrics,
   featuredContent,
+  users,
 } from "../../src/lib/db/schema";
 
 // Load env
@@ -519,6 +521,25 @@ async function seed() {
     .onConflictDoNothing();
   console.log("   ✅ Featured content set\n");
 
+  // =========================================================================
+  // Admin User
+  // =========================================================================
+  console.log("👤 Creating admin user...");
+  const adminPassword = process.env.ADMIN_PASSWORD || "HymnoticAdmin2025!";
+  const adminPasswordHash = await bcrypt.hash(adminPassword, 12);
+
+  await db
+    .insert(users)
+    .values({
+      id: crypto.randomUUID(),
+      email: "admin@hymnotic.app",
+      name: "Admin",
+      passwordHash: adminPasswordHash,
+      role: "ADMIN",
+    })
+    .onConflictDoNothing();
+  console.log("   ✅ Admin user created (admin@hymnotic.app)\n");
+
   console.log("==========================================");
   console.log("🎉 Seed complete!");
   console.log("==========================================");
@@ -528,6 +549,7 @@ async function seed() {
   console.log("  🎵 12 tracks");
   console.log(`  📝 ${allLyrics.length} lyric lines (3 tracks)`);
   console.log("  ⭐ 1 featured track");
+  console.log("  👤 1 admin user (admin@hymnotic.app)");
 
   await client.end();
 }

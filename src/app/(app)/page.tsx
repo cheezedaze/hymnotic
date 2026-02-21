@@ -1,7 +1,3 @@
-import { HomeParallaxWrapper } from "@/components/home/HomeParallaxWrapper";
-import { HeroCard } from "@/components/home/HeroCard";
-import { SectionDivider } from "@/components/home/SectionDivider";
-import { CollectionGrid } from "@/components/home/CollectionGrid";
 import {
   getAllCollections,
   getCollectionById,
@@ -10,7 +6,8 @@ import {
   getTracksByCollection,
 } from "@/lib/db/queries";
 import { buildCollectionMediaUrls, buildTrackMediaUrlsWithFallback } from "@/lib/s3/client";
-import { type ApiTrack } from "@/lib/types";
+import { type ApiTrack, type ApiCollection } from "@/lib/types";
+import { HomePageContent } from "@/components/home/HomePageContent";
 
 export default async function HomePage() {
   const [collections, featured] = await Promise.all([
@@ -44,10 +41,10 @@ export default async function HomePage() {
   }
 
   return (
-    <HomeParallaxWrapper>
-      <HeroCard featuredTrack={featuredTrack} queue={featuredQueue} />
-      <SectionDivider title="Collections" />
-      <CollectionGrid collections={collectionsWithUrls} />
-    </HomeParallaxWrapper>
+    <HomePageContent
+      collections={collectionsWithUrls as ApiCollection[]}
+      featuredTrack={featuredTrack}
+      featuredQueue={featuredQueue}
+    />
   );
 }

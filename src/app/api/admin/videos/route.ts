@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireAuthAdmin } from "@/lib/auth/auth";
 import { getAllVideos, createVideo } from "@/lib/db/queries";
 
 export async function GET(request: Request) {
-  const auth = requireAdmin(request);
-  if (!auth.authorized) return auth.response!;
+  const session = await requireAuthAdmin();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
     const videos = await getAllVideos();
@@ -19,8 +19,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const auth = requireAdmin(request);
-  if (!auth.authorized) return auth.response!;
+  const session = await requireAuthAdmin();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
     const body = await request.json();

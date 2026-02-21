@@ -7,8 +7,9 @@ import {
   Play,
   Star,
   Plus,
+  Users,
+  UserPlus,
 } from "lucide-react";
-import { cn } from "@/lib/utils/cn";
 
 interface StatsCardProps {
   label: string;
@@ -35,6 +36,7 @@ interface AdminDashboardProps {
     tracks: number;
     totalPlays: number;
     featured: number;
+    users: number;
   };
   recentTracks: Array<{
     id: string;
@@ -61,7 +63,7 @@ export function AdminDashboard({ stats, recentTracks }: AdminDashboardProps) {
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <StatsCard
           label="Collections"
           value={stats.collections}
@@ -86,10 +88,16 @@ export function AdminDashboard({ stats, recentTracks }: AdminDashboardProps) {
           icon={Star}
           color="text-yellow-400"
         />
+        <StatsCard
+          label="Users"
+          value={stats.users}
+          icon={Users}
+          color="text-blue-400"
+        />
       </div>
 
       {/* Quick actions */}
-      <div className="flex gap-3">
+      <div className="flex flex-wrap gap-3">
         <button
           onClick={() => router.push("/admin/collections")}
           className="flex items-center gap-2 px-4 py-2.5 bg-accent/15 border border-accent/25 text-accent rounded-xl text-sm font-medium hover:bg-accent/25 transition-colors"
@@ -103,6 +111,13 @@ export function AdminDashboard({ stats, recentTracks }: AdminDashboardProps) {
         >
           <Plus size={16} />
           Add Track
+        </button>
+        <button
+          onClick={() => router.push("/admin/users")}
+          className="flex items-center gap-2 px-4 py-2.5 bg-blue-400/15 border border-blue-400/25 text-blue-400 rounded-xl text-sm font-medium hover:bg-blue-400/25 transition-colors"
+        >
+          <UserPlus size={16} />
+          Invite User
         </button>
       </div>
 

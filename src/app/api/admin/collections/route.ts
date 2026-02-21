@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth/session";
+import { requireAuthAdmin } from "@/lib/auth/auth";
 import { createCollection } from "@/lib/db/queries";
 import { buildCollectionMediaUrls } from "@/lib/s3/client";
 
@@ -8,8 +8,8 @@ import { buildCollectionMediaUrls } from "@/lib/s3/client";
  * Create a new collection.
  */
 export async function POST(request: Request) {
-  const auth = requireAdmin(request);
-  if (!auth.authorized) return auth.response!;
+  const session = await requireAuthAdmin();
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
     const body = await request.json();

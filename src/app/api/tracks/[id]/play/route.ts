@@ -1,19 +1,25 @@
 import { NextResponse } from "next/server";
-import { incrementPlayCount } from "@/lib/db/queries";
+import { auth } from "@/lib/auth/auth";
+import { incrementPlayCount, incrementUserPlayCount } from "@/lib/db/queries";
 
 /**
  * POST /api/tracks/:id/play
- * Increments the play count for a track.
- * Called by the audio player when a track starts playing.
+ * Increments the global play count for a track and tracks per-user plays.
  */
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
-    const track = await incrementPlayCount(id);
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
+    const { id } = await params;
+
+    // Increment global play count (admin dashboard uses this)
+    const track = await incrementPlayCount(id);
     if (!track) {
       return NextResponse.json(
         { error: "Track not found" },
@@ -21,9 +27,13 @@ export async function POST(
       );
     }
 
+    // Track per-user play count
+    const userPlay = await incrementUserPlayCount(session.user.id, id);
+
     return NextResponse.json({
       id: track.id,
       playCount: track.playCount,
+      userPlayCount: userPlay?.playCount ?? 1,
     });
   } catch (error) {
     console.error("Error incrementing play count:", error);

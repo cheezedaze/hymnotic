@@ -2,7 +2,7 @@ import { getAdminStats, getAllCollections, getAllTracks } from "@/lib/db/queries
 import { AdminDashboard } from "@/components/admin/AdminDashboard";
 
 export default async function AdminPage() {
-  let stats = { collections: 0, tracks: 0, totalPlays: 0, featured: 0 };
+  let stats = { collections: 0, tracks: 0, totalPlays: 0, featured: 0, users: 0 };
   let recentTracks: Awaited<ReturnType<typeof getAllTracks>> = [];
 
   try {
