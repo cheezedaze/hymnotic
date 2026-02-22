@@ -29,12 +29,7 @@ export function DesktopHomePage({ collections }: DesktopHomePageProps) {
     <div className="h-full flex flex-col p-6 gap-6">
       {/* Top section: two-panel layout */}
       <div className="flex-1 min-h-0 grid grid-cols-5 gap-6">
-        {/* Left panel: Video / About */}
-        <div className="col-span-2 min-h-0">
-          <DesktopVideoPanel />
-        </div>
-
-        {/* Right panel: Collections + Tracks */}
+        {/* Left panel: Collections + Tracks */}
         <div className="col-span-3 flex flex-col min-h-0 gap-4">
           {/* Collection filter strip */}
           <CollectionFilterStrip
@@ -56,6 +51,11 @@ export function DesktopHomePage({ collections }: DesktopHomePageProps) {
               />
             )}
           </div>
+        </div>
+
+        {/* Right panel: Video / About */}
+        <div className="col-span-2 min-h-0">
+          <DesktopVideoPanel />
         </div>
       </div>
     </div>

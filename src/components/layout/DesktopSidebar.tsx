@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { Home, Music, Library, User, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { signOut } from "next-auth/react";
@@ -37,19 +38,12 @@ export function DesktopSidebar() {
       {/* Logo */}
       <div className="px-6 pt-8 pb-6">
         <Link href="/" className="flex items-center gap-3">
-          <div
-            className="w-8 h-8 shrink-0"
-            style={{
-              maskImage: "url(/images/think-celestial-hymnotic.svg)",
-              maskSize: "contain",
-              maskRepeat: "no-repeat",
-              maskPosition: "center",
-              WebkitMaskImage: "url(/images/think-celestial-hymnotic.svg)",
-              WebkitMaskSize: "contain",
-              WebkitMaskRepeat: "no-repeat",
-              WebkitMaskPosition: "center",
-              backgroundColor: "var(--color-accent)",
-            }}
+          <Image
+            src="/images/hymnotic-logo1.png"
+            alt=""
+            width={32}
+            height={32}
+            className="w-8 h-8 shrink-0 object-contain"
             aria-hidden
           />
           <span className="text-display text-xl font-bold text-text-primary">
@@ -103,27 +97,16 @@ export function DesktopSidebar() {
                   : "text-text-muted hover:text-text-secondary hover:bg-white/[0.04]"
               )}
             >
-              <div
+              <Image
+                src="/images/hymnotic-logo1.png"
+                alt=""
+                width={20}
+                height={20}
                 className={cn(
-                  "w-5 h-5 shrink-0",
+                  "w-5 h-5 shrink-0 object-contain",
                   pathname === "/about" &&
                     "drop-shadow-[0_0_6px_rgba(0,255,251,0.4)]"
                 )}
-                style={{
-                  maskImage: "url(/images/think-celestial-hymnotic.svg)",
-                  maskSize: "contain",
-                  maskRepeat: "no-repeat",
-                  maskPosition: "center",
-                  WebkitMaskImage:
-                    "url(/images/think-celestial-hymnotic.svg)",
-                  WebkitMaskSize: "contain",
-                  WebkitMaskRepeat: "no-repeat",
-                  WebkitMaskPosition: "center",
-                  backgroundColor:
-                    pathname === "/about"
-                      ? "var(--color-accent)"
-                      : "currentColor",
-                }}
                 aria-hidden
               />
               More

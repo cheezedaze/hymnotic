@@ -138,11 +138,11 @@ function AcceptInviteContent() {
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
           <Image
-            src="/images/think-celestial-hymnotic.svg"
+            src="/images/hymnotic-logo1.png"
             alt="Hymnotic"
             width={48}
             height={48}
-            className="glow-gold mb-3"
+            className="mb-3"
           />
           <h1 className="text-display text-2xl font-bold text-text-primary">
             Welcome

@@ -42,11 +42,11 @@ export function AdminNav() {
           {/* Logo */}
           <div className="flex items-center gap-3">
             <Image
-              src="/images/think-celestial-hymnotic.svg"
+              src="/images/hymnotic-logo1.png"
               alt="Hymnotic"
               width={24}
               height={24}
-              className="glow-gold"
+              className=""
             />
             <span className="text-display text-sm font-bold text-text-primary">
               Admin

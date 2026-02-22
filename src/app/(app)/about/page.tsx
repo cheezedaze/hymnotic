@@ -61,11 +61,11 @@ export default async function AboutPage() {
         {/* Hero */}
         <div className="text-center space-y-4">
           <Image
-            src="/images/think-celestial-hymnotic.svg"
+            src="/images/hymnotic-logo1.png"
             alt="Hymnotic"
             width={72}
             height={72}
-            className="glow-gold mx-auto"
+            className="mx-auto"
           />
           <h1 className="text-display text-3xl font-bold text-text-primary">
             Hymnotic

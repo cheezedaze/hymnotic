@@ -22,46 +22,35 @@ export function Header() {
     <header className="flex items-center justify-center py-4 pt-[calc(1.5rem+var(--safe-top))]">
       <div className="flex w-full flex-col items-center gap-1">
         <div className="relative flex min-w-[366px] items-center justify-center overflow-visible">
-          {/* Back layer: cyan #00FFFB, 13.4px blur, 30% larger than logo, no drop-shadow */}
-          <div
-            className="absolute left-1/2 top-1/2 z-0 -translate-x-1/2 -translate-y-1/2 opacity-100"
-            style={{ filter: 'blur(13.4px)', WebkitFilter: 'blur(13.4px)' }}
-            aria-hidden
-          >
-            <div
-              style={{
-                width: 220,
-                height: 189,
-                backgroundColor: 'rgba(0, 255, 251, 0.18)',
-                maskImage: 'url(/images/think-celestial-hymnotic.svg)',
-                maskSize: 'contain',
-                maskRepeat: 'no-repeat',
-                maskPosition: 'center',
-                maskType: 'alpha',
-                WebkitMaskImage: 'url(/images/think-celestial-hymnotic.svg)',
-                WebkitMaskSize: 'contain',
-                WebkitMaskRepeat: 'no-repeat',
-                WebkitMaskPosition: 'center',
-              }}
-            />
-          </div>
-          {/* Front layer: white with yellow drop-shadow */}
+          {/* Front layer: logo1 */}
           <Image
-            src="/images/think-celestial-hymnotic.svg"
+            src="/images/hymnotic-logo1.png"
             alt="Hymnotic"
             width={141}
             height={121}
-            className="relative z-10 brightness-0 invert drop-shadow-[0_0_7.6px_rgba(255,242,0,0.61)]"
+            className="relative z-10"
             priority
           />
-          {/* Glitch overlay: plain img avoids Next.js responsive constraints; container min-w-[366px] gives it room */}
+          {/* Glitch overlay: logo2 (first 50ms of each pulse) */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/images/glitch-logo.png"
+            src="/images/hymnotic-logo2.png"
             alt=""
-            width={292}
-            height={250}
-            className="pointer-events-none absolute left-1/2 top-1/2 z-20 h-[250px] w-[292px] -translate-x-[calc(50%+5px)] -translate-y-1/2 object-contain animate-[glitch-flicker_var(--glitch-duration)_steps(1)_infinite]"
+            width={141}
+            height={121}
+            className="pointer-events-none absolute left-1/2 top-1/2 z-20 h-[121px] w-[141px] -translate-x-1/2 -translate-y-1/2 object-contain opacity-0"
+            style={{ animation: `glitch-flicker-2 ${GLITCH_DURATION}s steps(1) infinite` }}
+            aria-hidden
+          />
+          {/* Glitch overlay: logo3 (second 50ms of each pulse) */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/images/hymnotic-logo3.png"
+            alt=""
+            width={141}
+            height={121}
+            className="pointer-events-none absolute left-1/2 top-1/2 z-20 h-[121px] w-[141px] -translate-x-1/2 -translate-y-1/2 object-contain opacity-0"
+            style={{ animation: `glitch-flicker-3 ${GLITCH_DURATION}s steps(1) infinite` }}
             aria-hidden
           />
         </div>

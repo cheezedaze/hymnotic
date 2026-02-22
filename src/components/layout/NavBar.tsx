@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { Home, Music, Library, User } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
@@ -52,22 +53,15 @@ export function NavBar() {
               : "text-text-muted hover:text-text-secondary"
           )}
         >
-          <div
+          <Image
+            src="/images/hymnotic-logo1.png"
+            alt=""
+            width={22}
+            height={22}
             className={cn(
-              "w-[22px] h-[22px] shrink-0",
+              "w-[22px] h-[22px] shrink-0 object-contain",
               pathname === "/about" && "drop-shadow-[0_0_6px_rgba(0,255,251,0.4)]"
             )}
-            style={{
-              maskImage: "url(/images/think-celestial-hymnotic.svg)",
-              maskSize: "contain",
-              maskRepeat: "no-repeat",
-              maskPosition: "center",
-              WebkitMaskImage: "url(/images/think-celestial-hymnotic.svg)",
-              WebkitMaskSize: "contain",
-              WebkitMaskRepeat: "no-repeat",
-              WebkitMaskPosition: "center",
-              backgroundColor: "#FFFFFF",
-            }}
             aria-hidden
           />
           <span className="text-[10px] font-medium">More</span>
