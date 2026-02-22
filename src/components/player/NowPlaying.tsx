@@ -35,27 +35,39 @@ export function NowPlaying() {
     >
       {/* Backdrop */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute inset-x-0 top-0 bottom-[40%]">
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div
-              style={{
-                width: "75%",
-                aspectRatio: "1",
-                background:
-                  "linear-gradient(135deg, rgba(0,255,251,0.55), rgba(255,242,0,0.35), rgba(0,255,251,0.4))",
-                filter: "blur(2px)",
-                maskImage: "url(/images/think-celestial-hymnotic.svg)",
-                maskSize: "contain",
-                maskRepeat: "no-repeat",
-                maskPosition: "center",
-                WebkitMaskImage: "url(/images/think-celestial-hymnotic.svg)",
-                WebkitMaskSize: "contain",
-                WebkitMaskRepeat: "no-repeat",
-                WebkitMaskPosition: "center",
-              }}
-            />
+        {currentTrack.videoUrl ? (
+          <video
+            key={currentTrack.videoUrl}
+            src={currentTrack.videoUrl}
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        ) : (
+          <div className="absolute inset-x-0 top-0 bottom-[40%]">
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div
+                style={{
+                  width: "75%",
+                  aspectRatio: "1",
+                  background:
+                    "linear-gradient(135deg, rgba(0,255,251,0.55), rgba(255,242,0,0.35), rgba(0,255,251,0.4))",
+                  filter: "blur(2px)",
+                  maskImage: "url(/images/hymnotic-logo1.png)",
+                  maskSize: "contain",
+                  maskRepeat: "no-repeat",
+                  maskPosition: "center",
+                  WebkitMaskImage: "url(/images/hymnotic-logo1.png)",
+                  WebkitMaskSize: "contain",
+                  WebkitMaskRepeat: "no-repeat",
+                  WebkitMaskPosition: "center",
+                }}
+              />
+            </div>
           </div>
-        </div>
+        )}
         <div className="absolute inset-0 bg-gradient-to-b from-midnight/5 via-midnight/25 to-midnight/85 pointer-events-none" />
       </div>
 

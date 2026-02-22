@@ -38,19 +38,12 @@ export function DesktopVideoPanel() {
         {/* About content */}
         <div className="relative flex-1 flex flex-col justify-end p-6 space-y-4">
           <div className="flex items-center gap-2">
-            <div
-              className="w-8 h-8 shrink-0"
-              style={{
-                maskImage: "url(/images/think-celestial-hymnotic.svg)",
-                maskSize: "contain",
-                maskRepeat: "no-repeat",
-                maskPosition: "center",
-                WebkitMaskImage: "url(/images/think-celestial-hymnotic.svg)",
-                WebkitMaskSize: "contain",
-                WebkitMaskRepeat: "no-repeat",
-                WebkitMaskPosition: "center",
-                backgroundColor: "var(--color-gold)",
-              }}
+            <Image
+              src="/images/hymnotic-logo1.png"
+              alt=""
+              width={32}
+              height={32}
+              className="w-8 h-8 shrink-0 object-contain"
               aria-hidden
             />
             <h2 className="text-display text-xl font-bold text-text-primary">
@@ -79,7 +72,31 @@ export function DesktopVideoPanel() {
     );
   }
 
-  // Track playing with video
+  // Track playing with uploaded video file
+  if (currentTrack.hasVideo && currentTrack.videoUrl) {
+    return (
+      <div className="relative h-full rounded-2xl overflow-hidden bg-black">
+        <video
+          key={currentTrack.videoUrl}
+          src={currentTrack.videoUrl}
+          autoPlay
+          loop
+          muted
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-midnight/60 via-transparent to-transparent" />
+        <div className="absolute bottom-0 left-0 right-0 p-6">
+          <p className="text-display text-lg font-bold text-text-primary">
+            {currentTrack.title}
+          </p>
+          <p className="text-sm text-text-secondary mt-1">{currentTrack.artist}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Track playing with YouTube video
   if (currentTrack.hasVideo && currentTrack.youtubeUrl) {
     const embedUrl = getYouTubeEmbedUrl(currentTrack.youtubeUrl);
     if (embedUrl) {

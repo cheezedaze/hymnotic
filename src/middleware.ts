@@ -25,7 +25,8 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Match everything except static files, _next internals, favicon, and public assets
-    "/((?!_next/static|_next/image|favicon\\.ico|icons|images|manifest|sw\\.js|workbox-).*)",
+    // Match everything except static files, _next internals, favicon, public assets,
+    // and the upload API route (which handles its own auth and needs the body stream intact)
+    "/((?!_next/static|_next/image|favicon\\.ico|icons|images|manifest|sw\\.js|workbox-|api/admin/upload).*)",
   ],
 };
