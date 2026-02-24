@@ -65,7 +65,7 @@ export function Header() {
               alt=""
               width={200}
               height={22}
-              className="absolute left-1/2 top-1/2 z-0 translate-x-[calc(-50%-2px)] -translate-y-[calc(50%+2px)] brightness-0 invert opacity-80"
+              className="absolute left-1/2 top-1/2 z-0 translate-x-[calc(-50%-2px)] -translate-y-[calc(50%+2px)] opacity-80"
               aria-hidden
             />
             <h1 className="relative z-10 text-display text-2xl tracking-[0.35em] text-text-primary uppercase font-medium">
