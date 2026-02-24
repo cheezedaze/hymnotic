@@ -25,7 +25,7 @@ const client = postgres(connectionString);
 const db = drizzle(client);
 
 async function seedAdmin() {
-  const email = "admin@hymnotic.app";
+  const email = "admin@hymnz.app";
   const password = "HymnoticAdmin2025!";
   const passwordHash = await bcrypt.hash(password, 12);
 

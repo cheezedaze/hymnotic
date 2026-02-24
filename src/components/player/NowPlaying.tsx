@@ -55,11 +55,11 @@ export function NowPlaying() {
                   background:
                     "linear-gradient(135deg, rgba(0,255,251,0.55), rgba(255,242,0,0.35), rgba(0,255,251,0.4))",
                   filter: "blur(2px)",
-                  maskImage: "url(/images/hymnotic-logo1.png)",
+                  maskImage: "url(/images/hymnz-logo1.png)",
                   maskSize: "contain",
                   maskRepeat: "no-repeat",
                   maskPosition: "center",
-                  WebkitMaskImage: "url(/images/hymnotic-logo1.png)",
+                  WebkitMaskImage: "url(/images/hymnz-logo1.png)",
                   WebkitMaskSize: "contain",
                   WebkitMaskRepeat: "no-repeat",
                   WebkitMaskPosition: "center",

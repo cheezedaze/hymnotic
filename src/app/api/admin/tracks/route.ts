@@ -41,7 +41,7 @@ export async function POST(request: Request) {
       id,
       collectionId,
       title,
-      artist: artist ?? "Hymnotic",
+      artist: artist ?? "HYMNZ",
       audioKey: audioKey ?? undefined,
       artworkKey: artworkKey ?? undefined,
       duration,

@@ -39,7 +39,7 @@ export function DesktopSidebar() {
       <div className="px-6 pt-8 pb-6">
         <Link href="/" className="flex items-center gap-3">
           <Image
-            src="/images/hymnotic-logo1.png"
+            src="/images/hymnz-logo1.png"
             alt=""
             width={32}
             height={32}
@@ -47,7 +47,7 @@ export function DesktopSidebar() {
             aria-hidden
           />
           <span className="text-display text-xl font-bold text-text-primary">
-            Hymnotic
+            HYMNZ
           </span>
         </Link>
       </div>
@@ -98,7 +98,7 @@ export function DesktopSidebar() {
               )}
             >
               <Image
-                src="/images/hymnotic-logo1.png"
+                src="/images/hymnz-logo1.png"
                 alt=""
                 width={20}
                 height={20}

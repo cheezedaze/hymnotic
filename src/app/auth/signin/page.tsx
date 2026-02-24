@@ -42,14 +42,14 @@ export default function SignInPage() {
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
           <Image
-            src="/images/hymnotic-logo1.png"
-            alt="Hymnotic"
+            src="/images/hymnz-logo1.png"
+            alt="HYMNZ"
             width={48}
             height={48}
             className="mb-3"
           />
           <h1 className="text-display text-2xl font-bold text-text-primary">
-            Hymnotic
+            HYMNZ
           </h1>
           <p className="text-text-muted text-sm mt-1">
             Sign in to continue

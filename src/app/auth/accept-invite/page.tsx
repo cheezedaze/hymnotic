@@ -138,8 +138,8 @@ function AcceptInviteContent() {
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
           <Image
-            src="/images/hymnotic-logo1.png"
-            alt="Hymnotic"
+            src="/images/hymnz-logo1.png"
+            alt="HYMNZ"
             width={48}
             height={48}
             className="mb-3"
@@ -148,7 +148,7 @@ function AcceptInviteContent() {
             Welcome
           </h1>
           <p className="text-text-muted text-sm mt-1">
-            Set up your Hymnotic account
+            Set up your HYMNZ account
           </p>
         </div>
 

@@ -45,7 +45,7 @@ export const tracks = pgTable(
       .notNull()
       .references(() => collections.id),
     title: text("title").notNull(),
-    artist: text("artist").notNull().default("Hymnotic"),
+    artist: text("artist").notNull().default("HYMNZ"),
     artworkKey: text("artwork_key"), // S3 key, or null to inherit from collection
     audioKey: text("audio_key"), // S3 key: "audio/tracks/sands-01.mp3"
     audioFormat: varchar("audio_format", { length: 10 }), // "mp3", "flac", "aac"

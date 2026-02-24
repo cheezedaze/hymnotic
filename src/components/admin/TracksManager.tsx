@@ -45,7 +45,7 @@ export function TracksManager({ tracks: initialTracks, collections }: TracksMana
     id: "",
     collectionId: collections[0]?.id || "",
     title: "",
-    artist: "Hymnotic",
+    artist: "HYMNZ",
     duration: 0,
     trackNumber: 1,
   });
@@ -152,7 +152,7 @@ export function TracksManager({ tracks: initialTracks, collections }: TracksMana
           onClick={() => {
             setShowForm(!showForm);
             setSlugManuallyEdited(false);
-            setForm({ id: "", collectionId: collections[0]?.id || "", title: "", artist: "Hymnotic", duration: 0, trackNumber: 1 });
+            setForm({ id: "", collectionId: collections[0]?.id || "", title: "", artist: "HYMNZ", duration: 0, trackNumber: 1 });
             setError("");
           }}
           className="flex items-center gap-2 px-4 py-2.5 bg-gold/15 border border-gold/25 text-gold rounded-xl text-sm font-medium hover:bg-gold/25 transition-colors"

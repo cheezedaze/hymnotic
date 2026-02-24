@@ -58,7 +58,7 @@ export function AdminDashboard({ stats, recentTracks }: AdminDashboardProps) {
           Dashboard
         </h1>
         <p className="text-text-muted text-sm mt-1">
-          Manage your Hymnotic content
+          Manage your HYMNZ content
         </p>
       </div>
 

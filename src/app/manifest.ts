@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Hymnotic",
-    short_name: "Hymnotic",
+    name: "HYMNZ",
+    short_name: "HYMNZ",
     description: "Spiritual music for the soul",
     start_url: "/",
     display: "standalone",

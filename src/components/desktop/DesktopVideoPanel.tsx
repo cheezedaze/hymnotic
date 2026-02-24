@@ -20,14 +20,14 @@ function getYouTubeEmbedUrl(url: string): string | null {
 export function DesktopVideoPanel() {
   const currentTrack = usePlayerStore((s) => s.currentTrack);
 
-  // No track playing: show About Hymnotic
+  // No track playing: show About HYMNZ
   if (!currentTrack) {
     return (
       <div className="relative h-full flex flex-col rounded-2xl overflow-hidden">
         {/* Background image */}
         <div className="absolute inset-0">
           <Image
-            src="/images/hymnotic-pipes3.png"
+            src="/images/hymnz-pipes3.png"
             alt=""
             fill
             className="object-cover opacity-40"
@@ -39,7 +39,7 @@ export function DesktopVideoPanel() {
         <div className="relative flex-1 flex flex-col justify-end p-6 space-y-4">
           <div className="flex items-center gap-2">
             <Image
-              src="/images/hymnotic-logo1.png"
+              src="/images/hymnz-logo1.png"
               alt=""
               width={32}
               height={32}
@@ -47,7 +47,7 @@ export function DesktopVideoPanel() {
               aria-hidden
             />
             <h2 className="text-display text-xl font-bold text-text-primary">
-              About Hymnotic
+              About HYMNZ
             </h2>
           </div>
 
@@ -55,7 +55,7 @@ export function DesktopVideoPanel() {
             <div className="flex items-start gap-2">
               <Heart size={14} className="text-accent mt-0.5 shrink-0" />
               <p className="text-text-secondary text-sm leading-relaxed">
-                Hymnotic brings timeless hymns into a modern listening experience
+                HYMNZ brings timeless hymns into a modern listening experience
                 with immersive audio and beautiful visuals.
               </p>
             </div>

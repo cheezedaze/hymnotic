@@ -41,8 +41,8 @@ export default function AdminLoginPage() {
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
           <Image
-            src="/images/hymnotic-logo1.png"
-            alt="Hymnotic"
+            src="/images/hymnz-logo1.png"
+            alt="HYMNZ"
             width={48}
             height={48}
             className="mb-3"

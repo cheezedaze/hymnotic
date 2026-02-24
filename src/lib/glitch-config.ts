@@ -6,8 +6,8 @@
  *          → two quick pulses → 0.5s gap → one pulse → 2s gap → loop
  *
  * Each "pulse" is split into two 50ms frames:
- *   logo2 (hymnotic-logo2.png) shows first 50ms
- *   logo3 (hymnotic-logo3.png) shows second 50ms
+ *   logo2 (hymnz-logo2.png) shows first 50ms
+ *   logo3 (hymnz-logo3.png) shows second 50ms
  */
 export const GLITCH_PATTERN = [
   { type: "pulse" as const, duration: 1 },

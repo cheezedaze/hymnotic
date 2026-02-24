@@ -42,8 +42,8 @@ export function AdminNav() {
           {/* Logo */}
           <div className="flex items-center gap-3">
             <Image
-              src="/images/hymnotic-logo1.png"
-              alt="Hymnotic"
+              src="/images/hymnz-logo1.png"
+              alt="HYMNZ"
               width={24}
               height={24}
               className=""

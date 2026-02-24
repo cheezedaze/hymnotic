@@ -54,7 +54,7 @@ export function NavBar() {
           )}
         >
           <Image
-            src="/images/hymnotic-logo1.png"
+            src="/images/hymnz-logo1.png"
             alt=""
             width={22}
             height={22}

@@ -34,7 +34,7 @@ const client = postgres(connectionString);
 const db = drizzle(client);
 
 async function seed() {
-  console.log("🌱 Seeding Hymnotic database...\n");
+  console.log("🌱 Seeding HYMNZ database...\n");
 
   // =========================================================================
   // Collections
@@ -79,7 +79,7 @@ async function seed() {
       id: "sands-01",
       collectionId: "sands-of-the-sea",
       title: "Brightly Beams Our Father's Mercy",
-      artist: "Hymnotic",
+      artist: "HYMNZ",
       audioKey: "audio/tracks/sands-01.mp3",
       duration: 215,
       trackNumber: 1,
@@ -93,7 +93,7 @@ async function seed() {
       id: "sands-02",
       collectionId: "sands-of-the-sea",
       title: "It is Well With My Soul",
-      artist: "Hymnotic",
+      artist: "HYMNZ",
       audioKey: "audio/tracks/sands-02.mp3",
       duration: 248,
       trackNumber: 2,
@@ -107,7 +107,7 @@ async function seed() {
       id: "sands-03",
       collectionId: "sands-of-the-sea",
       title: "Rock of Ages",
-      artist: "Hymnotic",
+      artist: "HYMNZ",
       audioKey: "audio/tracks/sands-03.mp3",
       duration: 196,
       trackNumber: 3,
@@ -122,7 +122,7 @@ async function seed() {
       id: "sands-04",
       collectionId: "sands-of-the-sea",
       title: "I Need Thee Every Hour",
-      artist: "Hymnotic",
+      artist: "HYMNZ",
       audioKey: "audio/tracks/sands-04.mp3",
       duration: 232,
       trackNumber: 4,
@@ -136,7 +136,7 @@ async function seed() {
       id: "sands-05",
       collectionId: "sands-of-the-sea",
       title: "Blessed Assurance",
-      artist: "Hymnotic",
+      artist: "HYMNZ",
       audioKey: "audio/tracks/sands-05.mp3",
       duration: 210,
       trackNumber: 5,
@@ -150,7 +150,7 @@ async function seed() {
       id: "sands-06",
       collectionId: "sands-of-the-sea",
       title: "Amazing Grace",
-      artist: "Hymnotic",
+      artist: "HYMNZ",
       audioKey: "audio/tracks/sands-06.mp3",
       duration: 275,
       trackNumber: 6,
@@ -164,7 +164,7 @@ async function seed() {
       id: "sands-07",
       collectionId: "sands-of-the-sea",
       title: "How Great Thou Art",
-      artist: "Hymnotic",
+      artist: "HYMNZ",
       audioKey: "audio/tracks/sands-07.mp3",
       duration: 290,
       trackNumber: 7,
@@ -179,7 +179,7 @@ async function seed() {
       id: "peace-01",
       collectionId: "peace",
       title: "Be Still My Soul",
-      artist: "Hymnotic",
+      artist: "HYMNZ",
       audioKey: "audio/tracks/peace-01.mp3",
       duration: 245,
       trackNumber: 1,
@@ -194,7 +194,7 @@ async function seed() {
       id: "peace-02",
       collectionId: "peace",
       title: "Abide with Me",
-      artist: "Hymnotic",
+      artist: "HYMNZ",
       audioKey: "audio/tracks/peace-02.mp3",
       duration: 267,
       trackNumber: 2,
@@ -208,7 +208,7 @@ async function seed() {
       id: "peace-03",
       collectionId: "peace",
       title: "Nearer My God to Thee",
-      artist: "Hymnotic",
+      artist: "HYMNZ",
       audioKey: "audio/tracks/peace-03.mp3",
       duration: 228,
       trackNumber: 3,
@@ -222,7 +222,7 @@ async function seed() {
       id: "peace-04",
       collectionId: "peace",
       title: "Sweet Hour of Prayer",
-      artist: "Hymnotic",
+      artist: "HYMNZ",
       audioKey: "audio/tracks/peace-04.mp3",
       duration: 254,
       trackNumber: 4,
@@ -236,7 +236,7 @@ async function seed() {
       id: "peace-05",
       collectionId: "peace",
       title: "Lead Kindly Light",
-      artist: "Hymnotic",
+      artist: "HYMNZ",
       audioKey: "audio/tracks/peace-05.mp3",
       duration: 198,
       trackNumber: 5,
@@ -532,13 +532,13 @@ async function seed() {
     .insert(users)
     .values({
       id: crypto.randomUUID(),
-      email: "admin@hymnotic.app",
+      email: "admin@hymnz.app",
       name: "Admin",
       passwordHash: adminPasswordHash,
       role: "ADMIN",
     })
     .onConflictDoNothing();
-  console.log("   ✅ Admin user created (admin@hymnotic.app)\n");
+  console.log("   ✅ Admin user created (admin@hymnz.app)\n");
 
   console.log("==========================================");
   console.log("🎉 Seed complete!");
@@ -549,7 +549,7 @@ async function seed() {
   console.log("  🎵 12 tracks");
   console.log(`  📝 ${allLyrics.length} lyric lines (3 tracks)`);
   console.log("  ⭐ 1 featured track");
-  console.log("  👤 1 admin user (admin@hymnotic.app)");
+  console.log("  👤 1 admin user (admin@hymnz.app)");
 
   await client.end();
 }

@@ -17,13 +17,13 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Hymnotic",
+  title: "HYMNZ",
   description: "Spiritual music for the soul",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Hymnotic",
+    title: "HYMNZ",
   },
   icons: {
     apple: "/icons/apple-touch-icon.png",

@@ -26,14 +26,14 @@ const defaultBlocks = [
     id: -1,
     sectionKey: "mission",
     title: "Our Mission",
-    body: "Hymnotic is built to bring timeless hymns into a modern listening experience. We believe sacred music deserves the same care and presentation as any other genre \u2014 complete with synchronized lyrics, stunning artwork, and immersive backgrounds.",
+    body: "HYMNZ is built to bring timeless hymns into a modern listening experience. We believe sacred music deserves the same care and presentation as any other genre \u2014 complete with synchronized lyrics, stunning artwork, and immersive backgrounds.",
     icon: "Heart",
   },
   {
     id: -2,
     sectionKey: "story",
     title: "The Story",
-    body: "Born from a love of hymns and a desire to share them in new ways, Hymnotic curates collections of sacred songs paired with original arrangements and visual storytelling. Every track is crafted to help you connect, reflect, and find peace.",
+    body: "Born from a love of hymns and a desire to share them in new ways, HYMNZ curates collections of sacred songs paired with original arrangements and visual storytelling. Every track is crafted to help you connect, reflect, and find peace.",
     icon: "BookOpen",
   },
   {
@@ -61,14 +61,14 @@ export default async function AboutPage() {
         {/* Hero */}
         <div className="text-center space-y-4">
           <Image
-            src="/images/hymnotic-logo1.png"
-            alt="Hymnotic"
+            src="/images/hymnz-logo1.png"
+            alt="HYMNZ"
             width={72}
             height={72}
             className="mx-auto"
           />
           <h1 className="text-display text-3xl font-bold text-text-primary">
-            Hymnotic
+            HYMNZ
           </h1>
           <p className="text-text-secondary text-sm max-w-md mx-auto leading-relaxed">
             Spiritual music for the soul — a place to experience sacred hymns
@@ -97,11 +97,11 @@ export default async function AboutPage() {
               </p>
               {block.sectionKey === "contact" && (
                 <a
-                  href="mailto:hello@hymnotic.com"
+                  href="mailto:hello@hymnz.com"
                   className="inline-flex items-center gap-2 px-4 py-2 bg-accent/15 border border-accent/25 text-accent rounded-xl text-sm font-medium hover:bg-accent/25 transition-colors"
                 >
                   <Mail size={14} />
-                  hello@hymnotic.com
+                  hello@hymnz.com
                 </a>
               )}
             </div>

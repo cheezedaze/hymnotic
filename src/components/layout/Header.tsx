@@ -24,8 +24,8 @@ export function Header() {
         <div className="relative flex min-w-[366px] items-center justify-center overflow-visible">
           {/* Front layer: logo1 */}
           <Image
-            src="/images/hymnotic-logo1.png"
-            alt="Hymnotic"
+            src="/images/hymnz-logo1.png"
+            alt="HYMNZ"
             width={141}
             height={121}
             className="relative z-10"
@@ -34,7 +34,7 @@ export function Header() {
           {/* Glitch overlay: logo2 (first 50ms of each pulse) */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/images/hymnotic-logo2.png"
+            src="/images/hymnz-logo2.png"
             alt=""
             width={141}
             height={121}
@@ -45,7 +45,7 @@ export function Header() {
           {/* Glitch overlay: logo3 (second 50ms of each pulse) */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/images/hymnotic-logo3.png"
+            src="/images/hymnz-logo3.png"
             alt=""
             width={141}
             height={121}
@@ -69,7 +69,7 @@ export function Header() {
               aria-hidden
             />
             <h1 className="relative z-10 text-display text-2xl tracking-[0.35em] text-text-primary uppercase font-medium">
-              Hymnotic
+              HYMNZ
             </h1>
           </div>
         </div>
