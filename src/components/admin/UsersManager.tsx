@@ -58,7 +58,15 @@ export function UsersManager({ users, invitations }: UsersManagerProps) {
       });
 
       if (res.ok) {
-        setMessage({ type: "success", text: `Invitation sent to ${email}` });
+        const data = await res.json();
+        if (data.emailSent === false) {
+          setMessage({
+            type: "error",
+            text: `Invitation created but email failed to send: ${data.emailError}`,
+          });
+        } else {
+          setMessage({ type: "success", text: `Invitation sent to ${email}` });
+        }
         setEmail("");
         router.refresh();
       } else {

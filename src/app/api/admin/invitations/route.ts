@@ -71,18 +71,26 @@ export async function POST(request: Request) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3333";
     const inviteUrl = `${appUrl}/auth/accept-invite?token=${token}`;
 
+    let emailSent = true;
+    let emailErrorMessage: string | null = null;
     try {
       await sendInvitationEmail(
         normalizedEmail,
         inviteUrl,
         session.user?.name || undefined
       );
-    } catch (emailError) {
-      console.error("Failed to send invitation email:", emailError);
-      // Still return success - the invitation was created, email just failed
+    } catch (err) {
+      emailSent = false;
+      emailErrorMessage =
+        err instanceof Error ? err.message : "Unknown email error";
+      console.error("Failed to send invitation email:", err);
     }
 
-    return NextResponse.json(result[0]);
+    return NextResponse.json({
+      ...result[0],
+      emailSent,
+      emailError: emailErrorMessage,
+    });
   } catch (error) {
     console.error("Error creating invitation:", error);
     return NextResponse.json(
