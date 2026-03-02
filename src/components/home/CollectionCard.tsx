@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Disc3, Heart } from "lucide-react";
+import { Disc3, Heart, Music } from "lucide-react";
 import { type ApiCollection } from "@/lib/types";
 import { useNavigationStore } from "@/lib/store/navigationStore";
 
@@ -37,6 +37,8 @@ export function CollectionCard({ collection }: CollectionCardProps) {
           <div className="w-full h-full bg-white/5 flex items-center justify-center">
             {collection.id === "favorites" ? (
               <Heart size={40} className="text-accent" fill="currentColor" />
+            ) : collection.id === "all-tracks" ? (
+              <Music size={40} className="text-accent" />
             ) : (
               <Disc3 size={40} className="text-text-dim" />
             )}

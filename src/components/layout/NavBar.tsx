@@ -3,12 +3,11 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { Home, Music, Library, User } from "lucide-react";
+import { Home, Library, User } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
 const navItems = [
   { href: "/", icon: Home, label: "Home" },
-  { href: "/search", icon: Music, label: "Music" },
   { href: "/library", icon: Library, label: "Library" },
   { href: "/profile", icon: User, label: "Profile" },
 ];

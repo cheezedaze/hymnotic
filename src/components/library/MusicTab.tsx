@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { Search, X, Disc3, Music, Play, Pause, Shuffle, ChevronDown, Music2 } from "lucide-react";
+import { Search, X, Disc3, Music, Play, Pause, Shuffle, ChevronDown } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils/cn";
@@ -10,14 +10,14 @@ import { IconButton } from "@/components/ui/IconButton";
 import { GlowButton } from "@/components/ui/GlowButton";
 import { type ApiTrack, type ApiCollection } from "@/lib/types";
 
-type TabId = "tracks" | "collections";
-type SortOption = "title" | "collection" | "latest" | "oldest";
+type SubTabId = "tracks" | "collections";
+type SortOption = "latest" | "oldest" | "title" | "collection";
 
 const sortLabels: Record<SortOption, string> = {
-  title: "Track Name",
-  collection: "Collection",
   latest: "Latest",
   oldest: "Oldest",
+  title: "Track Name",
+  collection: "Collection",
 };
 
 function TracksList({
@@ -139,10 +139,10 @@ function CollectionsList({
   );
 }
 
-export default function SearchPage() {
-  const [activeTab, setActiveTab] = useState<TabId>("tracks");
+export function MusicTab() {
+  const [activeTab, setActiveTab] = useState<SubTabId>("tracks");
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortBy, setSortBy] = useState<SortOption>("title");
+  const [sortBy, setSortBy] = useState<SortOption>("latest");
   const [sortOpen, setSortOpen] = useState(false);
   const [tracks, setTracks] = useState<ApiTrack[]>([]);
   const [collections, setCollections] = useState<ApiCollection[]>([]);
@@ -172,14 +172,12 @@ export default function SearchPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Auto-focus search input when opened
   useEffect(() => {
     if (searchOpen) {
       requestAnimationFrame(() => searchInputRef.current?.focus());
     }
   }, [searchOpen]);
 
-  // Close sort dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (sortRef.current && !sortRef.current.contains(e.target as Node)) {
@@ -202,7 +200,6 @@ export default function SearchPage() {
     const q = searchTerm.toLowerCase().trim();
     let result = [...tracks];
 
-    // Filter
     if (q) {
       result = result.filter(
         (t) =>
@@ -212,7 +209,6 @@ export default function SearchPage() {
       );
     }
 
-    // Sort
     switch (sortBy) {
       case "title":
         result.sort((a, b) => a.title.localeCompare(b.title));
@@ -276,165 +272,146 @@ export default function SearchPage() {
   }, []);
 
   return (
-    <div className="min-h-dvh">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6">
-        {/* Sticky: title + tabs + action row */}
-        <div
-          className="sticky top-0 z-10 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-[calc(2rem+var(--safe-top))] pb-2"
-          style={{
-            background: "rgba(20, 26, 36, 0.92)",
-            WebkitBackdropFilter: "blur(20px)",
-            backdropFilter: "blur(20px)",
-          }}
-        >
-          <div className="flex items-center gap-2 mb-3">
-            <Music2 size={18} className="text-accent" />
-            <h1 className="text-display text-2xl font-bold text-text-primary">
-              Music
-            </h1>
-          </div>
+    <div className="space-y-4">
+      {/* Sub-tabs: tracks / collections */}
+      <div className="flex gap-1 bg-white/5 rounded-xl p-1">
+        {(["tracks", "collections"] as SubTabId[]).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={cn(
+              "flex-1 px-3 py-2.5 rounded-lg text-xs font-medium capitalize transition-colors",
+              activeTab === tab
+                ? "bg-accent/15 text-accent"
+                : "text-text-muted hover:text-text-secondary hover:bg-white/5"
+            )}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
 
-          {/* Row 1: Tabs */}
-          <div className="flex gap-1 bg-white/5 rounded-xl p-1">
-            {(["tracks", "collections"] as TabId[]).map((tab) => (
+      {/* Sort + Shuffle/Play (tracks tab only) */}
+      {activeTab === "tracks" && (
+        <div className="flex items-center justify-between">
+          {/* Sort dropdown + Search toggle */}
+          <div className="flex items-center gap-2">
+            <div ref={sortRef} className="relative">
               <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={cn(
-                  "flex-1 px-3 py-2.5 rounded-lg text-xs font-medium capitalize transition-colors",
-                  activeTab === tab
-                    ? "bg-accent/15 text-accent"
-                    : "text-text-muted hover:text-text-secondary hover:bg-white/5"
-                )}
+                onClick={() => setSortOpen(!sortOpen)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs font-medium text-text-secondary hover:bg-white/10 transition-colors"
               >
-                {tab}
+                {sortLabels[sortBy]}
+                <ChevronDown size={12} className={cn("transition-transform", sortOpen && "rotate-180")} />
               </button>
-            ))}
-          </div>
-
-          {/* Row 2: Sort + Shuffle/Play (tracks tab only) */}
-          {activeTab === "tracks" && (
-            <div className="flex items-center justify-between pt-3">
-              {/* Sort dropdown + Search toggle */}
-              <div className="flex items-center gap-2">
-              <div ref={sortRef} className="relative">
-                <button
-                  onClick={() => setSortOpen(!sortOpen)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs font-medium text-text-secondary hover:bg-white/10 transition-colors"
+              {sortOpen && (
+                <div
+                  className="absolute left-0 top-full mt-1 w-40 py-1 rounded-xl border border-white/10 shadow-lg z-20"
+                  style={{
+                    background: "rgba(30, 38, 54, 0.97)",
+                    WebkitBackdropFilter: "blur(20px)",
+                    backdropFilter: "blur(20px)",
+                  }}
                 >
-                  {sortLabels[sortBy]}
-                  <ChevronDown size={12} className={cn("transition-transform", sortOpen && "rotate-180")} />
-                </button>
-                {sortOpen && (
-                  <div
-                    className="absolute left-0 top-full mt-1 w-40 py-1 rounded-xl border border-white/10 shadow-lg z-20"
-                    style={{
-                      background: "rgba(30, 38, 54, 0.97)",
-                      WebkitBackdropFilter: "blur(20px)",
-                      backdropFilter: "blur(20px)",
-                    }}
-                  >
-                    {(Object.entries(sortLabels) as [SortOption, string][]).map(([key, label]) => (
-                      <button
-                        key={key}
-                        onClick={() => {
-                          setSortBy(key);
-                          setSortOpen(false);
-                        }}
-                        className={cn(
-                          "w-full text-left px-3 py-2 text-xs transition-colors",
-                          sortBy === key
-                            ? "text-accent bg-accent/10"
-                            : "text-text-secondary hover:text-text-primary hover:bg-white/5"
-                        )}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <IconButton
-                label="Search"
-                active={searchOpen}
-                size="sm"
-                onClick={toggleSearch}
-              >
-                <Search size={16} />
-              </IconButton>
-              </div>
-
-              {/* Shuffle + Play */}
-              <div className="flex items-center gap-3">
-                <IconButton
-                  label="Shuffle"
-                  active={shuffle}
-                  onClick={handleShuffle}
-                >
-                  <Shuffle size={20} />
-                </IconButton>
-                <GlowButton size="lg" onClick={handlePlayAll}>
-                  {isPlayingFromList && isPlaying ? (
-                    <Pause size={24} fill="white" className="text-white" />
-                  ) : (
-                    <Play size={24} fill="white" className="text-white ml-0.5" />
-                  )}
-                </GlowButton>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Collapsible search box */}
-        <div
-          className="overflow-hidden transition-all duration-200 ease-in-out"
-          style={{
-            maxHeight: searchOpen ? "4rem" : "0",
-            opacity: searchOpen ? 1 : 0,
-          }}
-        >
-          <div className="pt-3 pb-1">
-            <div className="relative">
-              <Search
-                size={16}
-                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-dim"
-              />
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search tracks..."
-                className="w-full pl-10 pr-10 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-text-primary placeholder:text-text-dim focus:outline-none focus:border-accent/50 transition-colors"
-              />
-              {searchTerm && (
-                <button
-                  onClick={() => setSearchTerm("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-dim hover:text-text-muted"
-                >
-                  <X size={14} />
-                </button>
+                  {(Object.entries(sortLabels) as [SortOption, string][]).map(([key, label]) => (
+                    <button
+                      key={key}
+                      onClick={() => {
+                        setSortBy(key);
+                        setSortOpen(false);
+                      }}
+                      className={cn(
+                        "w-full text-left px-3 py-2 text-xs transition-colors",
+                        sortBy === key
+                          ? "text-accent bg-accent/10"
+                          : "text-text-secondary hover:text-text-primary hover:bg-white/5"
+                      )}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
+            <IconButton
+              label="Search"
+              active={searchOpen}
+              size="sm"
+              onClick={toggleSearch}
+            >
+              <Search size={16} />
+            </IconButton>
+          </div>
+
+          {/* Shuffle + Play */}
+          <div className="flex items-center gap-3">
+            <IconButton
+              label="Shuffle"
+              active={shuffle}
+              onClick={handleShuffle}
+            >
+              <Shuffle size={20} />
+            </IconButton>
+            <GlowButton size="lg" onClick={handlePlayAll}>
+              {isPlayingFromList && isPlaying ? (
+                <Pause size={24} fill="white" className="text-white" />
+              ) : (
+                <Play size={24} fill="white" className="text-white ml-0.5" />
+              )}
+            </GlowButton>
           </div>
         </div>
+      )}
 
-        {/* Results */}
-        <div className="pb-4 pt-4">
-          {loading ? (
-            <div className="glass-heavy rounded-xl p-8 text-center">
-              <p className="text-text-muted text-sm">Loading...</p>
-            </div>
-          ) : activeTab === "tracks" ? (
-            <TracksList
-              tracks={filteredTracks}
-              allTracks={filteredTracks}
-              collectionMap={collectionMap}
+      {/* Collapsible search box */}
+      <div
+        className="overflow-hidden transition-all duration-200 ease-in-out"
+        style={{
+          maxHeight: searchOpen ? "4rem" : "0",
+          opacity: searchOpen ? 1 : 0,
+        }}
+      >
+        <div className="pb-1">
+          <div className="relative">
+            <Search
+              size={16}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-dim"
             />
-          ) : (
-            <CollectionsList collections={filteredCollections} />
-          )}
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search tracks..."
+              className="w-full pl-10 pr-10 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-text-primary placeholder:text-text-dim focus:outline-none focus:border-accent/50 transition-colors"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-text-dim hover:text-text-muted"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
         </div>
+      </div>
+
+      {/* Results */}
+      <div>
+        {loading ? (
+          <div className="glass-heavy rounded-xl p-8 text-center">
+            <p className="text-text-muted text-sm">Loading...</p>
+          </div>
+        ) : activeTab === "tracks" ? (
+          <TracksList
+            tracks={filteredTracks}
+            allTracks={filteredTracks}
+            collectionMap={collectionMap}
+          />
+        ) : (
+          <CollectionsList collections={filteredCollections} />
+        )}
       </div>
     </div>
   );

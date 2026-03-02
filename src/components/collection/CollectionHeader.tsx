@@ -68,7 +68,7 @@ export function CollectionHeader({ collection, trackCount }: CollectionHeaderPro
                 src={collection.artworkUrl}
                 alt={collection.title}
                 fill
-                className="object-cover"
+                className="object-cover object-top"
                 priority
               />
             ) : (

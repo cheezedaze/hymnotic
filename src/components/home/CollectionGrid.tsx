@@ -22,11 +22,35 @@ const FAVORITES_PLACEHOLDER: ApiCollection = {
   updatedAt: new Date(),
 };
 
+const ALL_TRACKS_PLACEHOLDER: ApiCollection = {
+  id: "all-tracks",
+  title: "All Tracks",
+  subtitle: "Every song in one place",
+  description: null,
+  artworkKey: null,
+  artworkUrl: "/images/album-all-tracks.jpg",
+  featured: false,
+  sortOrder: -0.5,
+  publishedAt: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+};
+
 export function CollectionGrid({ collections }: CollectionGridProps) {
   const allCollections = useMemo(() => {
     const hasFavorites = collections.some((c) => c.id === "favorites");
-    if (hasFavorites) return collections;
-    return [FAVORITES_PLACEHOLDER, ...collections];
+    const hasAllTracks = collections.some((c) => c.id === "all-tracks");
+
+    let result = [...collections];
+
+    if (!hasAllTracks) {
+      result = [ALL_TRACKS_PLACEHOLDER, ...result];
+    }
+    if (!hasFavorites) {
+      result = [FAVORITES_PLACEHOLDER, ...result];
+    }
+
+    return result;
   }, [collections]);
 
   return (

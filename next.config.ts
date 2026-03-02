@@ -34,6 +34,17 @@ const nextConfig: NextConfig = {
     ],
   },
 
+  // Redirect retired /search route to /library
+  async redirects() {
+    return [
+      {
+        source: "/search",
+        destination: "/library",
+        permanent: true,
+      },
+    ];
+  },
+
   // Headers for API CORS and streaming support
   async headers() {
     return [

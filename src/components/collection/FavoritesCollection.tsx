@@ -5,8 +5,7 @@ import { Heart } from "lucide-react";
 import { type ApiCollection, type ApiTrack } from "@/lib/types";
 import { useFavoritesStore } from "@/lib/store/favoritesStore";
 import { CollectionHeader } from "./CollectionHeader";
-import { ActionRow } from "./ActionRow";
-import { TrackList } from "./TrackList";
+import { CollectionContent } from "./CollectionContent";
 
 interface FavoritesCollectionProps {
   collection: ApiCollection | null;
@@ -60,10 +59,7 @@ export function FavoritesCollection({ collection }: FavoritesCollectionProps) {
         trackCount={tracks.length}
       />
       {tracks.length > 0 ? (
-        <>
-          <ActionRow tracks={tracks} />
-          <TrackList tracks={tracks} />
-        </>
+        <CollectionContent tracks={tracks} isMultiCollection={true} />
       ) : (
         <div className="px-6 py-16 text-center">
           {loading ? (

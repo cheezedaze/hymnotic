@@ -5,9 +5,9 @@ import {
 } from "@/lib/db/queries";
 import { buildCollectionMediaUrls, buildTrackMediaUrlsWithFallback } from "@/lib/s3/client";
 import { CollectionHeader } from "@/components/collection/CollectionHeader";
-import { ActionRow } from "@/components/collection/ActionRow";
-import { TrackList } from "@/components/collection/TrackList";
+import { CollectionContent } from "@/components/collection/CollectionContent";
 import { FavoritesCollection } from "@/components/collection/FavoritesCollection";
+import { AllTracksCollection } from "@/components/collection/AllTracksCollection";
 
 interface CollectionPageProps {
   params: Promise<{ id: string }>;
@@ -15,6 +15,11 @@ interface CollectionPageProps {
 
 export default async function CollectionPage({ params }: CollectionPageProps) {
   const { id } = await params;
+
+  // All Tracks: virtual collection showing every track
+  if (id === "all-tracks") {
+    return <AllTracksCollection />;
+  }
 
   // Favorites collection: tracks are determined client-side
   if (id === "favorites") {
@@ -52,8 +57,7 @@ export default async function CollectionPage({ params }: CollectionPageProps) {
         collection={collectionWithUrls}
         trackCount={trackCount}
       />
-      <ActionRow tracks={tracks} />
-      <TrackList tracks={tracks} />
+      <CollectionContent tracks={tracks} />
     </div>
   );
 }
