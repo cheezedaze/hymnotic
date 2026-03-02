@@ -6,12 +6,21 @@ let s3Client: S3Client | null = null;
 
 function getS3Client(): S3Client {
   if (!s3Client) {
+    const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
+    const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+
+    if (!accessKeyId || !secretAccessKey) {
+      throw new Error(
+        "AWS credentials are not configured. " +
+          `AWS_ACCESS_KEY_ID is ${accessKeyId ? "set" : "MISSING"}, ` +
+          `AWS_SECRET_ACCESS_KEY is ${secretAccessKey ? "set" : "MISSING"}. ` +
+          "Check environment variables in your deployment settings."
+      );
+    }
+
     s3Client = new S3Client({
       region: process.env.AWS_REGION || "us-west-2",
-      credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-      },
+      credentials: { accessKeyId, secretAccessKey },
       // Force virtual-hosted style URLs (bucket.s3.region.amazonaws.com)
       forcePathStyle: false,
       // Disable automatic checksums — SDK v3.990+ adds CRC32 by default,

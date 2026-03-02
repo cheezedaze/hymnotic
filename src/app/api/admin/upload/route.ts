@@ -6,12 +6,21 @@ import { convertWavToMp3 } from "@/lib/audio/convertWavToMp3";
 
 // Separate S3 client for uploads to avoid singleton caching issues
 function getUploadClient(): S3Client {
+  const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+
+  if (!accessKeyId || !secretAccessKey) {
+    throw new Error(
+      "AWS credentials are not configured. " +
+        `AWS_ACCESS_KEY_ID is ${accessKeyId ? "set" : "MISSING"}, ` +
+        `AWS_SECRET_ACCESS_KEY is ${secretAccessKey ? "set" : "MISSING"}. ` +
+        "Check environment variables in your deployment settings."
+    );
+  }
+
   return new S3Client({
     region: process.env.AWS_REGION || "us-west-2",
-    credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-    },
+    credentials: { accessKeyId, secretAccessKey },
     requestChecksumCalculation: "WHEN_REQUIRED",
     responseChecksumValidation: "WHEN_REQUIRED",
   });
@@ -154,6 +163,25 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ key, cdnUrl });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    const isCredentialError =
+      message.includes("credential") ||
+      message.includes("Credential") ||
+      message.includes("InvalidAccessKeyId") ||
+      message.includes("SignatureDoesNotMatch") ||
+      message.includes("AccessDenied");
+
+    if (isCredentialError) {
+      console.error("S3 credential error:", message);
+      return NextResponse.json(
+        {
+          error:
+            "Upload failed: AWS credentials are invalid or expired. " +
+            "Please verify AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in your environment variables.",
+        },
+        { status: 500 }
+      );
+    }
+
     console.error("Upload error:", message, error);
     return NextResponse.json(
       { error: `Upload failed: ${message}` },
