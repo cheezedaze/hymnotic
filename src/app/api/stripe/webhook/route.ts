@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { stripe, STRIPE_CONFIG } from "@/lib/stripe/config";
+import { getStripe, STRIPE_CONFIG } from "@/lib/stripe/config";
 import { db } from "@/lib/db";
 import { users, stripeEvents } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
 
     let event: Stripe.Event;
     try {
-      event = stripe.webhooks.constructEvent(
+      event = getStripe().webhooks.constructEvent(
         body,
         signature,
         STRIPE_CONFIG.webhookSecret
