@@ -4,7 +4,12 @@ import {
   buildCollectionMediaUrls,
   buildTrackMediaUrlsWithFallback,
 } from "@/lib/s3/client";
-import { auth } from "@/lib/auth/auth";
+import {
+  getAccessContext,
+  getSacred7TrackIds,
+  canPlayFullTrack,
+  getPreviewDuration,
+} from "@/lib/auth/access";
 
 /**
  * GET /api/collections/:id
@@ -16,8 +21,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    const userId = session?.user?.id;
+    const access = await getAccessContext();
+    const userId = access.userId;
+    const sacred7TrackIds = await getSacred7TrackIds();
+    const previewDuration = getPreviewDuration(access.tier);
 
     const { id } = await params;
     const collection = await getCollectionWithTracks(id);
@@ -46,21 +53,28 @@ export async function GET(
       subtitle: collection.subtitle,
       description: collection.description,
       featured: collection.featured,
+      isSacred7: collection.isSacred7,
       ...buildCollectionMediaUrls(collection),
-      tracks: collection.tracks.map((track) => ({
-        id: track.id,
-        title: track.title,
-        artist: track.artist,
-        duration: track.duration,
-        trackNumber: track.trackNumber,
-        playCount: track.playCount,
-        userPlayCount: userPlayMap.get(track.id) ?? 0,
-        favoriteCount: track.favoriteCount,
-        hasVideo: track.hasVideo,
-        videoCount: track.videoCount,
-        hasLyrics: track.hasLyrics,
-        ...buildTrackMediaUrlsWithFallback(track, collection.artworkKey),
-      })),
+      tracks: collection.tracks.map((track) => {
+        const isFull = canPlayFullTrack(access.tier, track.id, sacred7TrackIds);
+        return {
+          id: track.id,
+          title: track.title,
+          artist: track.artist,
+          duration: track.duration,
+          trackNumber: track.trackNumber,
+          playCount: track.playCount,
+          userPlayCount: userPlayMap.get(track.id) ?? 0,
+          favoriteCount: track.favoriteCount,
+          hasVideo: track.hasVideo,
+          videoCount: track.videoCount,
+          hasLyrics: track.hasLyrics,
+          isLocked: !isFull,
+          previewDuration: isFull ? track.duration : previewDuration,
+          isSacred7: sacred7TrackIds.includes(track.id),
+          ...buildTrackMediaUrlsWithFallback(track, collection.artworkKey),
+        };
+      }),
     };
 
     return NextResponse.json(response);

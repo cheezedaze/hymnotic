@@ -1,10 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import { Play, Heart, Video, Music } from "lucide-react";
+import { Play, Heart, Video, Music, Lock } from "lucide-react";
 import { type ApiTrack } from "@/lib/types";
 import { usePlayerStore } from "@/lib/store/playerStore";
 import { useFavoritesStore } from "@/lib/store/favoritesStore";
+import { useSubscriptionStore, recomputeTrackAccess } from "@/lib/store/subscriptionStore";
 import { WaveformIcon } from "@/components/player/WaveformIcon";
 import { cn } from "@/lib/utils/cn";
 
@@ -27,13 +28,21 @@ export function TrackItem({ track, queue }: TrackItemProps) {
 
   const favoriteIds = useFavoritesStore((s) => s.favoriteIds);
   const toggleFavorite = useFavoritesStore((s) => s.toggleFavorite);
+  const isPremium = useSubscriptionStore((s) => s.isPremium);
+  const effectiveTier = useSubscriptionStore((s) => s.effectiveTier());
 
   const isActive = currentTrack?.id === track.id;
+  const isLocked = track.isLocked ?? false;
   const isCurrentlyPlaying = isActive && isPlaying;
   const isFavorited = favoriteIds.includes(track.id);
 
+  const sacred7TrackIds = useSubscriptionStore((s) => s.sacred7TrackIds);
+
   const handlePlay = () => {
-    playTrack(track, queue);
+    // Recompute access for the effective tier (handles admin view-as)
+    const [recomputedTrack] = recomputeTrackAccess([track], effectiveTier, sacred7TrackIds);
+    const recomputedQueue = recomputeTrackAccess(queue, effectiveTier, sacred7TrackIds);
+    playTrack(recomputedTrack, recomputedQueue);
   };
 
   return (
@@ -65,6 +74,13 @@ export function TrackItem({ track, queue }: TrackItemProps) {
         )}
       </div>
 
+      {/* Sacred 7 badge — only visible to free subscribers */}
+      {track.isSacred7 && effectiveTier === "free" && (
+        <span className="w-5 h-5 rounded-full bg-gold/20 border border-gold/40 flex items-center justify-center flex-shrink-0">
+          <span className="text-[10px] font-bold text-gold">7</span>
+        </span>
+      )}
+
       {/* Track info */}
       <div className="flex-1 min-w-0">
         <p
@@ -95,6 +111,13 @@ export function TrackItem({ track, queue }: TrackItemProps) {
         </div>
       </div>
 
+      {/* Lock icon for preview-only tracks */}
+      {isLocked && !isActive && (
+        <span className="text-text-dim flex-shrink-0">
+          <Lock size={14} />
+        </span>
+      )}
+
       {/* Music note for active track with video */}
       {isActive && track.hasVideo && (
         <span className="text-accent">
@@ -104,21 +127,23 @@ export function TrackItem({ track, queue }: TrackItemProps) {
         </span>
       )}
 
-      {/* Favorite button */}
-      <div
-        onClick={(e) => {
-          e.stopPropagation();
-          toggleFavorite(track.id);
-        }}
-        className={cn(
-          "flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0 transition-all",
-          isFavorited
-            ? "text-accent drop-shadow-[0_0_6px_rgba(0,255,251,0.4)]"
-            : "text-text-muted hover:text-text-secondary"
-        )}
-      >
-        <Heart size={16} fill={isFavorited ? "currentColor" : "none"} />
-      </div>
+      {/* Favorite button — paid subscribers only */}
+      {isPremium && (
+        <div
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleFavorite(track.id);
+          }}
+          className={cn(
+            "flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0 transition-all",
+            isFavorited
+              ? "text-accent drop-shadow-[0_0_6px_rgba(0,255,251,0.4)]"
+              : "text-text-muted hover:text-text-secondary"
+          )}
+        >
+          <Heart size={16} fill={isFavorited ? "currentColor" : "none"} />
+        </div>
+      )}
     </button>
   );
 }

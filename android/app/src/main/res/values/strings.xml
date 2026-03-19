@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">HYMNZ</string>
+    <string name="title_activity_main">HYMNZ</string>
+    <string name="package_name">com.hymnz.app</string>
+    <string name="custom_url_scheme">com.hymnz.app</string>
+</resources>

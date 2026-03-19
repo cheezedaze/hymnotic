@@ -6,6 +6,9 @@ import {
   deleteCollection,
 } from "@/lib/db/queries";
 import { buildCollectionMediaUrls } from "@/lib/s3/client";
+import { db } from "@/lib/db";
+import { collections } from "@/lib/db/schema";
+import { eq, ne, and } from "drizzle-orm";
 
 /**
  * PATCH /api/admin/collections/:id
@@ -21,6 +24,14 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
+
+    // If setting isSacred7=true, clear the flag on all other collections first
+    if (body.isSacred7 === true) {
+      await db
+        .update(collections)
+        .set({ isSacred7: false })
+        .where(and(eq(collections.isSacred7, true), ne(collections.id, id)));
+    }
 
     const collection = await updateCollection(id, body);
 

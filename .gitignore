@@ -45,6 +45,19 @@ ios/App/Pods/
 ios/App/App/public/
 ios/App/output/
 
+# Capacitor Android
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+android/keystore.properties
+*.jks
+*.keystore
+
+# large design/media files
+*.psd
+*.mp4
+
 # vercel
 .vercel
 

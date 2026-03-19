@@ -11,6 +11,7 @@ export interface ApiCollection {
   artworkKey: string | null;
   artworkUrl: string | null;
   featured: boolean;
+  isSacred7?: boolean;
   sortOrder: number;
   publishedAt: Date | null;
   createdAt: Date;
@@ -44,6 +45,9 @@ export interface ApiTrack {
   isActive: boolean;
   youtubeUrl: string | null;
   collectionArtworkUrl: string | null;
+  isLocked?: boolean;
+  previewDuration?: number;
+  isSacred7?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

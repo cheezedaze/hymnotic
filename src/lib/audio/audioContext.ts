@@ -44,3 +44,41 @@ export function stopAudio() {
     audioElement.load(); // reset the element
   }
 }
+
+/**
+ * Smoothly fade the audio volume from `from` to `to` over `durationMs`.
+ * Resolves when the fade is complete.
+ */
+export function fadeAudioVolume(
+  from: number,
+  to: number,
+  durationMs: number
+): Promise<void> {
+  return new Promise((resolve) => {
+    if (!audioElement) {
+      resolve();
+      return;
+    }
+
+    const audio = audioElement;
+    audio.volume = from;
+
+    const startTime = performance.now();
+    const delta = to - from;
+
+    function step(now: number) {
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / durationMs, 1);
+      audio.volume = Math.max(0, Math.min(1, from + delta * progress));
+
+      if (progress < 1) {
+        requestAnimationFrame(step);
+      } else {
+        audio.volume = Math.max(0, Math.min(1, to));
+        resolve();
+      }
+    }
+
+    requestAnimationFrame(step);
+  });
+}

@@ -4,6 +4,7 @@ import "./globals.css";
 import { AppShell } from "@/components/layout/AppShell";
 import { ServiceWorkerRegistration } from "@/components/layout/ServiceWorkerRegistration";
 
+
 const playfair = Playfair_Display({
   variable: "--font-display",
   subsets: ["latin"],

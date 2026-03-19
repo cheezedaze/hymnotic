@@ -9,6 +9,7 @@ import {
   Star,
   Video,
   FileText,
+  Megaphone,
   Settings,
   LogOut,
   Users,
@@ -23,6 +24,7 @@ const navItems = [
   { href: "/admin/featured", label: "Featured", icon: Star },
   { href: "/admin/videos", label: "Videos", icon: Video },
   { href: "/admin/content", label: "Content", icon: FileText },
+  { href: "/admin/announcements", label: "Updates", icon: Megaphone },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];

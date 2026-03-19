@@ -11,6 +11,9 @@ import {
   users,
   userTrackPlays,
   userFavorites,
+  sacred7Tracks,
+  announcements,
+  announcementDismissals,
   type NewCollection,
   type NewTrack,
   type NewLyric,
@@ -68,6 +71,7 @@ export async function updateCollection(
     artworkKey: string;
     featured: boolean;
     sortOrder: number;
+    isSacred7: boolean;
   }>
 ) {
   const result = await db
@@ -211,6 +215,37 @@ export async function getAllTracks() {
 
 export async function getActiveTracks() {
   return db.select().from(tracks).where(eq(tracks.isActive, true)).orderBy(asc(tracks.collectionId), asc(tracks.trackNumber));
+}
+
+// =============================================================================
+// Sacred 7 Queries
+// =============================================================================
+
+export async function getSacred7Selections() {
+  const rows = await db
+    .select({ trackId: sacred7Tracks.trackId, sortOrder: sacred7Tracks.sortOrder })
+    .from(sacred7Tracks)
+    .orderBy(asc(sacred7Tracks.sortOrder));
+  return rows;
+}
+
+export async function getSacred7TracksWithDetails() {
+  const rows = await db
+    .select({
+      sacred7SortOrder: sacred7Tracks.sortOrder,
+      track: tracks,
+    })
+    .from(sacred7Tracks)
+    .innerJoin(tracks, eq(sacred7Tracks.trackId, tracks.id))
+    .orderBy(asc(sacred7Tracks.sortOrder));
+  return rows.map((r) => r.track);
+}
+
+export async function setSacred7Tracks(trackIds: string[]) {
+  await db.delete(sacred7Tracks);
+  if (trackIds.length === 0) return [];
+  const values = trackIds.map((trackId, i) => ({ trackId, sortOrder: i }));
+  return db.insert(sacred7Tracks).values(values).returning();
 }
 
 // =============================================================================
@@ -655,4 +690,110 @@ export async function removeUserFavorite(userId: string, trackId: string) {
       })
       .where(eq(tracks.id, trackId));
   }
+}
+
+// =============================================================================
+// Announcement Queries ("What's New")
+// =============================================================================
+
+export async function getAllAnnouncements() {
+  return db
+    .select()
+    .from(announcements)
+    .orderBy(desc(announcements.createdAt));
+}
+
+export async function getAnnouncementById(id: number) {
+  const result = await db
+    .select()
+    .from(announcements)
+    .where(eq(announcements.id, id))
+    .limit(1);
+  return result[0] ?? null;
+}
+
+export async function getPublishedAnnouncements() {
+  return db
+    .select()
+    .from(announcements)
+    .where(isNotNull(announcements.publishedAt))
+    .orderBy(desc(announcements.publishedAt));
+}
+
+export async function getLatestPublishedAnnouncement() {
+  const result = await db
+    .select()
+    .from(announcements)
+    .where(isNotNull(announcements.publishedAt))
+    .orderBy(desc(announcements.publishedAt))
+    .limit(1);
+  return result[0] ?? null;
+}
+
+export async function createAnnouncement(data: {
+  title: string;
+  body: string;
+  publishedAt?: Date | null;
+}) {
+  const result = await db.insert(announcements).values(data).returning();
+  return result[0];
+}
+
+export async function updateAnnouncement(
+  id: number,
+  data: Partial<{
+    title: string;
+    body: string;
+    publishedAt: Date | null;
+  }>
+) {
+  const result = await db
+    .update(announcements)
+    .set({ ...data, updatedAt: new Date() })
+    .where(eq(announcements.id, id))
+    .returning();
+  return result[0] ?? null;
+}
+
+export async function deleteAnnouncement(id: number) {
+  // Delete dismissals first (referential integrity)
+  await db
+    .delete(announcementDismissals)
+    .where(eq(announcementDismissals.announcementId, id));
+  await db.delete(announcements).where(eq(announcements.id, id));
+}
+
+export async function hasUserDismissed(
+  userId: string,
+  announcementId: number
+) {
+  const result = await db
+    .select()
+    .from(announcementDismissals)
+    .where(
+      and(
+        eq(announcementDismissals.userId, userId),
+        eq(announcementDismissals.announcementId, announcementId)
+      )
+    )
+    .limit(1);
+  return result.length > 0;
+}
+
+export async function dismissAnnouncement(
+  userId: string,
+  announcementId: number
+) {
+  await db
+    .insert(announcementDismissals)
+    .values({ userId, announcementId })
+    .onConflictDoNothing();
+}
+
+export async function getUserDismissedAnnouncementIds(userId: string) {
+  const rows = await db
+    .select({ announcementId: announcementDismissals.announcementId })
+    .from(announcementDismissals)
+    .where(eq(announcementDismissals.userId, userId));
+  return rows.map((r) => r.announcementId);
 }

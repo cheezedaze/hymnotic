@@ -1,14 +1,9 @@
-import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth/auth";
-
 export default async function AppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const session = await auth();
-  if (!session?.user) {
-    redirect("/auth/signin");
-  }
+  // Allow visitors (unauthenticated users) to browse the catalog.
+  // Individual pages that require auth (profile, etc.) handle their own redirects.
   return <>{children}</>;
 }

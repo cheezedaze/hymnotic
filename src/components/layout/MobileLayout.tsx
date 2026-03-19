@@ -1,21 +1,34 @@
 "use client";
 
 import { usePlayerStore } from "@/lib/store/playerStore";
+import { useSubscriptionStore } from "@/lib/store/subscriptionStore";
 import { NavBar } from "./NavBar";
 import { MiniPlayer } from "./MiniPlayer";
 import { NowPlaying } from "@/components/player/NowPlaying";
+import { PersistentCTA } from "@/components/player/PersistentCTA";
 import { PageTransition } from "./PageTransition";
 import { AnimatePresence } from "framer-motion";
 
 export function MobileLayout({ children }: { children: React.ReactNode }) {
   const isMiniPlayerVisible = usePlayerStore((s) => s.isMiniPlayerVisible);
   const isNowPlayingExpanded = usePlayerStore((s) => s.isNowPlayingExpanded);
+  const tier = useSubscriptionStore((s) => s.effectiveTier());
+  const isLoaded = useSubscriptionStore((s) => s.isLoaded);
 
   const showMiniPlayer = isMiniPlayerVisible && !isNowPlayingExpanded;
+  const showCTA = isLoaded && tier !== "paid";
+
+  // Extra bottom padding when CTA is visible (~3rem for the gold button)
+  const getPadding = () => {
+    if (showMiniPlayer && showCTA) return "pb-[calc(12rem+var(--safe-bottom))]";
+    if (showMiniPlayer) return "pb-[calc(9rem+var(--safe-bottom))]";
+    if (showCTA) return "pb-[calc(9rem+var(--safe-bottom))]";
+    return "pb-[calc(6rem+var(--safe-bottom))]";
+  };
 
   return (
     <>
-      <main className={showMiniPlayer ? "pb-[calc(9rem+var(--safe-bottom))]" : "pb-[calc(6rem+var(--safe-bottom))]"}>
+      <main className={getPadding()}>
         {children}
       </main>
 
@@ -37,6 +50,7 @@ export function MobileLayout({ children }: { children: React.ReactNode }) {
           aria-hidden
         />
         <div className="relative z-10">
+          <PersistentCTA />
           {showMiniPlayer && <MiniPlayer />}
           <NavBar />
         </div>

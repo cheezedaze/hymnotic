@@ -6,6 +6,12 @@ import {
   getTracksByCollection,
 } from "@/lib/db/queries";
 import { buildCollectionMediaUrls, buildTrackMediaUrlsWithFallback } from "@/lib/s3/client";
+import {
+  getAccessContext,
+  getSacred7TrackIds,
+  canPlayFullTrack,
+  getPreviewDuration,
+} from "@/lib/auth/access";
 import { type ApiTrack, type ApiCollection } from "@/lib/types";
 import { HomePageContent } from "@/components/home/HomePageContent";
 
@@ -21,6 +27,11 @@ export default async function HomePage() {
     ...buildCollectionMediaUrls(c),
   }));
 
+  // Access context for preview enforcement
+  const access = await getAccessContext();
+  const sacred7TrackIds = await getSacred7TrackIds();
+  const previewDur = getPreviewDuration(access.tier);
+
   // Get the featured track (first featured item of type "track")
   const featuredItem = featured.find((f) => f.type === "track");
   let featuredTrack: ApiTrack | null = null;
@@ -31,12 +42,23 @@ export default async function HomePage() {
     if (track) {
       const collection = await getCollectionById(track.collectionId);
       const collectionArtworkKey = collection?.artworkKey ?? null;
-      featuredTrack = { ...track, ...buildTrackMediaUrlsWithFallback(track, collectionArtworkKey) };
+      const isFull = canPlayFullTrack(access.tier, track.id, sacred7TrackIds);
+      featuredTrack = {
+        ...track,
+        ...buildTrackMediaUrlsWithFallback(track, collectionArtworkKey),
+        isLocked: !isFull,
+        previewDuration: isFull ? track.duration : previewDur,
+      };
       const queueTracks = await getTracksByCollection(track.collectionId);
-      featuredQueue = queueTracks.map((t) => ({
-        ...t,
-        ...buildTrackMediaUrlsWithFallback(t, collectionArtworkKey),
-      }));
+      featuredQueue = queueTracks.map((t) => {
+        const tFull = canPlayFullTrack(access.tier, t.id, sacred7TrackIds);
+        return {
+          ...t,
+          ...buildTrackMediaUrlsWithFallback(t, collectionArtworkKey),
+          isLocked: !tFull,
+          previewDuration: tFull ? t.duration : previewDur,
+        };
+      });
     }
   }
 

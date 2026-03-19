@@ -36,6 +36,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email,
           name: user.name,
           role: user.role,
+          accountTier: user.accountTier,
+          isPremium: user.isPremium,
+          subscriptionStatus: user.subscriptionStatus,
         };
       },
     }),
@@ -56,14 +59,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.role = (user as { role?: string }).role;
+        token.role = user.role;
+        token.accountTier = user.accountTier;
+        token.isPremium = user.isPremium;
+        token.subscriptionStatus = user.subscriptionStatus;
       }
       return token;
     },
     session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
-        (session.user as { role?: string }).role = token.role as string;
+        session.user.role = token.role as string;
+        session.user.accountTier = token.accountTier as string;
+        session.user.isPremium = token.isPremium as boolean;
+        session.user.subscriptionStatus = token.subscriptionStatus as string | null;
       }
       return session;
     },

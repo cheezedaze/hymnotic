@@ -1,14 +1,20 @@
-import { User, Settings, Palette, Volume2, Play } from "lucide-react";
+import { User, Settings, Palette, Volume2, Play, Megaphone } from "lucide-react";
 import { auth } from "@/lib/auth/auth";
 import { redirect } from "next/navigation";
-import { getUserTotalPlays } from "@/lib/db/queries";
+import { getUserTotalPlays, getPublishedAnnouncements } from "@/lib/db/queries";
 import { SignOutButton } from "@/components/auth/SignOutButton";
+import { SubscriptionCard } from "@/components/subscription/SubscriptionCard";
+import { AdminViewSwitcher } from "@/components/admin/AdminViewSwitcher";
+import { UpdatesList } from "@/components/profile/UpdatesList";
 
 export default async function ProfilePage() {
   const session = await auth();
   if (!session?.user) redirect("/auth/signin");
 
-  const totalPlays = await getUserTotalPlays(session.user.id!);
+  const [totalPlays, publishedAnnouncements] = await Promise.all([
+    getUserTotalPlays(session.user.id!),
+    getPublishedAnnouncements(),
+  ]);
 
   return (
     <div className="min-h-dvh px-4 sm:px-6 pt-[calc(2rem+var(--safe-top))] pb-4">
@@ -27,6 +33,16 @@ export default async function ProfilePage() {
             </p>
           </div>
         </div>
+
+        {/* Admin tools (only renders for admins) */}
+        <AdminViewSwitcher />
+
+        {/* Subscription */}
+        <SubscriptionCard
+          isPremium={session.user.isPremium ?? false}
+          accountTier={session.user.accountTier ?? "free"}
+          subscriptionStatus={session.user.subscriptionStatus ?? null}
+        />
 
         {/* Listening stats */}
         <div className="glass-heavy rounded-2xl p-6 space-y-4">
@@ -47,6 +63,17 @@ export default async function ProfilePage() {
               {totalPlays.toLocaleString()}
             </span>
           </div>
+        </div>
+
+        {/* Recent Updates */}
+        <div className="glass-heavy rounded-2xl p-6 space-y-4">
+          <div className="flex items-center gap-2">
+            <Megaphone size={16} className="text-accent" />
+            <h2 className="text-sm font-semibold text-text-primary">
+              Recent Updates
+            </h2>
+          </div>
+          <UpdatesList announcements={publishedAnnouncements} />
         </div>
 
         {/* Playback Settings */}

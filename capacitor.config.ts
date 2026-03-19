@@ -1,16 +1,16 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
-  appId: "com.hymnotic.app",
+  appId: "com.hymnz.app",
   appName: "HYMNZ",
-  webDir: "public",
+  webDir: "android-webdir",
 
   server: {
     // TODO: Replace with your Vercel production URL after deploying
-    url: "https://hymnotic.vercel.app",
+    url: "https://www.hymnz.com",
     allowNavigation: [
-      "hymnotic.vercel.app",
-      "*.vercel.app",
+      "hymnz.com",
+      "*.hymnz.com",
       "*.cloudfront.net",
       "hymnotic-media.s3.us-west-2.amazonaws.com",
     ],
@@ -21,6 +21,10 @@ const config: CapacitorConfig = {
     // (avoids CORS issues vs the default capacitor:// scheme)
     scheme: "https",
     allowsLinkPreview: false,
+  },
+
+  android: {
+    allowMixedContent: false,
   },
 };
 

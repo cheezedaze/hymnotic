@@ -3,6 +3,7 @@
 import { usePlayerStore } from "@/lib/store/playerStore";
 import { DesktopSidebar } from "./DesktopSidebar";
 import { DesktopPlayerBar } from "./DesktopPlayerBar";
+import { DesktopVisitorBanner } from "./DesktopVisitorBanner";
 
 export function DesktopLayout({ children }: { children: React.ReactNode }) {
   const currentTrack = usePlayerStore((s) => s.currentTrack);
@@ -19,6 +20,9 @@ export function DesktopLayout({ children }: { children: React.ReactNode }) {
 
         {/* Persistent player bar */}
         {currentTrack && <DesktopPlayerBar />}
+
+        {/* Visitor sign-up banner — sits below player bar */}
+        <DesktopVisitorBanner />
       </div>
     </div>
   );

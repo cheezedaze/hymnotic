@@ -23,6 +23,7 @@ export const collections = pgTable(
     description: text("description"),
     artworkKey: text("artwork_key"), // S3 key: "images/artwork/album-sands.png"
     featured: boolean("featured").default(false).notNull(),
+    isSacred7: boolean("is_sacred_7").default(false).notNull(),
     sortOrder: integer("sort_order").default(0).notNull(),
     publishedAt: timestamp("published_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -172,6 +173,13 @@ export const users = pgTable(
     name: text("name"),
     passwordHash: text("password_hash").notNull(),
     role: varchar("role", { length: 20 }).notNull().default("USER"), // "ADMIN" | "USER"
+    accountTier: varchar("account_tier", { length: 20 })
+      .notNull()
+      .default("free"), // "free" | "paid"
+    isPremium: boolean("is_premium").default(false).notNull(),
+    stripeCustomerId: varchar("stripe_customer_id", { length: 255 }),
+    subscriptionStatus: varchar("subscription_status", { length: 30 }), // "active" | "canceled" | "trialing" | "past_due"
+    subscriptionEndDate: timestamp("subscription_end_date"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -250,6 +258,82 @@ export const userFavorites = pgTable(
 );
 
 // =============================================================================
+// Stripe Events (webhook idempotency)
+// =============================================================================
+export const stripeEvents = pgTable(
+  "stripe_events",
+  {
+    id: serial("id").primaryKey(),
+    stripeEventId: varchar("stripe_event_id", { length: 255 }).notNull(),
+    eventType: varchar("event_type", { length: 100 }).notNull(),
+    processed: boolean("processed").default(false).notNull(),
+    payload: text("payload"), // JSON string of the event
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_stripe_events_event_id").on(table.stripeEventId),
+  ]
+);
+
+// =============================================================================
+// Sacred 7 Track Selections (junction table)
+// =============================================================================
+export const sacred7Tracks = pgTable(
+  "sacred7_tracks",
+  {
+    id: serial("id").primaryKey(),
+    trackId: varchar("track_id", { length: 128 })
+      .notNull()
+      .references(() => tracks.id),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_sacred7_tracks_track").on(table.trackId),
+  ]
+);
+
+// =============================================================================
+// Announcements ("What's New")
+// =============================================================================
+export const announcements = pgTable(
+  "announcements",
+  {
+    id: serial("id").primaryKey(),
+    title: text("title").notNull(),
+    body: text("body").notNull(), // HTML from TipTap WYSIWYG
+    publishedAt: timestamp("published_at"), // null = draft
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [index("idx_announcements_published").on(table.publishedAt)]
+);
+
+// =============================================================================
+// Announcement Dismissals (tracks which users have seen which announcements)
+// =============================================================================
+export const announcementDismissals = pgTable(
+  "announcement_dismissals",
+  {
+    id: serial("id").primaryKey(),
+    userId: varchar("user_id", { length: 128 })
+      .notNull()
+      .references(() => users.id),
+    announcementId: integer("announcement_id")
+      .notNull()
+      .references(() => announcements.id),
+    dismissedAt: timestamp("dismissed_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_dismissal_user_announcement").on(
+      table.userId,
+      table.announcementId
+    ),
+    index("idx_dismissals_user").on(table.userId),
+  ]
+);
+
+// =============================================================================
 // Type exports for use in API routes
 // =============================================================================
 export type Collection = typeof collections.$inferSelect;
@@ -269,3 +353,9 @@ export type NewUser = typeof users.$inferInsert;
 export type Invitation = typeof invitations.$inferSelect;
 export type UserTrackPlay = typeof userTrackPlays.$inferSelect;
 export type UserFavorite = typeof userFavorites.$inferSelect;
+export type StripeEvent = typeof stripeEvents.$inferSelect;
+export type NewStripeEvent = typeof stripeEvents.$inferInsert;
+export type Sacred7Track = typeof sacred7Tracks.$inferSelect;
+export type Announcement = typeof announcements.$inferSelect;
+export type NewAnnouncement = typeof announcements.$inferInsert;
+export type AnnouncementDismissal = typeof announcementDismissals.$inferSelect;

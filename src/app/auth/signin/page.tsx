@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import Image from "next/image";
+import Link from "next/link";
 import { Mail, Lock, Loader2 } from "lucide-react";
 
 export default function SignInPage() {
@@ -126,6 +127,13 @@ export default function SignInPage() {
             )}
           </button>
         </form>
+
+        <p className="text-center text-text-muted text-sm mt-6">
+          Don&apos;t have an account?{" "}
+          <Link href="/auth/register" className="text-accent hover:underline">
+            Create Free Account
+          </Link>
+        </p>
       </div>
     </div>
   );

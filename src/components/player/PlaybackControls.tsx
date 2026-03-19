@@ -33,13 +33,25 @@ export function PlaybackControls({ compact = false, variant = "mobile" }: Playba
   const toggleShuffle = usePlayerStore((s) => s.toggleShuffle);
   const cycleRepeat = usePlayerStore((s) => s.cycleRepeat);
 
+  const isPreviewMode = usePlayerStore((s) => s.isPreviewMode);
+  const previewCheckpoint = usePlayerStore((s) => s.previewCheckpoint);
+
   const handleScrub = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const time = parseFloat(e.target.value);
+    let time = parseFloat(e.target.value);
+    // Clamp seeking at current preview checkpoint
+    const state = usePlayerStore.getState();
+    if (state.isPreviewMode && state.previewCheckpoint !== null && time > state.previewCheckpoint) {
+      time = state.previewCheckpoint;
+    }
     seekAudio(time);
     usePlayerStore.getState().seekTo(time);
   }, []);
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const previewProgress =
+    isPreviewMode && previewCheckpoint && duration > 0
+      ? (previewCheckpoint / duration) * 100
+      : null;
 
   if (variant === "desktop") {
     return (
@@ -100,6 +112,12 @@ export function PlaybackControls({ compact = false, variant = "mobile" }: Playba
               style={{ width: `${progress}%` }}
             />
           </div>
+          {previewProgress !== null && (
+            <div
+              className="absolute top-0 w-0.5 h-1 bg-gold/70 rounded-full"
+              style={{ left: `${previewProgress}%` }}
+            />
+          )}
           <input
             type="range"
             min={0}
@@ -129,6 +147,12 @@ export function PlaybackControls({ compact = false, variant = "mobile" }: Playba
             style={{ width: `${progress}%` }}
           />
         </div>
+        {previewProgress !== null && (
+          <div
+            className="absolute top-0 w-0.5 h-1 bg-gold/70 rounded-full"
+            style={{ left: `${previewProgress}%` }}
+          />
+        )}
         <input
           type="range"
           min={0}

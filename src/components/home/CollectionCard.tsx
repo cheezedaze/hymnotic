@@ -39,6 +39,10 @@ export function CollectionCard({ collection }: CollectionCardProps) {
               <Heart size={40} className="text-accent" fill="currentColor" />
             ) : collection.id === "all-tracks" ? (
               <Music size={40} className="text-accent" />
+            ) : collection.isSacred7 ? (
+              <span className="w-14 h-14 rounded-full bg-gold/20 border-2 border-gold/40 flex items-center justify-center">
+                <span className="text-2xl font-bold text-gold">7</span>
+              </span>
             ) : (
               <Disc3 size={40} className="text-text-dim" />
             )}

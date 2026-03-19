@@ -7,14 +7,18 @@ import { TrackItem } from "@/components/collection/TrackItem";
 interface DesktopTrackListProps {
   tracks: ApiTrack[];
   selectedCollectionId: string | null;
+  sacred7CollectionId?: string | null;
 }
 
 export function DesktopTrackList({
   tracks,
   selectedCollectionId,
+  sacred7CollectionId,
 }: DesktopTrackListProps) {
   const filtered = selectedCollectionId
-    ? tracks.filter((t) => t.collectionId === selectedCollectionId)
+    ? selectedCollectionId === sacred7CollectionId
+      ? tracks.filter((t) => t.isSacred7)
+      : tracks.filter((t) => t.collectionId === selectedCollectionId)
     : tracks;
 
   if (filtered.length === 0) {

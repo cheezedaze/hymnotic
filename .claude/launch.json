@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Hymnotic Dev",
+      "runtimeExecutable": "/Users/chadwinks/.nvm/versions/node/v22.22.0/bin/node",
+      "runtimeArgs": ["node_modules/.bin/next", "dev", "--webpack"],
+      "port": 3333,
+      "autoPort": true
+    }
+  ]
+}

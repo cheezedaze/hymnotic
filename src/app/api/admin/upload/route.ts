@@ -63,6 +63,7 @@ export async function POST(request: NextRequest) {
       "audio/tracks",
       "audio/previews",
       "audio/originals",
+      "audio/system",
       "images/artwork",
       "images/artists",
       "images/misc",

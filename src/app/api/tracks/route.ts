@@ -6,7 +6,12 @@ import {
   getUserPlayCounts,
 } from "@/lib/db/queries";
 import { buildTrackMediaUrlsWithFallback } from "@/lib/s3/client";
-import { auth } from "@/lib/auth/auth";
+import {
+  getAccessContext,
+  getSacred7TrackIds,
+  canPlayFullTrack,
+  getPreviewDuration,
+} from "@/lib/auth/access";
 
 /**
  * GET /api/tracks?collection=sands-of-the-sea
@@ -16,8 +21,10 @@ import { auth } from "@/lib/auth/auth";
  */
 export async function GET(request: Request) {
   try {
-    const session = await auth();
-    const userId = session?.user?.id;
+    const access = await getAccessContext();
+    const userId = access.userId;
+    const sacred7TrackIds = await getSacred7TrackIds();
+    const previewDuration = getPreviewDuration(access.tier);
 
     const { searchParams } = new URL(request.url);
     const collectionId = searchParams.get("collection");
@@ -46,27 +53,33 @@ export async function GET(request: Request) {
         userPlays.map((p) => [p.trackId, p.playCount])
       );
 
-      const tracksWithUrls = allTracks.map((track) => ({
-        id: track.id,
-        collectionId: track.collectionId,
-        title: track.title,
-        artist: track.artist,
-        duration: track.duration,
-        trackNumber: track.trackNumber,
-        playCount: track.playCount,
-        userPlayCount: userPlayMap.get(track.id) ?? 0,
-        favoriteCount: track.favoriteCount,
-        isActive: track.isActive,
-        hasVideo: track.hasVideo,
-        videoCount: track.videoCount,
-        hasLyrics: track.hasLyrics,
-        youtubeUrl: track.youtubeUrl,
-        createdAt: track.createdAt,
-        ...buildTrackMediaUrlsWithFallback(
-          track,
-          collectionMap.get(track.collectionId) ?? null
-        ),
-      }));
+      const tracksWithUrls = allTracks.map((track) => {
+        const isFull = canPlayFullTrack(access.tier, track.id, sacred7TrackIds);
+        return {
+          id: track.id,
+          collectionId: track.collectionId,
+          title: track.title,
+          artist: track.artist,
+          duration: track.duration,
+          trackNumber: track.trackNumber,
+          playCount: track.playCount,
+          userPlayCount: userPlayMap.get(track.id) ?? 0,
+          favoriteCount: track.favoriteCount,
+          isActive: track.isActive,
+          hasVideo: track.hasVideo,
+          videoCount: track.videoCount,
+          hasLyrics: track.hasLyrics,
+          youtubeUrl: track.youtubeUrl,
+          createdAt: track.createdAt,
+          isLocked: !isFull,
+          previewDuration: isFull ? track.duration : previewDuration,
+          isSacred7: sacred7TrackIds.includes(track.id),
+          ...buildTrackMediaUrlsWithFallback(
+            track,
+            collectionMap.get(track.collectionId) ?? null
+          ),
+        };
+      });
       return NextResponse.json(tracksWithUrls);
     }
 
@@ -88,23 +101,29 @@ export async function GET(request: Request) {
       userPlays.map((p) => [p.trackId, p.playCount])
     );
 
-    const tracksWithUrls = collectionTracks.map((track) => ({
-      id: track.id,
-      collectionId: track.collectionId,
-      title: track.title,
-      artist: track.artist,
-      duration: track.duration,
-      trackNumber: track.trackNumber,
-      playCount: track.playCount,
-      userPlayCount: userPlayMap.get(track.id) ?? 0,
-      favoriteCount: track.favoriteCount,
-      hasVideo: track.hasVideo,
-      videoCount: track.videoCount,
-      hasLyrics: track.hasLyrics,
-      youtubeUrl: track.youtubeUrl,
-      createdAt: track.createdAt,
-      ...buildTrackMediaUrlsWithFallback(track, collectionArtworkKey),
-    }));
+    const tracksWithUrls = collectionTracks.map((track) => {
+      const isFull = canPlayFullTrack(access.tier, track.id, sacred7TrackIds);
+      return {
+        id: track.id,
+        collectionId: track.collectionId,
+        title: track.title,
+        artist: track.artist,
+        duration: track.duration,
+        trackNumber: track.trackNumber,
+        playCount: track.playCount,
+        userPlayCount: userPlayMap.get(track.id) ?? 0,
+        favoriteCount: track.favoriteCount,
+        hasVideo: track.hasVideo,
+        videoCount: track.videoCount,
+        hasLyrics: track.hasLyrics,
+        youtubeUrl: track.youtubeUrl,
+        createdAt: track.createdAt,
+        isLocked: !isFull,
+        previewDuration: isFull ? track.duration : previewDuration,
+        isSacred7: sacred7TrackIds.includes(track.id),
+        ...buildTrackMediaUrlsWithFallback(track, collectionArtworkKey),
+      };
+    });
 
     return NextResponse.json(tracksWithUrls);
   } catch (error) {

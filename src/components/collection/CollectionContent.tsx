@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Search, X, ChevronDown, Shuffle, Play, Pause, Download, Share2 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { type ApiTrack } from "@/lib/types";
@@ -8,6 +8,7 @@ import { TrackList } from "./TrackList";
 import { type SortOption } from "./SearchSortBar";
 import { useTrackSearchSort } from "@/lib/hooks/useTrackSearchSort";
 import { usePlayerStore } from "@/lib/store/playerStore";
+import { useSubscriptionStore, recomputeTrackAccess } from "@/lib/store/subscriptionStore";
 import { IconButton } from "@/components/ui/IconButton";
 import { GlowButton } from "@/components/ui/GlowButton";
 
@@ -31,12 +32,21 @@ export function CollectionContent({
   isMultiCollection = false,
   collectionMap,
 }: CollectionContentProps) {
+  const effectiveTier = useSubscriptionStore((s) => s.effectiveTier());
+  const sacred7TrackIds = useSubscriptionStore((s) => s.sacred7TrackIds);
+
+  // Recompute track access for admin view-as (server returns admin-level access)
+  const accessTracks = useMemo(
+    () => recomputeTrackAccess(tracks, effectiveTier, sacred7TrackIds),
+    [tracks, effectiveTier, sacred7TrackIds]
+  );
+
   const sortOptions: SortOption[] = isMultiCollection
     ? ["latest", "oldest", "title", "collection"]
     : ["latest", "oldest", "title", "trackNumber"];
 
   const { searchTerm, setSearchTerm, sortBy, setSortBy, filteredTracks } =
-    useTrackSearchSort({ tracks, defaultSort: "latest", collectionMap });
+    useTrackSearchSort({ tracks: accessTracks, defaultSort: "latest", collectionMap });
 
   // Search UI state
   const [searchOpen, setSearchOpen] = useState(false);

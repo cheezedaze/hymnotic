@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { CollectionCard } from "./CollectionCard";
 import { type ApiCollection } from "@/lib/types";
+import { useSubscriptionStore } from "@/lib/store/subscriptionStore";
 
 interface CollectionGridProps {
   collections: ApiCollection[];
@@ -37,21 +38,21 @@ const ALL_TRACKS_PLACEHOLDER: ApiCollection = {
 };
 
 export function CollectionGrid({ collections }: CollectionGridProps) {
+  const effectiveTier = useSubscriptionStore((s) => s.effectiveTier());
+
   const allCollections = useMemo(() => {
-    const hasFavorites = collections.some((c) => c.id === "favorites");
-    const hasAllTracks = collections.some((c) => c.id === "all-tracks");
+    // Sacred 7 is only visible to free subscribers
+    const sacred7 = effectiveTier === "free" ? collections.find((c) => c.isSacred7) : undefined;
+    const rest = collections.filter((c) => !c.isSacred7);
 
-    let result = [...collections];
-
-    if (!hasAllTracks) {
-      result = [ALL_TRACKS_PLACEHOLDER, ...result];
-    }
-    if (!hasFavorites) {
-      result = [FAVORITES_PLACEHOLDER, ...result];
-    }
+    // Explicit order: Favorites → Sacred 7 (free only) → All Tracks → rest by sortOrder
+    const result: ApiCollection[] = [FAVORITES_PLACEHOLDER];
+    if (sacred7) result.push(sacred7);
+    result.push(ALL_TRACKS_PLACEHOLDER);
+    result.push(...rest);
 
     return result;
-  }, [collections]);
+  }, [collections, effectiveTier]);
 
   return (
     <div className="px-4 grid grid-cols-2 gap-4">

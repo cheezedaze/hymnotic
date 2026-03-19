@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { ArrowLeft, Save, Music } from "lucide-react";
+import { ArrowLeft, Save, Music, Check } from "lucide-react";
 import { AdminFileUpload } from "./AdminFileUpload";
 
 interface EditCollectionProps {
@@ -15,6 +15,7 @@ interface EditCollectionProps {
     artworkUrl: string | null;
     artworkKey: string | null;
     featured: boolean;
+    isSacred7: boolean;
     sortOrder: number;
   };
   tracks: Array<{
@@ -33,6 +34,7 @@ export function EditCollection({ collection, tracks }: EditCollectionProps) {
     subtitle: collection.subtitle || "",
     description: collection.description || "",
     featured: collection.featured,
+    isSacred7: collection.isSacred7,
     sortOrder: collection.sortOrder,
     artworkKey: collection.artworkKey || "",
   });
@@ -42,6 +44,78 @@ export function EditCollection({ collection, tracks }: EditCollectionProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+
+  // Sacred 7 track picker state
+  const [allTracks, setAllTracks] = useState<
+    Array<{ id: string; title: string; artist: string; collectionId: string; collectionTitle?: string; duration: number }>
+  >([]);
+  const [sacred7Ids, setSacred7Ids] = useState<Set<string>>(new Set());
+  const [sacred7Saving, setSacred7Saving] = useState(false);
+  const [sacred7Error, setSacred7Error] = useState("");
+  const [sacred7Success, setSacred7Success] = useState(false);
+  const [sacred7Loaded, setSacred7Loaded] = useState(false);
+
+  const loadSacred7Data = useCallback(async () => {
+    try {
+      const [tracksRes, sacred7Res] = await Promise.all([
+        fetch("/api/tracks"),
+        fetch("/api/admin/sacred7/tracks"),
+      ]);
+      if (tracksRes.ok) {
+        const data = await tracksRes.json();
+        const trackList = Array.isArray(data) ? data : data.tracks ?? [];
+        setAllTracks(trackList);
+      }
+      if (sacred7Res.ok) {
+        const data = await sacred7Res.json();
+        setSacred7Ids(new Set(data.trackIds));
+      }
+      setSacred7Loaded(true);
+    } catch {
+      setSacred7Error("Failed to load tracks");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (collection.isSacred7 || form.isSacred7) {
+      loadSacred7Data();
+    }
+  }, [collection.isSacred7, form.isSacred7, loadSacred7Data]);
+
+  const toggleSacred7Track = (trackId: string) => {
+    setSacred7Ids((prev) => {
+      const next = new Set(prev);
+      if (next.has(trackId)) {
+        next.delete(trackId);
+      } else if (next.size < 7) {
+        next.add(trackId);
+      }
+      return next;
+    });
+  };
+
+  const saveSacred7Tracks = async () => {
+    setSacred7Error("");
+    setSacred7Success(false);
+    setSacred7Saving(true);
+    try {
+      const res = await fetch("/api/admin/sacred7/tracks", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trackIds: Array.from(sacred7Ids) }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        setSacred7Error(data.error || "Failed to save");
+        return;
+      }
+      setSacred7Success(true);
+    } catch {
+      setSacred7Error("Something went wrong");
+    } finally {
+      setSacred7Saving(false);
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -128,7 +202,7 @@ export function EditCollection({ collection, tracks }: EditCollectionProps) {
               className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-text-primary focus:outline-none focus:border-accent/50 transition-colors"
             />
           </div>
-          <div className="flex items-center gap-3 pt-6">
+          <div className="flex flex-col gap-3 pt-6">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -141,6 +215,24 @@ export function EditCollection({ collection, tracks }: EditCollectionProps) {
               <span className="text-sm text-text-secondary">
                 Featured collection
               </span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.isSacred7}
+                onChange={(e) =>
+                  setForm({ ...form, isSacred7: e.target.checked })
+                }
+                className="w-4 h-4 rounded border-white/20 bg-white/5 text-gold focus:ring-gold/50"
+              />
+              <span className="text-sm text-text-secondary">
+                Sacred 7 collection
+              </span>
+              {form.isSacred7 && (
+                <span className="text-[10px] text-gold bg-gold/15 px-1.5 py-0.5 rounded">
+                  Free tier access
+                </span>
+              )}
             </label>
           </div>
         </div>
@@ -202,46 +294,122 @@ export function EditCollection({ collection, tracks }: EditCollectionProps) {
         </button>
       </form>
 
-      {/* Tracks in this collection */}
-      <div className="glass-heavy rounded-xl p-5">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-text-primary">
-            Tracks ({tracks.length})
-          </h2>
-          <button
-            onClick={() => router.push("/admin/tracks")}
-            className="text-xs text-accent hover:underline"
-          >
-            Manage Tracks →
-          </button>
-        </div>
-        {tracks.length === 0 ? (
-          <p className="text-text-muted text-sm py-4 text-center">
-            No tracks in this collection yet.
-          </p>
-        ) : (
-          <div className="space-y-1">
-            {tracks.map((track) => (
-              <button
-                key={track.id}
-                onClick={() => router.push(`/admin/tracks/${track.id}`)}
-                className="flex items-center gap-3 w-full px-3 py-2 rounded-lg hover:bg-white/5 transition-colors"
-              >
-                <span className="text-xs text-text-dim w-6 text-right">
-                  {track.trackNumber}
-                </span>
-                <Music size={14} className="text-text-muted" />
-                <span className="text-sm text-text-primary flex-1 text-left truncate">
-                  {track.title}
-                </span>
-                <span className="text-xs text-text-dim">
-                  {Math.floor(track.duration / 60)}:{String(Math.floor(track.duration % 60)).padStart(2, "0")}
-                </span>
-              </button>
-            ))}
+      {/* Sacred 7 Track Selection — shown when this is the Sacred 7 collection */}
+      {form.isSacred7 && (
+        <div className="glass-heavy rounded-xl p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-text-primary">
+              Sacred 7 Track Selection
+              <span className="ml-2 text-gold text-xs font-normal">
+                {sacred7Ids.size} / 7 selected
+              </span>
+            </h2>
+            <button
+              type="button"
+              onClick={saveSacred7Tracks}
+              disabled={sacred7Saving}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-gold/20 border border-gold/30 text-gold rounded-lg text-xs font-medium hover:bg-gold/30 transition-colors disabled:opacity-50"
+            >
+              <Save size={12} />
+              {sacred7Saving ? "Saving..." : "Save Selection"}
+            </button>
           </div>
-        )}
-      </div>
+
+          {sacred7Error && <p className="text-red-400 text-xs mb-2">{sacred7Error}</p>}
+          {sacred7Success && <p className="text-green-400 text-xs mb-2">Sacred 7 tracks saved!</p>}
+
+          {!sacred7Loaded ? (
+            <p className="text-text-muted text-sm py-4 text-center">Loading tracks...</p>
+          ) : (
+            <div className="space-y-1 max-h-96 overflow-y-auto">
+              {allTracks.map((track) => {
+                const isSelected = sacred7Ids.has(track.id);
+                const isDisabled = !isSelected && sacred7Ids.size >= 7;
+                return (
+                  <button
+                    key={track.id}
+                    type="button"
+                    onClick={() => toggleSacred7Track(track.id)}
+                    disabled={isDisabled}
+                    className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg transition-colors ${
+                      isSelected
+                        ? "bg-gold/10 border border-gold/30"
+                        : isDisabled
+                        ? "opacity-40 cursor-not-allowed"
+                        : "hover:bg-white/5 border border-transparent"
+                    }`}
+                  >
+                    <span
+                      className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 border ${
+                        isSelected
+                          ? "bg-gold/30 border-gold/50 text-gold"
+                          : "border-white/20 bg-white/5"
+                      }`}
+                    >
+                      {isSelected && <Check size={12} />}
+                    </span>
+                    <Music size={14} className="text-text-muted flex-shrink-0" />
+                    <span className="text-sm text-text-primary flex-1 text-left truncate">
+                      {track.title}
+                    </span>
+                    {track.collectionTitle && (
+                      <span className="text-[10px] text-text-dim truncate max-w-[120px]">
+                        {track.collectionTitle}
+                      </span>
+                    )}
+                    <span className="text-xs text-text-dim flex-shrink-0">
+                      {Math.floor(track.duration / 60)}:{String(Math.floor(track.duration % 60)).padStart(2, "0")}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tracks in this collection */}
+      {!form.isSacred7 && (
+        <div className="glass-heavy rounded-xl p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-text-primary">
+              Tracks ({tracks.length})
+            </h2>
+            <button
+              onClick={() => router.push("/admin/tracks")}
+              className="text-xs text-accent hover:underline"
+            >
+              Manage Tracks →
+            </button>
+          </div>
+          {tracks.length === 0 ? (
+            <p className="text-text-muted text-sm py-4 text-center">
+              No tracks in this collection yet.
+            </p>
+          ) : (
+            <div className="space-y-1">
+              {tracks.map((track) => (
+                <button
+                  key={track.id}
+                  onClick={() => router.push(`/admin/tracks/${track.id}`)}
+                  className="flex items-center gap-3 w-full px-3 py-2 rounded-lg hover:bg-white/5 transition-colors"
+                >
+                  <span className="text-xs text-text-dim w-6 text-right">
+                    {track.trackNumber}
+                  </span>
+                  <Music size={14} className="text-text-muted" />
+                  <span className="text-sm text-text-primary flex-1 text-left truncate">
+                    {track.title}
+                  </span>
+                  <span className="text-xs text-text-dim">
+                    {Math.floor(track.duration / 60)}:{String(Math.floor(track.duration % 60)).padStart(2, "0")}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

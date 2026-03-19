@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { type ApiTrack } from "@/lib/types";
+import { stopVoiceover } from "@/lib/audio/voiceoverContext";
 
 export type RepeatMode = "off" | "all" | "one";
 
@@ -23,6 +24,15 @@ interface PlayerState {
   isMiniPlayerVisible: boolean;
   showNavBar: boolean;
 
+  // Preview state
+  isPreviewMode: boolean;
+  previewDuration: number | null;
+  previewCheckpoint: number | null;
+  isPreviewEnded: boolean;
+  isVoiceoverPlaying: boolean;
+  showUpgradeModal: boolean;
+  showPreviewActions: boolean;
+
   play: () => void;
   pause: () => void;
   togglePlayPause: () => void;
@@ -40,6 +50,27 @@ interface PlayerState {
   toggleLyrics: () => void;
   setLyricsOpen: (open: boolean) => void;
   toggleNavBar: () => void;
+  setPreviewMode: (isPreview: boolean, duration: number | null) => void;
+  setPreviewEnded: (ended: boolean) => void;
+  setVoiceoverPlaying: (playing: boolean) => void;
+  setShowUpgradeModal: (show: boolean) => void;
+  setShowPreviewActions: (show: boolean) => void;
+  tryNextSong: () => void;
+}
+
+/** Compute preview state fields from a track's access metadata */
+function previewStateForTrack(track: ApiTrack | null | undefined) {
+  const isPreview = track?.isLocked ?? false;
+  const previewDur = isPreview ? (track?.previewDuration ?? null) : null;
+  return {
+    isPreviewMode: isPreview,
+    previewDuration: previewDur,
+    previewCheckpoint: previewDur,
+    isPreviewEnded: false,
+    isVoiceoverPlaying: false,
+    showUpgradeModal: false,
+    showPreviewActions: false,
+  };
 }
 
 export const usePlayerStore = create<PlayerState>((set, get) => ({
@@ -61,6 +92,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   isLyricsOpen: false,
   isMiniPlayerVisible: false,
   showNavBar: true,
+
+  isPreviewMode: false,
+  previewDuration: null,
+  previewCheckpoint: null,
+  isPreviewEnded: false,
+  isVoiceoverPlaying: false,
+  showUpgradeModal: false,
+  showPreviewActions: false,
 
   play: () => set({ isPlaying: true }),
   pause: () => set({ isPlaying: false }),
@@ -102,12 +141,15 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       ? [...history, currentTrack].slice(-50)
       : history;
 
+    const nextTrack = queue[nextIndex];
     set({
       currentIndex: nextIndex,
-      currentTrack: queue[nextIndex],
+      currentTrack: nextTrack,
       currentTime: 0,
-      duration: queue[nextIndex].duration,
+      duration: nextTrack.duration,
+      isPlaying: true,
       history: newHistory,
+      ...previewStateForTrack(nextTrack),
     });
   },
 
@@ -132,7 +174,9 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         currentIndex: queueIndex !== -1 ? queueIndex : currentIndex,
         currentTime: 0,
         duration: prevTrack.duration,
+        isPlaying: true,
         history: newHistory,
+        ...previewStateForTrack(prevTrack),
       });
       return;
     }
@@ -140,11 +184,14 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     // No history — fall back to queue-based navigation
     if (queue.length === 0) return;
     const prevIndex = currentIndex <= 0 ? queue.length - 1 : currentIndex - 1;
+    const prevTrack = queue[prevIndex];
     set({
       currentIndex: prevIndex,
-      currentTrack: queue[prevIndex],
+      currentTrack: prevTrack,
       currentTime: 0,
-      duration: queue[prevIndex].duration,
+      duration: prevTrack.duration,
+      isPlaying: true,
+      ...previewStateForTrack(prevTrack),
     });
   },
 
@@ -157,15 +204,17 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
         ? [...history, currentTrack].slice(-50)
         : history;
 
+    const startTrack = tracks[startIndex] ?? null;
     set({
       queue: tracks,
       currentIndex: startIndex,
-      currentTrack: tracks[startIndex] ?? null,
+      currentTrack: startTrack,
       currentTime: 0,
-      duration: tracks[startIndex]?.duration ?? 0,
+      duration: startTrack?.duration ?? 0,
       isPlaying: true,
       isMiniPlayerVisible: true,
       history: newHistory,
+      ...previewStateForTrack(startTrack),
     });
   },
 
@@ -187,28 +236,20 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const q = queue ?? state.queue;
     const index = q.findIndex((t) => t.id === track.id);
 
+    const baseState = {
+      currentTrack: track,
+      currentTime: 0,
+      duration: track.duration,
+      isPlaying: true,
+      isMiniPlayerVisible: true,
+      history: newHistory,
+      ...previewStateForTrack(track),
+    };
+
     if (index === -1) {
-      set({
-        queue: [track],
-        currentIndex: 0,
-        currentTrack: track,
-        currentTime: 0,
-        duration: track.duration,
-        isPlaying: true,
-        isMiniPlayerVisible: true,
-        history: newHistory,
-      });
+      set({ queue: [track], currentIndex: 0, ...baseState });
     } else {
-      set({
-        queue: q,
-        currentIndex: index,
-        currentTrack: track,
-        currentTime: 0,
-        duration: track.duration,
-        isPlaying: true,
-        isMiniPlayerVisible: true,
-        history: newHistory,
-      });
+      set({ queue: q, currentIndex: index, ...baseState });
     }
   },
 
@@ -229,4 +270,19 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   toggleLyrics: () => set((s) => ({ isLyricsOpen: !s.isLyricsOpen })),
   setLyricsOpen: (open) => set({ isLyricsOpen: open }),
   toggleNavBar: () => set((s) => ({ showNavBar: !s.showNavBar })),
+  setPreviewMode: (isPreview, duration) =>
+    set({ isPreviewMode: isPreview, previewDuration: duration }),
+  setPreviewEnded: (ended) => set({ isPreviewEnded: ended }),
+  setVoiceoverPlaying: (playing) => set({ isVoiceoverPlaying: playing }),
+  setShowUpgradeModal: (show) => set({ showUpgradeModal: show }),
+  setShowPreviewActions: (show) => set({ showPreviewActions: show }),
+  tryNextSong: () => {
+    stopVoiceover();
+    set({
+      showPreviewActions: false,
+      showUpgradeModal: false,
+      isVoiceoverPlaying: false,
+    });
+    get().next();
+  },
 }));
