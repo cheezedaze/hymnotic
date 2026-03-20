@@ -11,6 +11,7 @@ import {
   XCircle,
   Shield,
   User,
+  Crown,
 } from "lucide-react";
 
 interface UserInfo {
@@ -18,6 +19,9 @@ interface UserInfo {
   email: string;
   name: string | null;
   role: string;
+  isPremium: boolean;
+  manualPremium: boolean;
+  accountTier: string;
   createdAt: string;
 }
 
@@ -38,10 +42,32 @@ export function UsersManager({ users, invitations }: UsersManagerProps) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [sending, setSending] = useState(false);
+  const [togglingPremium, setTogglingPremium] = useState<string | null>(null);
   const [message, setMessage] = useState<{
     type: "success" | "error";
     text: string;
   } | null>(null);
+
+  const handleTogglePremium = async (userId: string, currentManualPremium: boolean) => {
+    setTogglingPremium(userId);
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/premium`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ manualPremium: !currentManualPremium }),
+      });
+      if (res.ok) {
+        router.refresh();
+      } else {
+        const data = await res.json();
+        setMessage({ type: "error", text: data.error || "Failed to update premium" });
+      }
+    } catch {
+      setMessage({ type: "error", text: "Something went wrong" });
+    } finally {
+      setTogglingPremium(null);
+    }
+  };
 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -176,6 +202,25 @@ export function UsersManager({ users, invitations }: UsersManagerProps) {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  {user.role !== "ADMIN" && (
+                    <button
+                      onClick={() => handleTogglePremium(user.id, user.manualPremium)}
+                      disabled={togglingPremium === user.id}
+                      className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full transition-colors ${
+                        user.manualPremium
+                          ? "bg-gold/20 text-gold hover:bg-gold/30"
+                          : "bg-white/5 text-text-dim hover:bg-white/10 hover:text-text-muted"
+                      }`}
+                      title={user.manualPremium ? "Revoke manual premium" : "Grant manual premium"}
+                    >
+                      {togglingPremium === user.id ? (
+                        <Loader2 size={10} className="animate-spin" />
+                      ) : (
+                        <Crown size={10} />
+                      )}
+                      {user.manualPremium ? "Premium" : "Free"}
+                    </button>
+                  )}
                   <span
                     className={`text-xs px-2 py-0.5 rounded-full ${
                       user.role === "ADMIN"

@@ -167,7 +167,7 @@ export default function SubscribePage() {
               <span className="text-text-muted text-sm">/first month</span>
             </div>
             <p className="text-text-dim text-xs mb-5">
-              Then $5.99/mo &middot; Cancel anytime
+              Then $4.99/mo &middot; Cancel anytime
             </p>
             <ul className="space-y-3 mb-6 flex-1">
               {premiumFeatures.map((feature) => (
@@ -201,7 +201,7 @@ export default function SubscribePage() {
                   <Loader2 size={16} className="animate-spin text-accent" />
                 ) : (
                   <>
-                    Yearly &mdash; $57.50/yr
+                    Yearly &mdash; $47.90/yr
                     <span className="text-accent text-xs font-bold ml-1">
                       Save 20%
                     </span>

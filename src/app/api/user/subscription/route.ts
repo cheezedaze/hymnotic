@@ -23,6 +23,7 @@ export async function GET() {
       .select({
         accountTier: users.accountTier,
         isPremium: users.isPremium,
+        manualPremium: users.manualPremium,
         subscriptionStatus: users.subscriptionStatus,
         subscriptionEndDate: users.subscriptionEndDate,
         stripeCustomerId: users.stripeCustomerId,
@@ -43,8 +44,8 @@ export async function GET() {
     const isAdmin = user.role === "ADMIN";
 
     return NextResponse.json({
-      tier: isAdmin || user.isPremium ? "paid" : "free",
-      isPremium: isAdmin || user.isPremium,
+      tier: isAdmin || user.isPremium || user.manualPremium ? "paid" : "free",
+      isPremium: isAdmin || user.isPremium || user.manualPremium,
       isAdmin,
       accountTier: user.accountTier,
       subscriptionStatus: user.subscriptionStatus,

@@ -66,10 +66,24 @@ export async function POST(request: Request) {
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://hymnz.com";
 
+    // For monthly plans, apply intro coupon for first-time subscribers
+    let discounts: { coupon: string }[] | undefined;
+    if (planType === "monthly" && STRIPE_CONFIG.introCouponId) {
+      const existingSubs = await getStripe().subscriptions.list({
+        customer: stripeCustomerId,
+        status: "all",
+        limit: 1,
+      });
+      if (existingSubs.data.length === 0) {
+        discounts = [{ coupon: STRIPE_CONFIG.introCouponId }];
+      }
+    }
+
     const checkoutSession = await getStripe().checkout.sessions.create({
       customer: stripeCustomerId,
       mode: "subscription",
       line_items: [{ price: priceId, quantity: 1 }],
+      ...(discounts ? { discounts } : {}),
       success_url: `${appUrl}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl}/subscription/cancel`,
       metadata: { userId: session.user.id },

@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "manual_premium" boolean DEFAULT false NOT NULL;

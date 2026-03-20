@@ -11,6 +11,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [newsletterOptIn, setNewsletterOptIn] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -34,7 +35,7 @@ export default function RegisterPage() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email, password, newsletterOptIn }),
       });
 
       if (!res.ok) {
@@ -185,6 +186,23 @@ export default function RegisterPage() {
                 className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-text-primary placeholder:text-text-dim focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 transition-colors"
               />
             </div>
+          </div>
+
+          {/* Newsletter opt-in */}
+          <div className="flex items-start gap-3 pt-1">
+            <input
+              id="newsletter"
+              type="checkbox"
+              checked={newsletterOptIn}
+              onChange={(e) => setNewsletterOptIn(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 rounded border-white/20 bg-white/5 text-accent accent-accent focus:ring-accent/25 focus:ring-offset-0"
+            />
+            <label
+              htmlFor="newsletter"
+              className="text-sm text-text-secondary leading-snug cursor-pointer"
+            >
+              Send me updates about new music, collections, and HYMNZ news
+            </label>
           </div>
 
           {error && (

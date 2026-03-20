@@ -64,7 +64,7 @@ export function DesktopSidebar() {
     : null;
 
   return (
-    <aside className="fixed top-0 left-0 w-60 h-dvh flex flex-col bg-midnight-deep border-r border-white/6 z-30">
+    <aside className="fixed top-0 left-0 w-60 h-dvh flex flex-col border-r border-white/6 z-30" style={{ background: "linear-gradient(to bottom, var(--color-midnight) 100px, var(--color-midnight-deep) 400px)" }}>
       {/* Logo */}
       <div className="px-3 pt-6 pb-4">
         <Link href="/" className="block">

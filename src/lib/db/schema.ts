@@ -177,9 +177,11 @@ export const users = pgTable(
       .notNull()
       .default("free"), // "free" | "paid"
     isPremium: boolean("is_premium").default(false).notNull(),
+    manualPremium: boolean("manual_premium").default(false).notNull(),
     stripeCustomerId: varchar("stripe_customer_id", { length: 255 }),
     subscriptionStatus: varchar("subscription_status", { length: 30 }), // "active" | "canceled" | "trialing" | "past_due"
     subscriptionEndDate: timestamp("subscription_end_date"),
+    newsletterOptIn: boolean("newsletter_opt_in").default(false).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },

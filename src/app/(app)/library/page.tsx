@@ -6,7 +6,6 @@ import {
   Library,
   Video,
   Image as ImageIcon,
-  Music,
   Play,
   ExternalLink,
 } from "lucide-react";
@@ -16,10 +15,8 @@ import {
   extractYouTubeId,
   buildYouTubeThumbnail,
 } from "@/lib/utils/youtube";
-import { MusicTab } from "@/components/library/MusicTab";
 
 const tabs = [
-  { id: "music", label: "Music", icon: Music },
   { id: "videos", label: "Videos", icon: Video },
   { id: "artwork", label: "Artwork", icon: ImageIcon },
 ] as const;
@@ -192,7 +189,7 @@ function ArtworkTab() {
 // Library Page
 // ---------------------------------------------------------------------------
 export default function LibraryPage() {
-  const [activeTab, setActiveTab] = useState<TabId>("music");
+  const [activeTab, setActiveTab] = useState<TabId>("videos");
 
   return (
     <div className="min-h-dvh px-4 sm:px-6 pt-[calc(2rem+var(--safe-top))] pb-4">
@@ -225,14 +222,10 @@ export default function LibraryPage() {
         </div>
 
         {/* Tab content */}
-        {activeTab === "music" ? (
-          <MusicTab />
-        ) : (
-          <div className="glass-heavy rounded-xl p-8">
-            {activeTab === "videos" && <VideosTab />}
-            {activeTab === "artwork" && <ArtworkTab />}
-          </div>
-        )}
+        <div className="glass-heavy rounded-xl p-8">
+          {activeTab === "videos" && <VideosTab />}
+          {activeTab === "artwork" && <ArtworkTab />}
+        </div>
       </div>
     </div>
   );

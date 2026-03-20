@@ -17,6 +17,9 @@ export default async function AdminUsersPage() {
         email: u.email,
         name: u.name,
         role: u.role,
+        isPremium: u.isPremium,
+        manualPremium: u.manualPremium,
+        accountTier: u.accountTier,
         createdAt: u.createdAt.toISOString(),
       }))}
       invitations={allInvitations.map((i) => ({

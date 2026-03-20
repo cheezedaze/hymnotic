@@ -3,10 +3,11 @@ import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { addContactToNewsletter } from "@/lib/email/newsletter";
 
 export async function POST(request: Request) {
   try {
-    const { name, email, password } = await request.json();
+    const { name, email, password, newsletterOptIn } = await request.json();
 
     if (!email || !password) {
       return NextResponse.json(
@@ -50,7 +51,17 @@ export async function POST(request: Request) {
       role: "USER",
       accountTier: "free",
       isPremium: false,
+      newsletterOptIn: newsletterOptIn === true,
     });
+
+    // Sync with Resend Audience (non-blocking)
+    if (newsletterOptIn === true) {
+      try {
+        await addContactToNewsletter(normalizedEmail, name?.trim() || undefined);
+      } catch (err) {
+        console.error("Failed to add contact to newsletter audience:", err);
+      }
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

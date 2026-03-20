@@ -123,8 +123,16 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
     return;
   }
 
-  const isPremium =
+  const isPremiumFromStripe =
     subscription.status === "active" || subscription.status === "trialing";
+
+  // Check if user has manual premium (don't downgrade manually-granted users)
+  const existing = await db
+    .select({ manualPremium: users.manualPremium })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  const isPremium = isPremiumFromStripe || (existing[0]?.manualPremium ?? false);
 
   await db
     .update(users)
@@ -147,9 +155,16 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
       ? subscription.customer
       : subscription.customer.id;
 
+  // Check if user has manual premium before downgrading
+  const existing = userId
+    ? await db.select({ manualPremium: users.manualPremium }).from(users).where(eq(users.id, userId)).limit(1)
+    : await db.select({ manualPremium: users.manualPremium }).from(users).where(eq(users.stripeCustomerId, customerId)).limit(1);
+
+  const hasManualPremium = existing[0]?.manualPremium ?? false;
+
   const updateData = {
-    isPremium: false,
-    accountTier: "free" as const,
+    isPremium: hasManualPremium,
+    accountTier: hasManualPremium ? ("paid" as const) : ("free" as const),
     subscriptionStatus: null as string | null,
     subscriptionEndDate: null as Date | null,
     updatedAt: new Date(),
@@ -186,8 +201,16 @@ async function updateUserByCustomerId(
   customerId: string,
   subscription: Stripe.Subscription
 ) {
-  const isPremium =
+  const isPremiumFromStripe =
     subscription.status === "active" || subscription.status === "trialing";
+
+  // Check if user has manual premium
+  const existing = await db
+    .select({ manualPremium: users.manualPremium })
+    .from(users)
+    .where(eq(users.stripeCustomerId, customerId))
+    .limit(1);
+  const isPremium = isPremiumFromStripe || (existing[0]?.manualPremium ?? false);
 
   await db
     .update(users)

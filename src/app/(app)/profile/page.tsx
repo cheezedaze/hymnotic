@@ -1,4 +1,4 @@
-import { User, Settings, Palette, Volume2, Play, Megaphone } from "lucide-react";
+import { User, Settings, Palette, Volume2, Play, Megaphone, Mail } from "lucide-react";
 import { auth } from "@/lib/auth/auth";
 import { redirect } from "next/navigation";
 import { getUserTotalPlays, getPublishedAnnouncements } from "@/lib/db/queries";
@@ -6,6 +6,9 @@ import { SignOutButton } from "@/components/auth/SignOutButton";
 import { SubscriptionCard } from "@/components/subscription/SubscriptionCard";
 import { AdminViewSwitcher } from "@/components/admin/AdminViewSwitcher";
 import { UpdatesList } from "@/components/profile/UpdatesList";
+import { NewsletterToggle } from "@/components/profile/NewsletterToggle";
+import { EditableName } from "@/components/profile/EditableName";
+import { DeleteAccountLink } from "@/components/profile/DeleteAccountLink";
 
 export default async function ProfilePage() {
   const session = await auth();
@@ -25,9 +28,7 @@ export default async function ProfilePage() {
             <User size={28} className="text-accent" />
           </div>
           <div className="flex-1">
-            <h1 className="text-display text-xl font-bold text-text-primary">
-              {session.user.name || "Listener"}
-            </h1>
+            <EditableName initialName={session.user.name || "Listener"} />
             <p className="text-text-muted text-xs mt-0.5">
               {session.user.email}
             </p>
@@ -63,6 +64,17 @@ export default async function ProfilePage() {
               {totalPlays.toLocaleString()}
             </span>
           </div>
+        </div>
+
+        {/* Email Preferences */}
+        <div className="glass-heavy rounded-2xl p-6 space-y-4">
+          <div className="flex items-center gap-2">
+            <Mail size={16} className="text-accent" />
+            <h2 className="text-sm font-semibold text-text-primary">
+              Email Preferences
+            </h2>
+          </div>
+          <NewsletterToggle />
         </div>
 
         {/* Recent Updates */}
@@ -160,6 +172,11 @@ export default async function ProfilePage() {
 
         {/* Sign out */}
         <SignOutButton />
+
+        {/* Delete account (hidden for admins) */}
+        {(session.user as { role?: string }).role !== "ADMIN" && (
+          <DeleteAccountLink />
+        )}
       </div>
     </div>
   );
