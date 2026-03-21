@@ -28,7 +28,7 @@ export async function addContactToNewsletter(
     firstName: firstName || undefined,
     unsubscribed: false,
     segments: [{ id: segmentId }],
-  } as Parameters<typeof resend.contacts.create>[0]);
+  } as unknown as Parameters<typeof resend.contacts.create>[0]);
 
   if (error) {
     throw new Error(`Resend contacts.create failed: ${JSON.stringify(error)}`);
