@@ -1,4 +1,4 @@
-import { eq, asc, desc, sql, inArray, and, isNotNull } from "drizzle-orm";
+import { eq, asc, desc, sql, inArray, and, isNotNull, gte } from "drizzle-orm";
 import { db } from "./index";
 import {
   collections,
@@ -11,6 +11,7 @@ import {
   users,
   userTrackPlays,
   userFavorites,
+  playEvents,
   sacred7Tracks,
   announcements,
   announcementDismissals,
@@ -796,4 +797,181 @@ export async function getUserDismissedAnnouncementIds(userId: string) {
     .from(announcementDismissals)
     .where(eq(announcementDismissals.userId, userId));
   return rows.map((r) => r.announcementId);
+}
+
+// =============================================================================
+// Play Events (individual timestamped plays for analytics)
+// =============================================================================
+
+export async function recordPlayEvent(userId: string, trackId: string) {
+  await db.insert(playEvents).values({ userId, trackId });
+}
+
+// =============================================================================
+// Admin: Reset Test Data
+// =============================================================================
+
+export async function resetTestData(threshold: number = 100) {
+  return await db.transaction(async (tx) => {
+    // Find users with inflated plays
+    const inflatedPlayUsers = await tx
+      .select({
+        userId: userTrackPlays.userId,
+        total: sql<number>`sum(${userTrackPlays.playCount})::int`,
+      })
+      .from(userTrackPlays)
+      .groupBy(userTrackPlays.userId)
+      .having(sql`sum(${userTrackPlays.playCount}) > ${threshold}`);
+
+    // Find users with inflated favorites
+    const inflatedFavUsers = await tx
+      .select({
+        userId: userFavorites.userId,
+        total: sql<number>`count(*)::int`,
+      })
+      .from(userFavorites)
+      .groupBy(userFavorites.userId)
+      .having(sql`count(*) > ${threshold}`);
+
+    // Combine unique user IDs
+    const userIds = [
+      ...new Set([
+        ...inflatedPlayUsers.map((u) => u.userId),
+        ...inflatedFavUsers.map((u) => u.userId),
+      ]),
+    ];
+
+    let playsDeleted = 0;
+    let favoritesDeleted = 0;
+    let eventsDeleted = 0;
+
+    for (const userId of userIds) {
+      // Delete play records
+      const deletedPlays = await tx
+        .delete(userTrackPlays)
+        .where(eq(userTrackPlays.userId, userId))
+        .returning();
+      playsDeleted += deletedPlays.length;
+
+      // Delete favorites
+      const deletedFavs = await tx
+        .delete(userFavorites)
+        .where(eq(userFavorites.userId, userId))
+        .returning();
+      favoritesDeleted += deletedFavs.length;
+
+      // Delete play events
+      const deletedEvents = await tx
+        .delete(playEvents)
+        .where(eq(playEvents.userId, userId))
+        .returning();
+      eventsDeleted += deletedEvents.length;
+    }
+
+    // Recalculate global play counts from remaining data
+    await tx.execute(sql`
+      UPDATE tracks SET play_count = COALESCE(
+        (SELECT SUM(play_count) FROM user_track_plays WHERE track_id = tracks.id), 0
+      )
+    `);
+
+    // Recalculate global favorite counts from remaining data
+    await tx.execute(sql`
+      UPDATE tracks SET favorite_count = COALESCE(
+        (SELECT COUNT(*) FROM user_favorites WHERE track_id = tracks.id), 0
+      )
+    `);
+
+    return {
+      usersReset: userIds.length,
+      playsDeleted,
+      favoritesDeleted,
+      eventsDeleted,
+    };
+  });
+}
+
+// =============================================================================
+// Admin: Leaderboard Queries
+// =============================================================================
+
+function getStartDate(period: "month" | "week" | "today"): Date {
+  const now = new Date();
+  if (period === "today") {
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  } else if (period === "week") {
+    const d = new Date(now);
+    d.setDate(d.getDate() - 7);
+    return d;
+  } else {
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  }
+}
+
+export async function getTopTracksByPlays(
+  period: "all" | "month" | "week" | "today"
+) {
+  if (period === "all") {
+    return db
+      .select({
+        trackId: tracks.id,
+        title: tracks.title,
+        collection: collections.title,
+        count: tracks.playCount,
+      })
+      .from(tracks)
+      .innerJoin(collections, eq(tracks.collectionId, collections.id))
+      .orderBy(desc(tracks.playCount))
+      .limit(10);
+  }
+
+  const startDate = getStartDate(period);
+  return db
+    .select({
+      trackId: playEvents.trackId,
+      title: tracks.title,
+      collection: collections.title,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(playEvents)
+    .innerJoin(tracks, eq(playEvents.trackId, tracks.id))
+    .innerJoin(collections, eq(tracks.collectionId, collections.id))
+    .where(gte(playEvents.playedAt, startDate))
+    .groupBy(playEvents.trackId, tracks.title, collections.title)
+    .orderBy(sql`count(*) desc`)
+    .limit(10);
+}
+
+export async function getTopTracksByFavorites(
+  period: "all" | "month" | "week" | "today"
+) {
+  if (period === "all") {
+    return db
+      .select({
+        trackId: tracks.id,
+        title: tracks.title,
+        collection: collections.title,
+        count: tracks.favoriteCount,
+      })
+      .from(tracks)
+      .innerJoin(collections, eq(tracks.collectionId, collections.id))
+      .orderBy(desc(tracks.favoriteCount))
+      .limit(10);
+  }
+
+  const startDate = getStartDate(period);
+  return db
+    .select({
+      trackId: userFavorites.trackId,
+      title: tracks.title,
+      collection: collections.title,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(userFavorites)
+    .innerJoin(tracks, eq(userFavorites.trackId, tracks.id))
+    .innerJoin(collections, eq(tracks.collectionId, collections.id))
+    .where(gte(userFavorites.createdAt, startDate))
+    .groupBy(userFavorites.trackId, tracks.title, collections.title)
+    .orderBy(sql`count(*) desc`)
+    .limit(10);
 }

@@ -236,6 +236,28 @@ export const userTrackPlays = pgTable(
 );
 
 // =============================================================================
+// Play Events (individual timestamped play records for analytics)
+// =============================================================================
+export const playEvents = pgTable(
+  "play_events",
+  {
+    id: serial("id").primaryKey(),
+    userId: varchar("user_id", { length: 128 })
+      .notNull()
+      .references(() => users.id),
+    trackId: varchar("track_id", { length: 128 })
+      .notNull()
+      .references(() => tracks.id),
+    playedAt: timestamp("played_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_play_events_track").on(table.trackId),
+    index("idx_play_events_played_at").on(table.playedAt),
+    index("idx_play_events_track_played_at").on(table.trackId, table.playedAt),
+  ]
+);
+
+// =============================================================================
 // Per-User Favorites
 // =============================================================================
 export const userFavorites = pgTable(
@@ -357,6 +379,7 @@ export type UserTrackPlay = typeof userTrackPlays.$inferSelect;
 export type UserFavorite = typeof userFavorites.$inferSelect;
 export type StripeEvent = typeof stripeEvents.$inferSelect;
 export type NewStripeEvent = typeof stripeEvents.$inferInsert;
+export type PlayEvent = typeof playEvents.$inferSelect;
 export type Sacred7Track = typeof sacred7Tracks.$inferSelect;
 export type Announcement = typeof announcements.$inferSelect;
 export type NewAnnouncement = typeof announcements.$inferInsert;

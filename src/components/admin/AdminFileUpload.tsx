@@ -4,19 +4,17 @@ import { useState, useRef, useCallback } from "react";
 import { cn } from "@/lib/utils/cn";
 import { Upload, File, X, CheckCircle, AlertCircle, Image as ImageIcon } from "lucide-react";
 
-interface UploadResult {
-  key: string;
-  cdnUrl: string;
-  audioDuration?: number;
-  originalKey?: string;
-  converted?: boolean;
-}
-
 interface AdminFileUploadProps {
   label: string;
   accept?: string;
   folder?: string;
-  onUploadComplete: (result: UploadResult) => void;
+  onUploadComplete: (result: {
+    key: string;
+    cdnUrl: string;
+    audioDuration?: number;
+    originalKey?: string;
+    converted?: boolean;
+  }) => void;
   currentFile?: string;
   maxSizeMB?: number;
   error?: string;
@@ -25,6 +23,118 @@ interface AdminFileUploadProps {
 }
 
 type UploadStatus = "idle" | "uploading" | "success" | "error";
+
+type UploadResult = {
+  key: string;
+  cdnUrl: string;
+  originalKey?: string;
+  converted?: boolean;
+  duration?: number;
+};
+
+/** Upload directly to S3 via presigned URL (bypasses Vercel's 4.5MB body limit) */
+async function uploadViaPresignedUrl(
+  file: File,
+  folder: string,
+  onProgress: (pct: number) => void
+): Promise<UploadResult> {
+  // 1. Get presigned URL from our API (tiny JSON request)
+  const res = await fetch("/api/admin/presign", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      fileName: file.name,
+      contentType: file.type,
+      folder,
+    }),
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Failed to get upload URL (${res.status})`);
+  }
+
+  const { url, key, cdnUrl } = await res.json();
+
+  // 2. PUT file directly to S3 with progress tracking
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.addEventListener("progress", (e) => {
+      if (e.lengthComputable) {
+        onProgress(Math.round((e.loaded / e.total) * 100));
+      }
+    });
+
+    xhr.addEventListener("load", () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
+      } else {
+        reject(new Error(`S3 upload failed (${xhr.status})`));
+      }
+    });
+
+    xhr.addEventListener("error", () => reject(new Error("Upload failed")));
+    xhr.addEventListener("abort", () => reject(new Error("Upload aborted")));
+
+    xhr.open("PUT", url);
+    xhr.setRequestHeader("Content-Type", file.type);
+    xhr.send(file);
+  });
+
+  return { key, cdnUrl };
+}
+
+/** Upload through API route (used for WAV→MP3 conversion) */
+async function uploadViaServer(
+  file: File,
+  folder: string,
+  onProgress: (pct: number) => void
+): Promise<UploadResult> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("folder", folder);
+
+  const xhr = new XMLHttpRequest();
+
+  return new Promise<UploadResult>((resolve, reject) => {
+    xhr.upload.addEventListener("progress", (e) => {
+      if (e.lengthComputable) {
+        onProgress(Math.round((e.loaded / e.total) * 100));
+      }
+    });
+
+    xhr.addEventListener("load", () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          resolve(JSON.parse(xhr.responseText));
+        } catch {
+          reject(new Error("Invalid response from server"));
+        }
+      } else if (xhr.status === 207) {
+        try {
+          const body = JSON.parse(xhr.responseText);
+          reject(new Error(body.error || "Conversion failed"));
+        } catch {
+          reject(new Error("WAV conversion failed"));
+        }
+      } else {
+        try {
+          const body = JSON.parse(xhr.responseText);
+          reject(new Error(body.error || `Upload failed (${xhr.status})`));
+        } catch {
+          reject(new Error(`Upload failed with status ${xhr.status}`));
+        }
+      }
+    });
+
+    xhr.addEventListener("error", () => reject(new Error("Upload failed")));
+    xhr.addEventListener("abort", () => reject(new Error("Upload aborted")));
+
+    xhr.open("POST", "/api/admin/upload");
+    xhr.send(formData);
+  });
+}
 
 export function AdminFileUpload({
   label,
@@ -118,60 +228,26 @@ export function AdminFileUpload({
         }
       }
 
+      // WAV audio files need server-side conversion; everything else uses presigned URLs
+      const needsServerUpload =
+        fileIsWav && folder === "audio/tracks";
+
       try {
-        // Upload via our API proxy (avoids S3 CORS issues)
-        const formData = new FormData();
-        formData.append("file", file);
-        formData.append("folder", folder);
-
-        const xhr = new XMLHttpRequest();
-
-        const result = await new Promise<{
+        let result: {
           key: string;
           cdnUrl: string;
           originalKey?: string;
           converted?: boolean;
           duration?: number;
-        }>(
-          (resolve, reject) => {
-            xhr.upload.addEventListener("progress", (e) => {
-              if (e.lengthComputable) {
-                setProgress(Math.round((e.loaded / e.total) * 100));
-              }
-            });
+        };
 
-            xhr.addEventListener("load", () => {
-              if (xhr.status >= 200 && xhr.status < 300) {
-                try {
-                  resolve(JSON.parse(xhr.responseText));
-                } catch {
-                  reject(new Error("Invalid response from server"));
-                }
-              } else if (xhr.status === 207) {
-                // Partial success — WAV saved but conversion failed
-                try {
-                  const body = JSON.parse(xhr.responseText);
-                  reject(new Error(body.error || "Conversion failed"));
-                } catch {
-                  reject(new Error("WAV conversion failed"));
-                }
-              } else {
-                try {
-                  const body = JSON.parse(xhr.responseText);
-                  reject(new Error(body.error || `Upload failed (${xhr.status})`));
-                } catch {
-                  reject(new Error(`Upload failed with status ${xhr.status}`));
-                }
-              }
-            });
-
-            xhr.addEventListener("error", () => reject(new Error("Upload failed")));
-            xhr.addEventListener("abort", () => reject(new Error("Upload aborted")));
-
-            xhr.open("POST", "/api/admin/upload");
-            xhr.send(formData);
-          }
-        );
+        if (needsServerUpload) {
+          // Legacy path: upload through API route for WAV→MP3 conversion
+          result = await uploadViaServer(file, folder, setProgress);
+        } else {
+          // Presigned URL path: upload directly to S3
+          result = await uploadViaPresignedUrl(file, folder, setProgress);
+        }
 
         // Prefer server-provided duration (from ffprobe) over client-extracted
         const finalDuration = result.duration ?? audioDuration;

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Disc3,
@@ -9,7 +10,9 @@ import {
   Plus,
   Users,
   UserPlus,
+  RotateCcw,
 } from "lucide-react";
+import { Leaderboard } from "./Leaderboard";
 
 interface StatsCardProps {
   label: string;
@@ -49,6 +52,41 @@ interface AdminDashboardProps {
 
 export function AdminDashboard({ stats, recentTracks }: AdminDashboardProps) {
   const router = useRouter();
+  const [resetting, setResetting] = useState(false);
+  const [resetResult, setResetResult] = useState<{
+    usersReset: number;
+    playsDeleted: number;
+    favoritesDeleted: number;
+  } | null>(null);
+
+  async function handleResetTestData() {
+    if (
+      !confirm(
+        "This will reset all play counts and favorites for users with more than 100 plays or likes. Continue?"
+      )
+    )
+      return;
+
+    setResetting(true);
+    setResetResult(null);
+    try {
+      const res = await fetch("/api/admin/reset-test-data", {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setResetResult(data);
+        // Refresh the page to update stats
+        router.refresh();
+      } else {
+        alert(data.error || "Failed to reset test data");
+      }
+    } catch {
+      alert("Failed to reset test data");
+    } finally {
+      setResetting(false);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -119,7 +157,28 @@ export function AdminDashboard({ stats, recentTracks }: AdminDashboardProps) {
           <UserPlus size={16} />
           Invite User
         </button>
+        <button
+          onClick={handleResetTestData}
+          disabled={resetting}
+          className="flex items-center gap-2 px-4 py-2.5 bg-red-400/15 border border-red-400/25 text-red-400 rounded-xl text-sm font-medium hover:bg-red-400/25 transition-colors disabled:opacity-50"
+        >
+          <RotateCcw size={16} className={resetting ? "animate-spin" : ""} />
+          {resetting ? "Resetting..." : "Reset Test Data"}
+        </button>
       </div>
+
+      {resetResult && (
+        <div className="glass-heavy rounded-xl p-4 border border-green-400/25">
+          <p className="text-sm text-green-400 font-medium">
+            Reset complete: {resetResult.usersReset} user(s) reset,{" "}
+            {resetResult.playsDeleted} play records and{" "}
+            {resetResult.favoritesDeleted} favorites removed.
+          </p>
+        </div>
+      )}
+
+      {/* Leaderboard */}
+      <Leaderboard />
 
       {/* Recent tracks */}
       <div className="glass-heavy rounded-xl p-4">

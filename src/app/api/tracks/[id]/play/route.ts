@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth/auth";
-import { incrementPlayCount, incrementUserPlayCount } from "@/lib/db/queries";
+import { incrementPlayCount, incrementUserPlayCount, recordPlayEvent } from "@/lib/db/queries";
 
 /**
  * POST /api/tracks/:id/play
@@ -29,6 +29,9 @@ export async function POST(
 
     // Track per-user play count
     const userPlay = await incrementUserPlayCount(session.user.id, id);
+
+    // Record individual play event for time-based analytics
+    await recordPlayEvent(session.user.id, id);
 
     return NextResponse.json({
       id: track.id,
