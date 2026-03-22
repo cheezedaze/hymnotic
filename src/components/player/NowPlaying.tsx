@@ -105,49 +105,89 @@ export function NowPlaying() {
             <div className="w-10" />
           </div>
 
-          {/* Spacer - pushes artwork toward bottom */}
+          {/* Spacer - pushes content toward bottom */}
           <div className="flex-1 min-h-0" />
 
-          {/* Album artwork - compact, positioned just above controls */}
-          <div className="flex items-center justify-center px-16 pb-4 shrink-0">
-            <div className="relative w-full max-w-[180px] aspect-square rounded-2xl overflow-hidden shadow-[var(--shadow-card)]">
-              {displayArtworkUrl ? (
-                <Image
-                  src={displayArtworkUrl}
-                  alt={currentTrack.title}
-                  fill
-                  className="object-cover"
-                  priority
-                />
-              ) : (
-                <div className="w-full h-full bg-white/5 flex items-center justify-center">
-                  <Music size={36} className="text-text-dim" />
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Track info */}
-          <div className="px-6 pb-2 shrink-0">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex-1 min-w-0">
-                <MarqueeText
-                  text={currentTrack.title}
-                  className="text-xl font-bold text-display text-text-primary"
-                />
+          {currentTrack.videoUrl ? (
+            /* Video layout: small artwork thumbnail beside track title */
+            <div className="flex items-center gap-4 px-6 pb-2 shrink-0">
+              <div className="relative w-14 h-14 rounded-xl overflow-hidden shrink-0 shadow-[var(--shadow-card)]">
+                {displayArtworkUrl ? (
+                  <Image
+                    src={displayArtworkUrl}
+                    alt={currentTrack.title}
+                    fill
+                    className="object-cover"
+                    priority
+                  />
+                ) : (
+                  <div className="w-full h-full bg-white/5 flex items-center justify-center">
+                    <Music size={20} className="text-text-dim" />
+                  </div>
+                )}
               </div>
-              {isPremium && (
-                <IconButton
-                  size="sm"
-                  label="Favorite"
-                  active={isFavorited}
-                  onClick={() => toggleFavorite(currentTrack.id)}
-                >
-                  <Heart size={22} fill={isFavorited ? "currentColor" : "none"} />
-                </IconButton>
-              )}
+              <div className="flex items-center justify-between gap-3 flex-1 min-w-0">
+                <div className="flex-1 min-w-0">
+                  <MarqueeText
+                    text={currentTrack.title}
+                    className="text-xl font-bold text-display text-text-primary"
+                  />
+                </div>
+                {isPremium && (
+                  <IconButton
+                    size="sm"
+                    label="Favorite"
+                    active={isFavorited}
+                    onClick={() => toggleFavorite(currentTrack.id)}
+                  >
+                    <Heart size={22} fill={isFavorited ? "currentColor" : "none"} />
+                  </IconButton>
+                )}
+              </div>
             </div>
-          </div>
+          ) : (
+            /* Non-video layout: centered artwork above track title */
+            <>
+              <div className="flex items-center justify-center px-16 pb-4 shrink-0">
+                <div className="relative w-full max-w-[180px] aspect-square rounded-2xl overflow-hidden shadow-[var(--shadow-card)]">
+                  {displayArtworkUrl ? (
+                    <Image
+                      src={displayArtworkUrl}
+                      alt={currentTrack.title}
+                      fill
+                      className="object-cover"
+                      priority
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-white/5 flex items-center justify-center">
+                      <Music size={36} className="text-text-dim" />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="px-6 pb-2 shrink-0">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <MarqueeText
+                      text={currentTrack.title}
+                      className="text-xl font-bold text-display text-text-primary"
+                    />
+                  </div>
+                  {isPremium && (
+                    <IconButton
+                      size="sm"
+                      label="Favorite"
+                      active={isFavorited}
+                      onClick={() => toggleFavorite(currentTrack.id)}
+                    >
+                      <Heart size={22} fill={isFavorited ? "currentColor" : "none"} />
+                    </IconButton>
+                  )}
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Fixed bottom region — CTA, controls, actions */}
