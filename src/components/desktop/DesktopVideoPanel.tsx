@@ -70,7 +70,7 @@ function PromoPanel() {
           <span className="text-text-muted"> for the first month</span>
         </p>
         <p className="text-text-dim text-xs mb-3">
-          then <span className="text-text-secondary">$5.99/mo</span> — full
+          then <span className="text-text-secondary">$4.99/mo</span> — full
           access to every hymn
         </p>
         <Link

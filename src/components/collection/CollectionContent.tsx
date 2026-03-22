@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { Search, X, ChevronDown, Shuffle, Play, Pause, Download, Share2 } from "lucide-react";
+import { Search, X, ChevronDown, Shuffle, Play, Pause, Share } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { type ApiTrack } from "@/lib/types";
 import { TrackList } from "./TrackList";
@@ -9,6 +9,7 @@ import { type SortOption } from "./SearchSortBar";
 import { useTrackSearchSort } from "@/lib/hooks/useTrackSearchSort";
 import { usePlayerStore } from "@/lib/store/playerStore";
 import { useSubscriptionStore, recomputeTrackAccess } from "@/lib/store/subscriptionStore";
+import { useShare } from "@/lib/hooks/useShare";
 import { IconButton } from "@/components/ui/IconButton";
 import { GlowButton } from "@/components/ui/GlowButton";
 
@@ -25,12 +26,20 @@ interface CollectionContentProps {
   /** Show "Collection" sort option (for multi-collection views like All Tracks) */
   isMultiCollection?: boolean;
   collectionMap?: Map<string, string>;
+  collectionId?: string;
+  collectionTitle?: string;
+  collectionArtworkUrl?: string | null;
+  autoPlayTrackId?: string;
 }
 
 export function CollectionContent({
   tracks,
   isMultiCollection = false,
   collectionMap,
+  collectionId,
+  collectionTitle,
+  collectionArtworkUrl,
+  autoPlayTrackId,
 }: CollectionContentProps) {
   const effectiveTier = useSubscriptionStore((s) => s.effectiveTier());
   const sacred7TrackIds = useSubscriptionStore((s) => s.sacred7TrackIds);
@@ -62,8 +71,28 @@ export function CollectionContent({
   const toggleShuffle = usePlayerStore((s) => s.toggleShuffle);
   const shuffle = usePlayerStore((s) => s.shuffle);
 
+  const { share } = useShare();
+
   const isPlayingFromThis =
     currentTrack && filteredTracks.some((t) => t.id === currentTrack.id);
+
+  // Autoplay from share link (?play=trackId)
+  const autoPlayedRef = useRef(false);
+  useEffect(() => {
+    if (autoPlayTrackId && !autoPlayedRef.current && accessTracks.length > 0) {
+      autoPlayedRef.current = true;
+      const index = accessTracks.findIndex((t) => t.id === autoPlayTrackId);
+      if (index !== -1) {
+        setQueue(accessTracks, index);
+      }
+    }
+  }, [autoPlayTrackId, accessTracks, setQueue]);
+
+  const handleShare = useCallback(() => {
+    if (collectionId && collectionTitle) {
+      share({ type: "collection", id: collectionId, title: collectionTitle, artworkUrl: collectionArtworkUrl });
+    }
+  }, [collectionId, collectionTitle, share]);
 
   useEffect(() => {
     if (searchOpen) {
@@ -112,11 +141,8 @@ export function CollectionContent({
       {/* Action row: Sort + Search | Shuffle + Play */}
       <div className="flex items-center justify-between px-5 py-3">
         <div className="flex items-center gap-2">
-          <IconButton label="Download" size="sm">
-            <Download size={18} />
-          </IconButton>
-          <IconButton label="Share" size="sm">
-            <Share2 size={18} />
+          <IconButton label="Share" size="sm" onClick={handleShare}>
+            <Share size={18} />
           </IconButton>
           <div ref={sortRef} className="relative">
             <button

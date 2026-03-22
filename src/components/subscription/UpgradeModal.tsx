@@ -103,7 +103,7 @@ export function UpgradeModal() {
                   Upgrade to Premium
                 </button>
                 <p className="text-text-dim text-xs mt-3">
-                  Starting at $5.99/month
+                  Starting at $4.99/month
                 </p>
               </>
             )}

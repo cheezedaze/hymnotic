@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import {
   getCollectionById,
   getTracksByCollection,
   getSacred7TracksWithDetails,
 } from "@/lib/db/queries";
-import { buildCollectionMediaUrls, buildTrackMediaUrlsWithFallback } from "@/lib/s3/client";
+import { buildCollectionMediaUrls, buildTrackMediaUrlsWithFallback, getMediaUrl } from "@/lib/s3/client";
 import {
   getAccessContext,
   getSacred7TrackIds,
@@ -18,10 +19,59 @@ import { AllTracksCollection } from "@/components/collection/AllTracksCollection
 
 interface CollectionPageProps {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ play?: string }>;
 }
 
-export default async function CollectionPage({ params }: CollectionPageProps) {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
   const { id } = await params;
+
+  // Virtual collections get static metadata
+  if (id === "all-tracks" || id === "favorites") {
+    return {
+      title: id === "all-tracks" ? "All Tracks | HYMNZ" : "Favorites | HYMNZ",
+    };
+  }
+
+  const collection = await getCollectionById(id);
+  if (!collection) {
+    return { title: "Collection Not Found | HYMNZ" };
+  }
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://hymnz.com";
+  const artworkUrl = getMediaUrl(collection.artworkKey);
+  const description = collection.description || `Listen to "${collection.title}" on HYMNZ`;
+
+  return {
+    title: `${collection.title} | HYMNZ`,
+    description,
+    openGraph: {
+      title: collection.title,
+      description,
+      type: "music.album",
+      url: `${appUrl}/collection/${id}`,
+      siteName: "HYMNZ",
+      ...(artworkUrl && {
+        images: [
+          { url: artworkUrl, width: 800, height: 800, alt: collection.title },
+        ],
+      }),
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: collection.title,
+      description,
+      ...(artworkUrl && { images: [artworkUrl] }),
+    },
+  };
+}
+
+export default async function CollectionPage({ params, searchParams }: CollectionPageProps) {
+  const { id } = await params;
+  const { play: autoPlayTrackId } = await searchParams;
 
   // All Tracks: virtual collection showing every track
   if (id === "all-tracks") {
@@ -78,7 +128,7 @@ export default async function CollectionPage({ params }: CollectionPageProps) {
         collection={collectionWithUrls}
         trackCount={trackCount}
       />
-      <CollectionContent tracks={tracks} />
+      <CollectionContent tracks={tracks} collectionId={collection.id} collectionTitle={collection.title} collectionArtworkUrl={collectionWithUrls.artworkUrl} autoPlayTrackId={autoPlayTrackId} />
     </div>
   );
 }

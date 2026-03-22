@@ -1,22 +1,27 @@
 "use client";
 
-import { Download, Share2, Shuffle, Play, Pause } from "lucide-react";
+import { Share, Shuffle, Play, Pause } from "lucide-react";
 import { IconButton } from "@/components/ui/IconButton";
 import { GlowButton } from "@/components/ui/GlowButton";
 import { usePlayerStore } from "@/lib/store/playerStore";
+import { useShare } from "@/lib/hooks/useShare";
 import { type ApiTrack } from "@/lib/types";
 
 interface ActionRowProps {
   tracks: ApiTrack[];
+  collectionId?: string;
+  collectionTitle?: string;
 }
 
-export function ActionRow({ tracks }: ActionRowProps) {
+export function ActionRow({ tracks, collectionId, collectionTitle }: ActionRowProps) {
   const setQueue = usePlayerStore((s) => s.setQueue);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const togglePlayPause = usePlayerStore((s) => s.togglePlayPause);
   const toggleShuffle = usePlayerStore((s) => s.toggleShuffle);
   const shuffle = usePlayerStore((s) => s.shuffle);
+
+  const { share } = useShare();
 
   const isPlayingFromThisCollection =
     currentTrack && tracks.some((t) => t.id === currentTrack.id);
@@ -40,11 +45,16 @@ export function ActionRow({ tracks }: ActionRowProps) {
   return (
     <div className="flex items-center justify-between px-5 py-3">
       <div className="flex items-center gap-2">
-        <IconButton label="Download" size="sm">
-          <Download size={18} />
-        </IconButton>
-        <IconButton label="Share" size="sm">
-          <Share2 size={18} />
+        <IconButton
+          label="Share"
+          size="sm"
+          onClick={() => {
+            if (collectionId && collectionTitle) {
+              share({ type: "collection", id: collectionId, title: collectionTitle });
+            }
+          }}
+        >
+          <Share size={18} />
         </IconButton>
       </div>
 

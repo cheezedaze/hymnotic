@@ -1,14 +1,16 @@
 "use client";
 
 import Image from "next/image";
-import { Heart, Share2, Music } from "lucide-react";
+import { Heart, Share, Music } from "lucide-react";
 import { usePlayerStore } from "@/lib/store/playerStore";
 import { useFavoritesStore } from "@/lib/store/favoritesStore";
 import { PlaybackControls } from "@/components/player/PlaybackControls";
 import { cn } from "@/lib/utils/cn";
+import { useShare } from "@/lib/hooks/useShare";
 
 export function DesktopPlayerBar() {
   const currentTrack = usePlayerStore((s) => s.currentTrack);
+  const { share } = useShare();
   const favoriteIds = useFavoritesStore((s) => s.favoriteIds);
   const toggleFavorite = useFavoritesStore((s) => s.toggleFavorite);
 
@@ -58,8 +60,19 @@ export function DesktopPlayerBar() {
             <button
               className="text-text-muted hover:text-text-secondary transition-colors p-1.5"
               title="Share"
+              onClick={() => {
+                if (currentTrack) {
+                  share({
+                    type: "track",
+                    id: currentTrack.id,
+                    title: currentTrack.title,
+                    artist: currentTrack.artist,
+                    artworkUrl: currentTrack.artworkUrl,
+                  });
+                }
+              }}
             >
-              <Share2 size={16} />
+              <Share size={16} />
             </button>
             <button
               onClick={() => toggleFavorite(currentTrack.id)}

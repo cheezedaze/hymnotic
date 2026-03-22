@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, Heart, Headphones, Share2, Music } from "lucide-react";
+import { ChevronDown, Heart, Headphones, Share, Music } from "lucide-react";
 import { usePlayerStore } from "@/lib/store/playerStore";
 import { useFavoritesStore } from "@/lib/store/favoritesStore";
 import { useSubscriptionStore } from "@/lib/store/subscriptionStore";
@@ -13,9 +13,11 @@ import { MarqueeText } from "./MarqueeText";
 import { PersistentCTA } from "./PersistentCTA";
 import { IconButton } from "@/components/ui/IconButton";
 import { SponsorBanner } from "@/components/subscription/SponsorBanner";
+import { useShare } from "@/lib/hooks/useShare";
 
 export function NowPlaying() {
   const currentTrack = usePlayerStore((s) => s.currentTrack);
+  const { share } = useShare();
   const minimizeNowPlaying = usePlayerStore((s) => s.minimizeNowPlaying);
   const toggleLyrics = usePlayerStore((s) => s.toggleLyrics);
   const isLyricsOpen = usePlayerStore((s) => s.isLyricsOpen);
@@ -212,8 +214,22 @@ export function NowPlaying() {
             >
               Lyrics & Info
             </button>
-            <IconButton size="sm" label="Share">
-              <Share2 size={18} />
+            <IconButton
+              size="sm"
+              label="Share"
+              onClick={() => {
+                if (currentTrack) {
+                  share({
+                    type: "track",
+                    id: currentTrack.id,
+                    title: currentTrack.title,
+                    artist: currentTrack.artist,
+                    artworkUrl: currentTrack.artworkUrl,
+                  });
+                }
+              }}
+            >
+              <Share size={18} />
             </IconButton>
           </div>
         </div>

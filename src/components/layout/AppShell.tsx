@@ -10,6 +10,7 @@ import { useIsDesktop } from "@/lib/hooks/useIsDesktop";
 import { MobileLayout } from "./MobileLayout";
 import { DesktopLayout } from "./DesktopLayout";
 import { UpgradeModal } from "@/components/subscription/UpgradeModal";
+import { ShareSheet } from "@/components/share/ShareSheet";
 import { WhatsNewChecker } from "@/components/announcements/WhatsNewChecker";
 
 const tierLabels: Record<string, string> = {
@@ -62,6 +63,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <ViewAsBar />
         <DesktopLayout>{children}</DesktopLayout>
         <UpgradeModal />
+        <ShareSheet />
         <WhatsNewChecker />
       </>
     );
@@ -72,6 +74,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <ViewAsBar />
       <MobileLayout>{children}</MobileLayout>
       <UpgradeModal />
+      <ShareSheet />
       <WhatsNewChecker />
     </>
   );
