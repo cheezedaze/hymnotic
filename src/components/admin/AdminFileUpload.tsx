@@ -85,55 +85,41 @@ async function uploadViaPresignedUrl(
   return { key, cdnUrl };
 }
 
-/** Upload through API route (used for WAV→MP3 conversion) */
-async function uploadViaServer(
+/** Upload WAV to S3 via presigned URL, then trigger server-side conversion */
+async function uploadWavAndConvert(
   file: File,
-  folder: string,
-  onProgress: (pct: number) => void
+  onProgress: (pct: number) => void,
+  onConverting: () => void
 ): Promise<UploadResult> {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("folder", folder);
+  // 1. Upload WAV to audio/originals/ via presigned URL
+  const result = await uploadViaPresignedUrl(file, "audio/originals", onProgress);
 
-  const xhr = new XMLHttpRequest();
-
-  return new Promise<UploadResult>((resolve, reject) => {
-    xhr.upload.addEventListener("progress", (e) => {
-      if (e.lengthComputable) {
-        onProgress(Math.round((e.loaded / e.total) * 100));
-      }
-    });
-
-    xhr.addEventListener("load", () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          resolve(JSON.parse(xhr.responseText));
-        } catch {
-          reject(new Error("Invalid response from server"));
-        }
-      } else if (xhr.status === 207) {
-        try {
-          const body = JSON.parse(xhr.responseText);
-          reject(new Error(body.error || "Conversion failed"));
-        } catch {
-          reject(new Error("WAV conversion failed"));
-        }
-      } else {
-        try {
-          const body = JSON.parse(xhr.responseText);
-          reject(new Error(body.error || `Upload failed (${xhr.status})`));
-        } catch {
-          reject(new Error(`Upload failed with status ${xhr.status}`));
-        }
-      }
-    });
-
-    xhr.addEventListener("error", () => reject(new Error("Upload failed")));
-    xhr.addEventListener("abort", () => reject(new Error("Upload aborted")));
-
-    xhr.open("POST", "/api/admin/upload");
-    xhr.send(formData);
+  // 2. Trigger server-side WAV→MP3 conversion (tiny JSON request)
+  onConverting();
+  const res = await fetch("/api/admin/convert", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ originalKey: result.key }),
   });
+
+  if (!res.ok && res.status !== 207) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Conversion failed (${res.status})`);
+  }
+
+  if (res.status === 207) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || "WAV conversion failed");
+  }
+
+  const data = await res.json();
+  return {
+    key: data.key,
+    cdnUrl: data.cdnUrl,
+    originalKey: data.originalKey,
+    converted: data.converted,
+    duration: data.duration,
+  };
 }
 
 export function AdminFileUpload({
@@ -194,7 +180,7 @@ export function AdminFileUpload({
       setUploadError(null);
       setStatus("uploading");
       setProgress(0);
-      setIsConverting(fileIsWav && folder === "audio/tracks");
+      setIsConverting(false);
 
       // Generate image preview if applicable
       if (file.type.startsWith("image/")) {
@@ -228,9 +214,8 @@ export function AdminFileUpload({
         }
       }
 
-      // WAV audio files need server-side conversion; everything else uses presigned URLs
-      const needsServerUpload =
-        fileIsWav && folder === "audio/tracks";
+      // WAV audio files: upload to S3 then convert server-side
+      const needsConversion = fileIsWav && folder === "audio/tracks";
 
       try {
         let result: {
@@ -241,9 +226,11 @@ export function AdminFileUpload({
           duration?: number;
         };
 
-        if (needsServerUpload) {
-          // Legacy path: upload through API route for WAV→MP3 conversion
-          result = await uploadViaServer(file, folder, setProgress);
+        if (needsConversion) {
+          // Upload WAV to S3 via presigned URL, then convert server-side
+          result = await uploadWavAndConvert(file, setProgress, () =>
+            setIsConverting(true)
+          );
         } else {
           // Presigned URL path: upload directly to S3
           result = await uploadViaPresignedUrl(file, folder, setProgress);
