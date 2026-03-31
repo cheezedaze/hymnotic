@@ -64,9 +64,9 @@ export function useAudioPlayer() {
     if (fadingRef.current) return;
     fadingRef.current = true;
 
-    // Clear checkpoint immediately (before any await) so a stale interval tick
-    // that fires while fadingRef resets cannot re-trigger this function.
-    usePlayerStore.setState({ previewCheckpoint: null });
+    // Mark preview as ended immediately so stale interval ticks can't re-trigger.
+    // Keep previewCheckpoint intact so the scrub clamp continues to work.
+    usePlayerStore.setState({ isPreviewEnded: true });
 
     const store = usePlayerStore.getState();
 
@@ -88,11 +88,12 @@ export function useAudioPlayer() {
     // Wait for both fade and voiceover to finish
     await Promise.all([fadePromise, voPromise]);
 
-    // Stop playback and reset volume for next track
+    // Stop playback, reset position to start, and restore volume
     const audio = getOrCreateAudioElement();
     audio.pause();
+    audio.currentTime = 0;
     audio.volume = 1;
-    usePlayerStore.setState({ isPlaying: false });
+    usePlayerStore.setState({ isPlaying: false, currentTime: 0 });
 
     fadingRef.current = false;
   }, []);
@@ -145,6 +146,7 @@ export function useAudioPlayer() {
           state.isPreviewMode &&
           state.previewCheckpoint !== null &&
           audio.currentTime >= state.previewCheckpoint &&
+          !state.isPreviewEnded &&
           !fadingRef.current
         ) {
           handlePreviewEnd();
@@ -208,6 +210,7 @@ export function useAudioPlayer() {
             state.isPreviewMode &&
             state.previewCheckpoint !== null &&
             next >= state.previewCheckpoint &&
+            !state.isPreviewEnded &&
             !fadingRef.current
           ) {
             handlePreviewEnd();

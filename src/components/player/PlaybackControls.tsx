@@ -35,22 +35,27 @@ export function PlaybackControls({ compact = false, variant = "mobile" }: Playba
 
   const isPreviewMode = usePlayerStore((s) => s.isPreviewMode);
   const previewCheckpoint = usePlayerStore((s) => s.previewCheckpoint);
+  const previewDuration = usePlayerStore((s) => s.previewDuration);
 
   const handleScrub = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     let time = parseFloat(e.target.value);
-    // Clamp seeking at current preview checkpoint
+    // Clamp seeking at preview limit (checkpoint or duration fallback)
     const state = usePlayerStore.getState();
-    if (state.isPreviewMode && state.previewCheckpoint !== null && time > state.previewCheckpoint) {
-      time = state.previewCheckpoint;
+    if (state.isPreviewMode) {
+      const limit = state.previewCheckpoint ?? state.previewDuration;
+      if (limit !== null && time > limit) {
+        time = limit;
+      }
     }
     seekAudio(time);
     usePlayerStore.getState().seekTo(time);
   }, []);
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const previewLimit = previewCheckpoint ?? previewDuration;
   const previewProgress =
-    isPreviewMode && previewCheckpoint && duration > 0
-      ? (previewCheckpoint / duration) * 100
+    isPreviewMode && previewLimit && duration > 0
+      ? (previewLimit / duration) * 100
       : null;
 
   if (variant === "desktop") {

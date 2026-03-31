@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { requireAuthAdmin } from "@/lib/auth/auth";
 import {
   getContentBlockById,
@@ -36,6 +37,7 @@ export async function PATCH(
       );
     }
 
+    revalidatePath("/about");
     return NextResponse.json(block);
   } catch (error) {
     console.error("Error updating content block:", error);
@@ -64,6 +66,7 @@ export async function DELETE(
     }
 
     await deleteContentBlock(parseInt(id, 10));
+    revalidatePath("/about");
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error deleting content block:", error);

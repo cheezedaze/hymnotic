@@ -251,6 +251,9 @@ export function ContentManager({
             <div>
               <label className="block text-xs font-medium text-text-secondary mb-1.5">
                 Body *
+                <span className="font-normal text-text-dim ml-1">
+                  (supports HTML: &lt;b&gt;, &lt;br&gt;, &lt;a&gt;, etc.)
+                </span>
               </label>
               <textarea
                 value={form.bodyText}

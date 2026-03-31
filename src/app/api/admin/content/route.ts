@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { requireAuthAdmin } from "@/lib/auth/auth";
 import {
   getContentBlocksByPage,
@@ -49,6 +50,7 @@ export async function POST(request: Request) {
       active: active ?? true,
     });
 
+    revalidatePath("/about");
     return NextResponse.json(block, { status: 201 });
   } catch (error) {
     console.error("Error creating content block:", error);

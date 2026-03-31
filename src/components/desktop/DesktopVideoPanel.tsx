@@ -1,10 +1,13 @@
 "use client";
 
+import { useRef, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Music, Heart, BookOpen, Check, Sparkles } from "lucide-react";
+import { Music, Heart, BookOpen, BookOpenText, Check, Sparkles, X } from "lucide-react";
 import { usePlayerStore } from "@/lib/store/playerStore";
 import { useSubscriptionStore } from "@/lib/store/subscriptionStore";
+import { type ApiLyricLine } from "@/lib/types";
+import { cn } from "@/lib/utils/cn";
 
 function getYouTubeEmbedUrl(url: string): string | null {
   try {
@@ -133,7 +136,107 @@ function AboutPanel() {
   );
 }
 
+function DesktopLyricsView({ trackId, onClose }: { trackId: string; onClose: () => void }) {
+  const currentTime = usePlayerStore((s) => s.currentTime);
+  const [lyrics, setLyrics] = useState<ApiLyricLine[]>([]);
+  const activeLineRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/tracks/${trackId}/lyrics`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        if (!cancelled) setLyrics(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {
+        if (!cancelled) setLyrics([]);
+      });
+    return () => { cancelled = true; };
+  }, [trackId]);
+
+  useEffect(() => {
+    if (activeLineRef.current && containerRef.current) {
+      activeLineRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [currentTime]);
+
+  const getActiveLineIndex = () => {
+    for (let i = lyrics.length - 1; i >= 0; i--) {
+      if (currentTime >= lyrics[i].startTime) return i;
+    }
+    return -1;
+  };
+
+  const activeIndex = getActiveLineIndex();
+
+  return (
+    <div className="absolute inset-0 z-10 flex flex-col bg-teal-solid rounded-2xl">
+      <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-white/10">
+        <span className="text-sm font-semibold text-text-secondary">Lyrics</span>
+        <button
+          onClick={onClose}
+          className="p-1 rounded-lg text-text-muted hover:text-text-primary hover:bg-white/10 transition-colors"
+        >
+          <X size={16} />
+        </button>
+      </div>
+      <div ref={containerRef} className="flex-1 overflow-y-auto px-5 py-4 scrollbar-hide">
+        {lyrics.length > 0 ? (
+          <div className="space-y-3">
+            {lyrics.map((line, index) => {
+              const isActive = index === activeIndex;
+              const isPast = index < activeIndex;
+              return (
+                <div
+                  key={line.id || index}
+                  ref={isActive ? activeLineRef : undefined}
+                  className={cn(
+                    "text-base leading-relaxed transition-all duration-300 text-display",
+                    isActive
+                      ? "text-text-primary font-semibold scale-[1.02] origin-left"
+                      : isPast
+                        ? "text-text-muted"
+                        : "text-text-dim",
+                    line.isChorus && "italic text-gold/80"
+                  )}
+                >
+                  {line.text}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-text-muted text-sm text-center">No lyrics available for this track.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ShowLyricsButton({ isOpen, onClick }: { isOpen: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-1.5 mt-3 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+        isOpen
+          ? "bg-accent/20 text-accent border border-accent/30"
+          : "glass text-text-secondary hover:text-text-primary hover:bg-white/10"
+      )}
+    >
+      <BookOpenText size={14} />
+      {isOpen ? "Hide Lyrics" : "Show Lyrics"}
+    </button>
+  );
+}
+
 function NowPlayingPanel({ currentTrack }: { currentTrack: NonNullable<ReturnType<typeof usePlayerStore.getState>["currentTrack"]> }) {
+  const isLyricsOpen = usePlayerStore((s) => s.isLyricsOpen);
+  const toggleLyrics = usePlayerStore((s) => s.toggleLyrics);
+
   // Uploaded video
   if (currentTrack.hasVideo && currentTrack.videoUrl) {
     return (
@@ -153,7 +256,11 @@ function NowPlayingPanel({ currentTrack }: { currentTrack: NonNullable<ReturnTyp
             {currentTrack.title}
           </p>
           <p className="text-sm text-text-secondary mt-1">{currentTrack.artist}</p>
+          <ShowLyricsButton isOpen={isLyricsOpen} onClick={toggleLyrics} />
         </div>
+        {isLyricsOpen && (
+          <DesktopLyricsView trackId={currentTrack.id} onClose={toggleLyrics} />
+        )}
       </div>
     );
   }
@@ -164,13 +271,22 @@ function NowPlayingPanel({ currentTrack }: { currentTrack: NonNullable<ReturnTyp
     if (embedUrl) {
       return (
         <div className="relative flex-1 min-h-0 rounded-2xl overflow-hidden bg-black">
-          <iframe
-            src={embedUrl}
-            title={currentTrack.title}
-            className="absolute inset-0 w-full h-full"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-          />
+          {isLyricsOpen ? (
+            <DesktopLyricsView trackId={currentTrack.id} onClose={toggleLyrics} />
+          ) : (
+            <iframe
+              src={embedUrl}
+              title={currentTrack.title}
+              className="absolute inset-0 w-full h-full"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          )}
+          {!isLyricsOpen && (
+            <div className="absolute bottom-0 left-0 right-0 p-6">
+              <ShowLyricsButton isOpen={isLyricsOpen} onClick={toggleLyrics} />
+            </div>
+          )}
         </div>
       );
     }
@@ -201,7 +317,11 @@ function NowPlayingPanel({ currentTrack }: { currentTrack: NonNullable<ReturnTyp
           {currentTrack.title}
         </p>
         <p className="text-sm text-text-secondary mt-1">{currentTrack.artist}</p>
+        <ShowLyricsButton isOpen={isLyricsOpen} onClick={toggleLyrics} />
       </div>
+      {isLyricsOpen && (
+        <DesktopLyricsView trackId={currentTrack.id} onClose={toggleLyrics} />
+      )}
     </div>
   );
 }

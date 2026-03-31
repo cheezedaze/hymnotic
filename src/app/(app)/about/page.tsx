@@ -92,9 +92,10 @@ export default async function AboutPage() {
                   {block.title}
                 </h2>
               </div>
-              <p className="text-text-secondary text-sm leading-relaxed">
-                {block.body}
-              </p>
+              <div
+                className="text-text-secondary text-sm leading-relaxed prose prose-invert prose-sm max-w-none [&_p]:text-text-secondary [&_a]:text-accent [&_ul]:text-text-secondary [&_ol]:text-text-secondary [&_blockquote]:border-l-2 [&_blockquote]:border-accent/30 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-text-dim"
+                dangerouslySetInnerHTML={{ __html: block.body }}
+              />
               {block.sectionKey === "contact" && (
                 <a
                   href="mailto:hello@hymnz.com"

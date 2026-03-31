@@ -101,9 +101,17 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   showUpgradeModal: false,
   showPreviewActions: false,
 
-  play: () => set({ isPlaying: true }),
+  play: () => set((s) => ({
+    isPlaying: true,
+    // Reset preview-ended flag so the checkpoint triggers again from the start
+    ...(s.isPreviewEnded ? { isPreviewEnded: false } : {}),
+  })),
   pause: () => set({ isPlaying: false }),
-  togglePlayPause: () => set((s) => ({ isPlaying: !s.isPlaying })),
+  togglePlayPause: () => set((s) => ({
+    isPlaying: !s.isPlaying,
+    // When resuming after preview ended, allow the checkpoint to trigger again
+    ...(!s.isPlaying && s.isPreviewEnded ? { isPreviewEnded: false } : {}),
+  })),
 
   next: () => {
     const { queue, currentIndex, repeat, shuffle, currentTrack, history } =
