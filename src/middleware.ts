@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Paths that are always accessible (no auth required)
+// TEMPORARY: All pages gated behind auth until public launch.
+// To revert, restore the original PROTECTED_PATHS approach.
+
+// Paths that are always accessible without authentication
 const PUBLIC_PATHS = [
   "/auth/signin",
   "/auth/register",
@@ -13,15 +16,11 @@ const PUBLIC_PATHS = [
   "/api/stripe/webhook",
   "/subscribe",
   "/subscription",
-];
 
-// Paths that require authentication — visitors get redirected
-const PROTECTED_PATHS = [
-  "/profile",
-  "/library",
-  "/api/user/favorites",
-  "/api/stripe/checkout",
-  "/api/stripe/portal",
+  "/privacy",
+  "/terms",
+  "/track/",
+  "/s/",
 ];
 
 export function middleware(request: NextRequest) {
@@ -37,13 +36,12 @@ export function middleware(request: NextRequest) {
     request.cookies.has("authjs.session-token") ||
     request.cookies.has("__Secure-authjs.session-token");
 
-  // Protected paths require auth
-  if (!hasSession && PROTECTED_PATHS.some((p) => pathname.startsWith(p))) {
+  // Gate everything else behind auth
+  if (!hasSession) {
     const signInUrl = new URL("/auth/signin", request.url);
     return NextResponse.redirect(signInUrl);
   }
 
-  // All other paths (home, collection pages, about, etc.) are open to visitors
   return NextResponse.next();
 }
 
