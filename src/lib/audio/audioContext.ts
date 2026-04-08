@@ -48,6 +48,11 @@ export function stopAudio() {
 /**
  * Smoothly fade the audio volume from `from` to `to` over `durationMs`.
  * Resolves when the fade is complete.
+ *
+ * Uses setInterval instead of requestAnimationFrame so the fade continues
+ * when the browser tab is in the background or the phone screen is off
+ * (rAF is suspended in those cases). A hard setTimeout guarantees the
+ * fade resolves even if intervals are heavily throttled.
  */
 export function fadeAudioVolume(
   from: number,
@@ -63,22 +68,26 @@ export function fadeAudioVolume(
     const audio = audioElement;
     audio.volume = from;
 
-    const startTime = performance.now();
+    const startTime = Date.now();
     const delta = to - from;
+    let resolved = false;
 
-    function step(now: number) {
-      const elapsed = now - startTime;
+    const finish = () => {
+      if (resolved) return;
+      resolved = true;
+      clearInterval(ticker);
+      audio.volume = Math.max(0, Math.min(1, to));
+      resolve();
+    };
+
+    const ticker = setInterval(() => {
+      const elapsed = Date.now() - startTime;
       const progress = Math.min(elapsed / durationMs, 1);
       audio.volume = Math.max(0, Math.min(1, from + delta * progress));
+      if (progress >= 1) finish();
+    }, 50);
 
-      if (progress < 1) {
-        requestAnimationFrame(step);
-      } else {
-        audio.volume = Math.max(0, Math.min(1, to));
-        resolve();
-      }
-    }
-
-    requestAnimationFrame(step);
+    // Hard guarantee: resolve after durationMs even if intervals are throttled
+    setTimeout(finish, durationMs + 100);
   });
 }

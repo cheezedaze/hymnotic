@@ -22,6 +22,7 @@ export function useAudioPlayer() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const currentTrackIdRef = useRef<string | null>(null);
   const fadingRef = useRef(false);
+  const bgSafetyRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const listenersRef = useRef<{
     onLoaded: () => void;
     onTimeUpdate: () => void;
@@ -57,8 +58,8 @@ export function useAudioPlayer() {
 
   /**
    * Handle the preview checkpoint:
-   * Song keeps playing — fade volume down, play VO over it, restore volume.
-   * Then advance the checkpoint and show the upgrade modal.
+   * Fade music to silence, pause it, then play the jingle.
+   * No overlap — the jingle only starts after the music is fully silent.
    */
   const handlePreviewEnd = useCallback(async () => {
     if (fadingRef.current) return;
@@ -68,29 +69,35 @@ export function useAudioPlayer() {
     // Keep previewCheckpoint intact so the scrub clamp continues to work.
     usePlayerStore.setState({ isPreviewEnded: true });
 
-    const store = usePlayerStore.getState();
-
-    // Fade music completely to silence over 2s
-    const fadePromise = fadeAudioVolume(1, 0, 2000);
-
-    // Start voiceover 1500ms in (500ms before fade ends) for a crossfade effect
-    const voPromise = new Promise<void>((resolve) => {
-      setTimeout(async () => {
-        store.setVoiceoverPlaying(true);
-        store.setShowPreviewActions(true);
-        store.setShowUpgradeModal(true);
-        await playVoiceover(VOICEOVER_URL);
-        store.setVoiceoverPlaying(false);
-        resolve();
-      }, 1500);
-    });
-
-    // Wait for both fade and voiceover to finish
-    await Promise.all([fadePromise, voPromise]);
-
-    // Stop playback, reset position to start, and restore volume
     const audio = getOrCreateAudioElement();
+
+    // Background safety: hard-pause after 2s even if the fade is completely frozen
+    // (iOS can suspend all timers when the screen is off in extreme cases)
+    if (bgSafetyRef.current) clearTimeout(bgSafetyRef.current);
+    bgSafetyRef.current = setTimeout(() => {
+      audio.pause();
+      audio.volume = 0;
+    }, 2000);
+
+    // Fade music completely to silence over 1.5s
+    await fadeAudioVolume(1, 0, 1500);
+
+    // Pause the music now that it's silent
     audio.pause();
+    if (bgSafetyRef.current) {
+      clearTimeout(bgSafetyRef.current);
+      bgSafetyRef.current = null;
+    }
+
+    // Play jingle after the music is fully stopped
+    const store = usePlayerStore.getState();
+    store.setVoiceoverPlaying(true);
+    store.setShowPreviewActions(true);
+    store.setShowUpgradeModal(true);
+    await playVoiceover(VOICEOVER_URL);
+    store.setVoiceoverPlaying(false);
+
+    // Reset position to start and restore volume for next play
     audio.currentTime = 0;
     audio.volume = 1;
     usePlayerStore.setState({ isPlaying: false, currentTime: 0 });
