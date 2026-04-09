@@ -8,6 +8,8 @@ import { usePlayerStore } from "@/lib/store/playerStore";
 import { useSubscriptionStore } from "@/lib/store/subscriptionStore";
 import { type ApiLyricLine } from "@/lib/types";
 import { cn } from "@/lib/utils/cn";
+import { useActiveAds, getAdForTrack } from "@/lib/hooks/useActiveAds";
+import { useRotatingBannerAd } from "@/lib/hooks/useActiveBannerAds";
 
 function getYouTubeEmbedUrl(url: string): string | null {
   try {
@@ -216,7 +218,8 @@ function DesktopLyricsView({ trackId, onClose }: { trackId: string; onClose: () 
   );
 }
 
-function ShowLyricsButton({ isOpen, onClick }: { isOpen: boolean; onClick: () => void }) {
+function ShowLyricsButton({ isOpen, onClick, hasLyrics }: { isOpen: boolean; onClick: () => void; hasLyrics: boolean }) {
+  if (!hasLyrics) return null;
   return (
     <button
       onClick={onClick}
@@ -236,6 +239,21 @@ function ShowLyricsButton({ isOpen, onClick }: { isOpen: boolean; onClick: () =>
 function NowPlayingPanel({ currentTrack }: { currentTrack: NonNullable<ReturnType<typeof usePlayerStore.getState>["currentTrack"]> }) {
   const isLyricsOpen = usePlayerStore((s) => s.isLyricsOpen);
   const toggleLyrics = usePlayerStore((s) => s.toggleLyrics);
+  const tier = useSubscriptionStore((s) => s.effectiveTier());
+  const sacred7Ids = useSubscriptionStore((s) => s.sacred7TrackIds);
+  const { ads: activeAds } = useActiveAds();
+
+  const setLyricsOpen = usePlayerStore((s) => s.setLyricsOpen);
+
+  useEffect(() => {
+    if (!currentTrack.hasLyrics && isLyricsOpen) {
+      setLyricsOpen(false);
+    }
+  }, [currentTrack.hasLyrics, isLyricsOpen, setLyricsOpen]);
+
+  const isSacred7Track = sacred7Ids.includes(currentTrack.id);
+  const shouldShowAds = tier === "free" && isSacred7Track && activeAds.length > 0;
+  const currentAd = shouldShowAds ? getAdForTrack(activeAds, currentTrack.id) : null;
 
   // Uploaded video
   if (currentTrack.hasVideo && currentTrack.videoUrl) {
@@ -256,7 +274,7 @@ function NowPlayingPanel({ currentTrack }: { currentTrack: NonNullable<ReturnTyp
             {currentTrack.title}
           </p>
           <p className="text-sm text-text-secondary mt-1">{currentTrack.artist}</p>
-          <ShowLyricsButton isOpen={isLyricsOpen} onClick={toggleLyrics} />
+          <ShowLyricsButton isOpen={isLyricsOpen} onClick={toggleLyrics} hasLyrics={currentTrack.hasLyrics} />
         </div>
         {isLyricsOpen && (
           <DesktopLyricsView trackId={currentTrack.id} onClose={toggleLyrics} />
@@ -284,7 +302,7 @@ function NowPlayingPanel({ currentTrack }: { currentTrack: NonNullable<ReturnTyp
           )}
           {!isLyricsOpen && (
             <div className="absolute bottom-0 left-0 right-0 p-6">
-              <ShowLyricsButton isOpen={isLyricsOpen} onClick={toggleLyrics} />
+              <ShowLyricsButton isOpen={isLyricsOpen} onClick={toggleLyrics} hasLyrics={currentTrack.hasLyrics} />
             </div>
           )}
         </div>
@@ -292,12 +310,32 @@ function NowPlayingPanel({ currentTrack }: { currentTrack: NonNullable<ReturnTyp
     }
   }
 
-  // Artwork
+  // Artwork (or ad background)
   const displayArtwork = currentTrack.artworkUrl || currentTrack.collectionArtworkUrl;
 
   return (
     <div className="relative flex-1 min-h-0 rounded-2xl overflow-hidden">
-      {displayArtwork ? (
+      {currentAd ? (
+        <>
+          <Image
+            src={currentAd.imageUrl}
+            alt=""
+            fill
+            className="object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-midnight/80 via-transparent to-transparent" />
+          {currentAd.linkUrl && (
+            <a
+              href={currentAd.linkUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="absolute top-3 right-3 z-20 text-[9px] text-white/40 uppercase tracking-wider bg-black/30 px-2 py-0.5 rounded-full"
+            >
+              Sponsored
+            </a>
+          )}
+        </>
+      ) : displayArtwork ? (
         <>
           <Image
             src={displayArtwork}
@@ -317,12 +355,38 @@ function NowPlayingPanel({ currentTrack }: { currentTrack: NonNullable<ReturnTyp
           {currentTrack.title}
         </p>
         <p className="text-sm text-text-secondary mt-1">{currentTrack.artist}</p>
-        <ShowLyricsButton isOpen={isLyricsOpen} onClick={toggleLyrics} />
+        <ShowLyricsButton isOpen={isLyricsOpen} onClick={toggleLyrics} hasLyrics={currentTrack.hasLyrics} />
       </div>
       {isLyricsOpen && (
         <DesktopLyricsView trackId={currentTrack.id} onClose={toggleLyrics} />
       )}
     </div>
+  );
+}
+
+function DesktopBannerAd() {
+  const tier = useSubscriptionStore((s) => s.effectiveTier());
+  const { currentBannerAd } = useRotatingBannerAd(30000);
+
+  if (tier !== "free" || !currentBannerAd) return null;
+
+  const Wrapper = currentBannerAd.linkUrl ? "a" : "div";
+  const linkProps = currentBannerAd.linkUrl
+    ? {
+        href: currentBannerAd.linkUrl,
+        target: "_blank" as const,
+        rel: "noopener noreferrer",
+      }
+    : {};
+
+  return (
+    <Wrapper {...linkProps} className="block rounded-2xl overflow-hidden shrink-0">
+      <img
+        src={currentBannerAd.imageUrl}
+        alt={currentBannerAd.title}
+        className="w-full h-auto object-cover"
+      />
+    </Wrapper>
   );
 }
 
@@ -333,6 +397,9 @@ export function DesktopVideoPanel() {
     <div className="h-full flex flex-col gap-4">
       {/* Top row: always shows promo */}
       <PromoPanel />
+
+      {/* Banner ad for free users */}
+      <DesktopBannerAd />
 
       {/* Bottom row: About HYMNZ when idle, now-playing media when a track is active */}
       {currentTrack ? (

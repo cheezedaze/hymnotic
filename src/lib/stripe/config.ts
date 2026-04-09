@@ -14,9 +14,11 @@ export function getStripe(): Stripe {
   return _stripe;
 }
 
-export const STRIPE_CONFIG = {
-  monthlyPriceId: process.env.STRIPE_MONTHLY_PRICE_ID ?? "",
-  yearlyPriceId: process.env.STRIPE_YEARLY_PRICE_ID ?? "",
-  introCouponId: process.env.STRIPE_INTRO_COUPON_ID ?? "",
-  webhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
-};
+export function getStripeConfig() {
+  return {
+    monthlyPriceId: process.env.STRIPE_MONTHLY_PRICE_ID ?? "",
+    yearlyPriceId: process.env.STRIPE_YEARLY_PRICE_ID ?? "",
+    introCouponId: process.env.STRIPE_INTRO_COUPON_ID ?? "",
+    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
+  };
+}

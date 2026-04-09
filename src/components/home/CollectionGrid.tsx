@@ -3,10 +3,11 @@
 import { useMemo } from "react";
 import { CollectionCard } from "./CollectionCard";
 import { type ApiCollection } from "@/lib/types";
-import { useSubscriptionStore } from "@/lib/store/subscriptionStore";
+import { useSubscriptionStore, type UserTier } from "@/lib/store/subscriptionStore";
 
 interface CollectionGridProps {
   collections: ApiCollection[];
+  serverTier?: UserTier;
 }
 
 const FAVORITES_PLACEHOLDER: ApiCollection = {
@@ -37,8 +38,12 @@ const ALL_TRACKS_PLACEHOLDER: ApiCollection = {
   updatedAt: new Date(),
 };
 
-export function CollectionGrid({ collections }: CollectionGridProps) {
-  const effectiveTier = useSubscriptionStore((s) => s.effectiveTier());
+export function CollectionGrid({ collections, serverTier }: CollectionGridProps) {
+  const storeTier = useSubscriptionStore((s) => s.effectiveTier());
+  const isLoaded = useSubscriptionStore((s) => s.isLoaded);
+
+  // Use server-provided tier until the client store has loaded, preventing hydration mismatch
+  const effectiveTier = isLoaded ? storeTier : (serverTier ?? storeTier);
 
   const allCollections = useMemo(() => {
     // Sacred 7 is only visible to free subscribers

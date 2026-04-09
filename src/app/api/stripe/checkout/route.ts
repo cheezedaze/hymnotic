@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth/auth";
-import { getStripe, STRIPE_CONFIG } from "@/lib/stripe/config";
+import { getStripe, getStripeConfig } from "@/lib/stripe/config";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -16,13 +16,14 @@ export async function POST(request: Request) {
     }
 
     const { priceId: planType } = await request.json();
+    const stripeConfig = getStripeConfig();
 
     // Map plan type to Stripe price ID
     let priceId: string;
     if (planType === "yearly") {
-      priceId = STRIPE_CONFIG.yearlyPriceId;
+      priceId = stripeConfig.yearlyPriceId;
     } else {
-      priceId = STRIPE_CONFIG.monthlyPriceId;
+      priceId = stripeConfig.monthlyPriceId;
     }
 
     if (!priceId) {
@@ -68,14 +69,14 @@ export async function POST(request: Request) {
 
     // For monthly plans, apply intro coupon for first-time subscribers
     let discounts: { coupon: string }[] | undefined;
-    if (planType === "monthly" && STRIPE_CONFIG.introCouponId) {
+    if (planType === "monthly" && stripeConfig.introCouponId) {
       const existingSubs = await getStripe().subscriptions.list({
         customer: stripeCustomerId,
         status: "all",
         limit: 1,
       });
       if (existingSubs.data.length === 0) {
-        discounts = [{ coupon: STRIPE_CONFIG.introCouponId }];
+        discounts = [{ coupon: stripeConfig.introCouponId }];
       }
     }
 

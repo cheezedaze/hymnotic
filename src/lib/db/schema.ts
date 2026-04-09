@@ -171,7 +171,7 @@ export const users = pgTable(
     id: varchar("id", { length: 128 }).primaryKey(),
     email: varchar("email", { length: 255 }).notNull(),
     name: text("name"),
-    passwordHash: text("password_hash").notNull(),
+    passwordHash: text("password_hash"),
     role: varchar("role", { length: 20 }).notNull().default("USER"), // "ADMIN" | "USER"
     accountTier: varchar("account_tier", { length: 20 })
       .notNull()
@@ -358,6 +358,44 @@ export const announcementDismissals = pgTable(
 );
 
 // =============================================================================
+// Ads (rotating background ads for free users)
+// =============================================================================
+export const ads = pgTable(
+  "ads",
+  {
+    id: serial("id").primaryKey(),
+    title: text("title").notNull(),
+    imageKey: text("image_key").notNull(), // S3 key: "images/misc/ad-name-12345.jpg"
+    linkUrl: text("link_url"), // Optional click-through URL
+    active: boolean("active").default(true).notNull(),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [index("idx_ads_active_sort").on(table.active, table.sortOrder)]
+);
+
+// =============================================================================
+// Banner Ads (horizontal image banners for free users on pages + player)
+// =============================================================================
+export const bannerAds = pgTable(
+  "banner_ads",
+  {
+    id: serial("id").primaryKey(),
+    title: text("title").notNull(),
+    imageKey: text("image_key").notNull(), // S3 key: "images/misc/banner-name-12345.jpg"
+    linkUrl: text("link_url"), // Optional click-through URL
+    active: boolean("active").default(true).notNull(),
+    sortOrder: integer("sort_order").default(0).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("idx_banner_ads_active_sort").on(table.active, table.sortOrder),
+  ]
+);
+
+// =============================================================================
 // Type exports for use in API routes
 // =============================================================================
 export type Collection = typeof collections.$inferSelect;
@@ -384,3 +422,7 @@ export type Sacred7Track = typeof sacred7Tracks.$inferSelect;
 export type Announcement = typeof announcements.$inferSelect;
 export type NewAnnouncement = typeof announcements.$inferInsert;
 export type AnnouncementDismissal = typeof announcementDismissals.$inferSelect;
+export type Ad = typeof ads.$inferSelect;
+export type NewAd = typeof ads.$inferInsert;
+export type BannerAd = typeof bannerAds.$inferSelect;
+export type NewBannerAd = typeof bannerAds.$inferInsert;

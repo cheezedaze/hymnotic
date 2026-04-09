@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Music, ExternalLink, SkipForward } from "lucide-react";
 import { usePlayerStore } from "@/lib/store/playerStore";
+import { useSubscriptionStore } from "@/lib/store/subscriptionStore";
 import { isNativeApp, openExternalBrowser } from "@/lib/utils/platform";
 
 export function UpgradeModal() {
@@ -10,6 +11,8 @@ export function UpgradeModal() {
   const setShowUpgradeModal = usePlayerStore((s) => s.setShowUpgradeModal);
   const showPreviewActions = usePlayerStore((s) => s.showPreviewActions);
   const tryNextSong = usePlayerStore((s) => s.tryNextSong);
+  const tier = useSubscriptionStore((s) => s.effectiveTier());
+  const isVisitor = tier === "visitor";
 
   const handleSubscribe = () => {
     if (isNativeApp()) {
@@ -77,11 +80,14 @@ export function UpgradeModal() {
             </div>
 
             <h2 className="text-display text-xl font-bold text-text-primary mb-2">
-              Upgrade to HYMNZ Premium
+              {isVisitor
+                ? "Subscribe to HYMNZ for Free"
+                : "Upgrade to HYMNZ Premium"}
             </h2>
             <p className="text-text-secondary text-sm mb-6 leading-relaxed">
-              Unlock full-length playback of every hymn in our catalog with no
-              interruptions, exclusive releases, and more.
+              {isVisitor
+                ? "Unlock 7 free songs, longer previews, videos, and more. (Full-access subscription also available)"
+                : "Unlock full-length playback of every hymn in our catalog with no interruptions, exclusive releases, and more."}
             </p>
 
             {isNativeApp() ? (
@@ -91,7 +97,9 @@ export function UpgradeModal() {
                   className="w-full py-3.5 bg-accent-50 hover:bg-accent/60 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 glow-accent"
                 >
                   <ExternalLink size={16} />
-                  Visit hymnz.com to Unlock
+                  {isVisitor
+                    ? "Visit hymnz.com to Sign Up"
+                    : "Visit hymnz.com to Unlock"}
                 </button>
               </>
             ) : (
@@ -100,11 +108,13 @@ export function UpgradeModal() {
                   onClick={handleSubscribe}
                   className="w-full py-3.5 bg-accent-50 hover:bg-accent/60 text-white font-semibold rounded-xl transition-colors glow-accent"
                 >
-                  Upgrade to Premium
+                  {isVisitor ? "Create Free Account" : "Upgrade to Premium"}
                 </button>
-                <p className="text-text-dim text-xs mt-3">
-                  Starting at $4.99/month
-                </p>
+                {!isVisitor && (
+                  <p className="text-text-dim text-xs mt-3">
+                    Starting at $4.99/month
+                  </p>
+                )}
               </>
             )}
 

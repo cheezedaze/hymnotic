@@ -15,6 +15,8 @@ import {
   sacred7Tracks,
   announcements,
   announcementDismissals,
+  ads,
+  bannerAds,
   type NewCollection,
   type NewTrack,
   type NewLyric,
@@ -974,4 +976,120 @@ export async function getTopTracksByFavorites(
     .groupBy(userFavorites.trackId, tracks.title, collections.title)
     .orderBy(sql`count(*) desc`)
     .limit(10);
+}
+
+// =============================================================================
+// Ad Queries
+// =============================================================================
+
+export async function getAllAds() {
+  return db.select().from(ads).orderBy(asc(ads.sortOrder));
+}
+
+export async function getActiveAds() {
+  return db
+    .select()
+    .from(ads)
+    .where(eq(ads.active, true))
+    .orderBy(asc(ads.sortOrder));
+}
+
+export async function getAdById(id: number) {
+  const result = await db
+    .select()
+    .from(ads)
+    .where(eq(ads.id, id))
+    .limit(1);
+  return result[0] ?? null;
+}
+
+export async function createAd(data: {
+  title: string;
+  imageKey: string;
+  linkUrl?: string;
+  active?: boolean;
+  sortOrder?: number;
+}) {
+  const result = await db.insert(ads).values(data).returning();
+  return result[0];
+}
+
+export async function updateAd(
+  id: number,
+  data: Partial<{
+    title: string;
+    imageKey: string;
+    linkUrl: string | null;
+    active: boolean;
+    sortOrder: number;
+  }>
+) {
+  const result = await db
+    .update(ads)
+    .set({ ...data, updatedAt: new Date() })
+    .where(eq(ads.id, id))
+    .returning();
+  return result[0] ?? null;
+}
+
+export async function deleteAd(id: number) {
+  await db.delete(ads).where(eq(ads.id, id));
+}
+
+// =============================================================================
+// Banner Ad Queries
+// =============================================================================
+
+export async function getAllBannerAds() {
+  return db.select().from(bannerAds).orderBy(asc(bannerAds.sortOrder));
+}
+
+export async function getActiveBannerAds() {
+  return db
+    .select()
+    .from(bannerAds)
+    .where(eq(bannerAds.active, true))
+    .orderBy(asc(bannerAds.sortOrder));
+}
+
+export async function getBannerAdById(id: number) {
+  const result = await db
+    .select()
+    .from(bannerAds)
+    .where(eq(bannerAds.id, id))
+    .limit(1);
+  return result[0] ?? null;
+}
+
+export async function createBannerAd(data: {
+  title: string;
+  imageKey: string;
+  linkUrl?: string;
+  active?: boolean;
+  sortOrder?: number;
+}) {
+  const result = await db.insert(bannerAds).values(data).returning();
+  return result[0];
+}
+
+export async function updateBannerAd(
+  id: number,
+  data: Partial<{
+    title: string;
+    imageKey: string;
+    linkUrl: string | null;
+    active: boolean;
+    sortOrder: number;
+  }>
+) {
+  const result = await db
+    .update(bannerAds)
+    .set({ ...data, updatedAt: new Date() })
+    .where(eq(bannerAds.id, id))
+    .returning();
+  return result[0] ?? null;
+}
+
+export async function deleteBannerAd(id: number) {
+  await db.delete(bannerAds).where(eq(bannerAds.id, id));
 }

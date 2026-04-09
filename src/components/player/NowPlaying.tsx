@@ -14,6 +14,7 @@ import { PersistentCTA } from "./PersistentCTA";
 import { IconButton } from "@/components/ui/IconButton";
 import { SponsorBanner } from "@/components/subscription/SponsorBanner";
 import { useShare } from "@/lib/hooks/useShare";
+import { useActiveAds, getAdForTrack } from "@/lib/hooks/useActiveAds";
 
 export function NowPlaying() {
   const currentTrack = usePlayerStore((s) => s.currentTrack);
@@ -25,8 +26,15 @@ export function NowPlaying() {
   const toggleFavorite = useFavoritesStore((s) => s.toggleFavorite);
   const isPremium = useSubscriptionStore((s) => s.isPremium);
   const isPreviewMode = usePlayerStore((s) => s.isPreviewMode);
+  const tier = useSubscriptionStore((s) => s.effectiveTier());
+  const sacred7Ids = useSubscriptionStore((s) => s.sacred7TrackIds);
+  const { ads: activeAds } = useActiveAds();
 
   if (!currentTrack) return null;
+
+  const isSacred7Track = sacred7Ids.includes(currentTrack.id);
+  const shouldShowAds = tier === "free" && isSacred7Track && activeAds.length > 0;
+  const currentAd = shouldShowAds ? getAdForTrack(activeAds, currentTrack.id) : null;
 
   const isFavorited = favoriteIds.includes(currentTrack.id);
 
@@ -42,7 +50,29 @@ export function NowPlaying() {
     >
       {/* Backdrop */}
       <div className="absolute inset-0 overflow-hidden">
-        {currentTrack.videoUrl ? (
+        {currentAd ? (
+          <>
+            {/* Ad background image */}
+            <Image
+              key={currentAd.id}
+              src={currentAd.imageUrl}
+              alt=""
+              fill
+              className="object-cover"
+              priority
+            />
+            {currentAd.linkUrl && (
+              <a
+                href={currentAd.linkUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="absolute top-[calc(0.75rem+var(--safe-top)+3rem)] right-4 z-20 text-[9px] text-white/40 uppercase tracking-wider bg-black/30 px-2 py-0.5 rounded-full"
+              >
+                Sponsored
+              </a>
+            )}
+          </>
+        ) : currentTrack.videoUrl ? (
           <video
             key={currentTrack.videoUrl}
             src={currentTrack.videoUrl}
@@ -208,12 +238,14 @@ export function NowPlaying() {
             <IconButton size="sm" label="Audio quality">
               <Headphones size={18} />
             </IconButton>
-            <button
-              onClick={toggleLyrics}
-              className="bg-accent-16 hover:bg-accent-26 text-accent text-sm font-medium px-6 py-2.5 rounded-full transition-colors"
-            >
-              Lyrics & Info
-            </button>
+            {currentTrack?.hasLyrics && (
+              <button
+                onClick={toggleLyrics}
+                className="bg-accent-16 hover:bg-accent-26 text-accent text-sm font-medium px-6 py-2.5 rounded-full transition-colors"
+              >
+                Lyrics & Info
+              </button>
+            )}
             <IconButton
               size="sm"
               label="Share"

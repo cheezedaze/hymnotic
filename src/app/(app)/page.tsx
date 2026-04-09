@@ -42,12 +42,12 @@ export default async function HomePage() {
     if (track) {
       const collection = await getCollectionById(track.collectionId);
       const collectionArtworkKey = collection?.artworkKey ?? null;
-      const isFull = canPlayFullTrack(access.tier, track.id, sacred7TrackIds);
       featuredTrack = {
         ...track,
         ...buildTrackMediaUrlsWithFallback(track, collectionArtworkKey),
-        isLocked: !isFull,
-        previewDuration: isFull ? track.duration : previewDur,
+        isLocked: false,
+        previewDuration: track.duration,
+        isFeatured: true,
       };
       const queueTracks = await getTracksByCollection(track.collectionId);
       featuredQueue = queueTracks.map((t) => {
@@ -67,6 +67,7 @@ export default async function HomePage() {
       collections={collectionsWithUrls as ApiCollection[]}
       featuredTrack={featuredTrack}
       featuredQueue={featuredQueue}
+      serverTier={access.tier}
     />
   );
 }

@@ -14,7 +14,12 @@ export function DesktopVisitorBanner() {
 
   // Only show for visitors and free users on desktop
   if (!isLoaded || tier === "paid") return null;
-  if (pathname === "/auth/register" || pathname === "/subscribe") return null;
+  if (
+    pathname === "/auth/register" ||
+    pathname === "/subscribe" ||
+    pathname.startsWith("/subscription/")
+  )
+    return null;
 
   const handleCTA = () => {
     minimizeNowPlaying();

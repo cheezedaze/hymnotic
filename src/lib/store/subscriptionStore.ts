@@ -18,6 +18,10 @@ export function recomputeTrackAccess(
 ): ApiTrack[] {
   const previewDur = getPreviewDurationForTier(tier);
   return tracks.map((t) => {
+    // Featured tracks are always unlocked (full playback for all tiers)
+    if (t.isFeatured) {
+      return { ...t, isLocked: false, previewDuration: t.duration };
+    }
     const isFull =
       tier === "paid" || (tier === "free" && sacred7Ids.includes(t.id));
     return {

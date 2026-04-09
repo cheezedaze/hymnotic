@@ -7,6 +7,7 @@ import { MiniPlayer } from "./MiniPlayer";
 import { NowPlaying } from "@/components/player/NowPlaying";
 import { PersistentCTA } from "@/components/player/PersistentCTA";
 import { PageTransition } from "./PageTransition";
+import { PageBanner } from "@/components/subscription/PageBanner";
 import { AnimatePresence } from "framer-motion";
 
 export function MobileLayout({ children }: { children: React.ReactNode }) {
@@ -29,6 +30,7 @@ export function MobileLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
       <main className={getPadding()}>
+        <PageBanner />
         {children}
       </main>
 

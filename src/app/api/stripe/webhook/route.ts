@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getStripe, STRIPE_CONFIG } from "@/lib/stripe/config";
+import { getStripe, getStripeConfig } from "@/lib/stripe/config";
 import { db } from "@/lib/db";
 import { users, stripeEvents } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
       event = getStripe().webhooks.constructEvent(
         body,
         signature,
-        STRIPE_CONFIG.webhookSecret
+        getStripeConfig().webhookSecret
       );
     } catch (err) {
       console.error("Webhook signature verification failed:", err);

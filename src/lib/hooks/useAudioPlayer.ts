@@ -160,7 +160,17 @@ export function useAudioPlayer() {
         }
       };
       const onEnded = () => {
-        usePlayerStore.getState().next();
+        const state = usePlayerStore.getState();
+        const subState = useSubscriptionStore.getState();
+        const effectiveTier = subState.viewAsOverride ?? subState.tier;
+        if (
+          state.currentTrack?.isFeatured &&
+          (effectiveTier === "visitor" || effectiveTier === "free")
+        ) {
+          handlePreviewEnd();
+        } else {
+          state.next();
+        }
       };
 
       audio.addEventListener("loadedmetadata", onLoaded);

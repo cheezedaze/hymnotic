@@ -10,6 +10,8 @@ const PUBLIC_PATHS = [
   "/auth/accept-invite",
 
   "/api/auth",
+  "/api/ads",
+  "/api/banner-ads",
   "/api/collections",
   "/api/tracks",
   "/api/user/subscription",

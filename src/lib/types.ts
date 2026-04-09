@@ -48,6 +48,7 @@ export interface ApiTrack {
   isLocked?: boolean;
   previewDuration?: number;
   isSacred7?: boolean;
+  isFeatured?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Check, Loader2, Crown, ExternalLink, Music } from "lucide-react";
@@ -9,6 +9,16 @@ import { isNativeApp, openExternalBrowser } from "@/lib/utils/platform";
 export default function SubscribePage() {
   const [loading, setLoading] = useState<"monthly" | "yearly" | null>(null);
   const [error, setError] = useState("");
+  const [tier, setTier] = useState<"visitor" | "free" | "paid">("visitor");
+
+  useEffect(() => {
+    fetch("/api/user/subscription")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.tier) setTier(data.tier);
+      })
+      .catch(() => {});
+  }, []);
 
   const handleSubscribe = async (plan: "monthly" | "yearly") => {
     setError("");
@@ -143,12 +153,22 @@ export default function SubscribePage() {
                 </li>
               ))}
             </ul>
-            <Link
-              href="/auth/register"
-              className="block w-full py-3 text-center text-text-primary font-semibold rounded-xl border border-white/20 hover:border-white/40 transition-colors"
-            >
-              Get Started
-            </Link>
+            {tier === "free" ? (
+              <div className="w-full py-3 text-center text-accent font-semibold rounded-xl border border-accent/30 bg-accent/8">
+                Current Plan
+              </div>
+            ) : tier === "paid" ? (
+              <div className="w-full py-3 text-center text-text-muted font-semibold rounded-xl border border-white/10">
+                &mdash;
+              </div>
+            ) : (
+              <Link
+                href="/auth/register"
+                className="block w-full py-3 text-center text-text-primary font-semibold rounded-xl border border-white/20 hover:border-white/40 transition-colors"
+              >
+                Get Started
+              </Link>
+            )}
           </div>
 
           {/* Premium Tier */}
@@ -180,34 +200,42 @@ export default function SubscribePage() {
 
             {/* Pricing buttons */}
             <div className="space-y-3">
-              <button
-                onClick={() => handleSubscribe("monthly")}
-                disabled={!!loading}
-                className="w-full py-3 bg-accent-50 hover:bg-accent/60 text-white font-semibold rounded-xl transition-colors glow-accent disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {loading === "monthly" ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  "Start for $1.99"
-                )}
-              </button>
+              {tier === "paid" ? (
+                <div className="w-full py-3 text-center text-accent font-semibold rounded-xl border border-accent/30 bg-accent/8">
+                  Current Plan
+                </div>
+              ) : (
+                <>
+                  <button
+                    onClick={() => handleSubscribe("monthly")}
+                    disabled={!!loading}
+                    className="w-full py-3 bg-accent-50 hover:bg-accent/60 text-white font-semibold rounded-xl transition-colors glow-accent disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {loading === "monthly" ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      "Start for $1.99"
+                    )}
+                  </button>
 
-              <button
-                onClick={() => handleSubscribe("yearly")}
-                disabled={!!loading}
-                className="w-full py-3 text-center text-text-primary font-semibold rounded-xl border border-white/20 hover:border-accent/30 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 relative"
-              >
-                {loading === "yearly" ? (
-                  <Loader2 size={16} className="animate-spin text-accent" />
-                ) : (
-                  <>
-                    Yearly &mdash; $47.90/yr
-                    <span className="text-accent text-xs font-bold ml-1">
-                      Save 20%
-                    </span>
-                  </>
-                )}
-              </button>
+                  <button
+                    onClick={() => handleSubscribe("yearly")}
+                    disabled={!!loading}
+                    className="w-full py-3 text-center text-text-primary font-semibold rounded-xl border border-white/20 hover:border-accent/30 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 relative"
+                  >
+                    {loading === "yearly" ? (
+                      <Loader2 size={16} className="animate-spin text-accent" />
+                    ) : (
+                      <>
+                        Yearly &mdash; $47.90/yr
+                        <span className="text-accent text-xs font-bold ml-1">
+                          Save 20%
+                        </span>
+                      </>
+                    )}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
