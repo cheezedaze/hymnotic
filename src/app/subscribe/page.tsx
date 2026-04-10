@@ -69,8 +69,16 @@ export default function SubscribePage() {
     "Support sacred music",
   ];
 
-  // On native apps, show a message to visit hymnz.com instead of pricing
+  // On native apps, show premium benefits without pricing (reader app compliance)
   if (isNativeApp()) {
+    const nativePremiumBenefits = [
+      "Full access to our entire catalog of sacred music",
+      "Full-length songs and videos — no previews",
+      "Unlimited streaming with no interruptions",
+      "No voiceover prompts or sponsor banners",
+      "Support the creation of sacred music",
+    ];
+
     return (
       <div className="min-h-dvh bg-midnight flex items-center justify-center px-6">
         <div className="w-full max-w-sm text-center">
@@ -81,20 +89,37 @@ export default function SubscribePage() {
             height={48}
             className="mx-auto mb-6"
           />
-          <h1 className="text-display text-xl font-bold text-text-primary mb-2">
-            Unlock Every Hymn
-          </h1>
-          <p className="text-text-secondary text-sm mb-8 leading-relaxed">
-            To subscribe, visit hymnz.com in your browser. Your subscription
-            will sync automatically.
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <Crown size={18} className="text-gold" />
+            <h1 className="text-display text-xl font-bold text-text-primary">
+              HYMNZ Premium
+            </h1>
+          </div>
+          <p className="text-text-secondary text-sm mb-6 leading-relaxed">
+            Unlock the full HYMNZ experience with a premium subscription.
           </p>
+
+          <div className="glass-heavy rounded-2xl p-5 mb-6 text-left">
+            <ul className="space-y-3">
+              {nativePremiumBenefits.map((benefit) => (
+                <li key={benefit} className="flex items-start gap-3">
+                  <Check size={14} className="text-accent shrink-0 mt-0.5" />
+                  <span className="text-text-secondary text-sm">{benefit}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
           <button
             onClick={() => openExternalBrowser("https://hymnz.com/subscribe")}
             className="w-full py-3.5 bg-accent-50 hover:bg-accent/60 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 glow-accent"
           >
             <ExternalLink size={16} />
-            Open hymnz.com
+            Learn More on hymnz.com
           </button>
+          <p className="text-text-dim text-xs mt-3">
+            Your subscription will sync automatically to this app.
+          </p>
           <Link
             href="/"
             className="block text-text-muted text-sm mt-4 hover:text-text-secondary transition-colors"
@@ -250,6 +275,20 @@ export default function SubscribePage() {
         >
           Maybe Later
         </Link>
+
+        {/* Auto-renewal disclosure and legal links */}
+        <p className="text-text-dim text-xs text-center mt-6 leading-relaxed max-w-md mx-auto">
+          Subscriptions automatically renew unless canceled before the end of
+          the current billing period. You can cancel anytime from your account
+          settings.{" "}
+          <Link href="/terms" className="text-text-muted hover:text-accent underline">
+            Terms of Service
+          </Link>
+          {" "}&middot;{" "}
+          <Link href="/privacy" className="text-text-muted hover:text-accent underline">
+            Privacy Policy
+          </Link>
+        </p>
       </div>
     </div>
   );

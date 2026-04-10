@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
+import Apple from "next-auth/providers/apple";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
@@ -10,6 +11,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   providers: [
     Google({}),
+    Apple({}),
     Credentials({
       credentials: {
         email: { label: "Email", type: "email" },
@@ -62,7 +64,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   callbacks: {
     async signIn({ user, account }) {
-      if (account?.provider === "google") {
+      if (account?.provider === "google" || account?.provider === "apple") {
         const email = user.email?.toLowerCase();
         if (!email) return false;
 
@@ -76,23 +78,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         let dbUser = result[0];
 
         if (!dbUser) {
-          // Create a new user for first-time Google sign-in
+          // Create a new user for first-time OAuth sign-in
           const id = crypto.randomUUID();
+          // Apple may not provide a name after the first sign-in
+          const userName = user.name || null;
           await db.insert(users).values({
             id,
             email,
-            name: user.name || null,
+            name: userName,
             passwordHash: null,
             role: "USER",
             accountTier: "free",
             isPremium: false,
             manualPremium: false,
-            newsletterOptIn: true,
+            newsletterOptIn: false,
           });
           dbUser = {
             id,
             email,
-            name: user.name || null,
+            name: userName,
             passwordHash: null,
             role: "USER",
             accountTier: "free",
@@ -101,7 +105,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             stripeCustomerId: null,
             subscriptionStatus: null,
             subscriptionEndDate: null,
-            newsletterOptIn: true,
+            newsletterOptIn: false,
             createdAt: new Date(),
             updatedAt: new Date(),
           };

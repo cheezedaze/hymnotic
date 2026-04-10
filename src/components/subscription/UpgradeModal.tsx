@@ -98,8 +98,8 @@ export function UpgradeModal() {
                 >
                   <ExternalLink size={16} />
                   {isVisitor
-                    ? "Visit hymnz.com to Sign Up"
-                    : "Visit hymnz.com to Unlock"}
+                    ? "Sign Up on hymnz.com"
+                    : "Learn More on hymnz.com"}
                 </button>
               </>
             ) : (
