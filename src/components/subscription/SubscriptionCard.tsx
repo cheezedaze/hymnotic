@@ -1,7 +1,7 @@
 "use client";
 
 import { Crown, Sparkles } from "lucide-react";
-import { isNativeApp, openExternalBrowser } from "@/lib/utils/platform";
+import { isNativeApp, openExternalLinkAccount } from "@/lib/utils/platform";
 import { SubscribeCTA } from "./SubscribeCTA";
 
 interface SubscriptionCardProps {
@@ -17,7 +17,7 @@ export function SubscriptionCard({
 }: SubscriptionCardProps) {
   const handleManage = async () => {
     if (isNativeApp()) {
-      openExternalBrowser("https://hymnz.com/subscribe");
+      openExternalLinkAccount("https://www.hymnz.com/subscribe");
       return;
     }
 

@@ -540,6 +540,28 @@ async function seed() {
     .onConflictDoNothing();
   console.log("   ✅ Admin user created (admin@hymnz.app)\n");
 
+  // =========================================================================
+  // Premium Test User
+  // =========================================================================
+  console.log("👤 Creating premium test user...");
+  const premiumPassword = "TestPass123";
+  const premiumPasswordHash = await bcrypt.hash(premiumPassword, 12);
+
+  await db
+    .insert(users)
+    .values({
+      id: crypto.randomUUID(),
+      email: "premium@hymnz.com",
+      name: "Premium User",
+      passwordHash: premiumPasswordHash,
+      role: "USER",
+      accountTier: "paid",
+      isPremium: true,
+      manualPremium: true,
+    })
+    .onConflictDoNothing();
+  console.log("   ✅ Premium test user created (premium@hymnz.com)\n");
+
   console.log("==========================================");
   console.log("🎉 Seed complete!");
   console.log("==========================================");
@@ -550,6 +572,7 @@ async function seed() {
   console.log(`  📝 ${allLyrics.length} lyric lines (3 tracks)`);
   console.log("  ⭐ 1 featured track");
   console.log("  👤 1 admin user (admin@hymnz.app)");
+  console.log("  👤 1 premium test user (premium@hymnz.com)");
 
   await client.end();
 }

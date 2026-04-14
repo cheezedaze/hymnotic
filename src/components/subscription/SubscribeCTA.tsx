@@ -1,7 +1,7 @@
 "use client";
 
 import { ExternalLink } from "lucide-react";
-import { isNativeApp, openExternalBrowser } from "@/lib/utils/platform";
+import { isNativeApp, openExternalLinkAccount } from "@/lib/utils/platform";
 import { cn } from "@/lib/utils/cn";
 
 interface SubscribeCTAProps {
@@ -12,7 +12,7 @@ interface SubscribeCTAProps {
 export function SubscribeCTA({ className, size = "md" }: SubscribeCTAProps) {
   const handleClick = () => {
     if (isNativeApp()) {
-      openExternalBrowser("https://hymnz.com/subscribe");
+      openExternalLinkAccount("https://www.hymnz.com/subscribe");
     } else {
       window.location.href = "/subscribe";
     }

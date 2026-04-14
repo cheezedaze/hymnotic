@@ -3,7 +3,7 @@
 import { UserPlus, Sparkles, ExternalLink } from "lucide-react";
 import { useSubscriptionStore } from "@/lib/store/subscriptionStore";
 import { usePlayerStore } from "@/lib/store/playerStore";
-import { isNativeApp, openExternalBrowser } from "@/lib/utils/platform";
+import { isNativeApp, openExternalLinkAccount } from "@/lib/utils/platform";
 import { usePathname, useRouter } from "next/navigation";
 
 export function PersistentCTA() {
@@ -42,7 +42,7 @@ export function PersistentCTA() {
   // Free tier
   const handleSubscribe = () => {
     if (isNativeApp()) {
-      openExternalBrowser("https://hymnz.com/subscribe");
+      openExternalLinkAccount("https://www.hymnz.com/subscribe");
     } else {
       window.location.href = "/subscribe";
     }

@@ -21,6 +21,7 @@ const PUBLIC_PATHS = [
 
   "/privacy",
   "/terms",
+  "/account/delete",
   "/track/",
   "/s/",
 ];

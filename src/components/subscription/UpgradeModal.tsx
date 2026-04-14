@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Music, ExternalLink, SkipForward } from "lucide-react";
 import { usePlayerStore } from "@/lib/store/playerStore";
 import { useSubscriptionStore } from "@/lib/store/subscriptionStore";
-import { isNativeApp, openExternalBrowser } from "@/lib/utils/platform";
+import { isNativeApp, openExternalLinkAccount } from "@/lib/utils/platform";
 
 export function UpgradeModal() {
   const showUpgradeModal = usePlayerStore((s) => s.showUpgradeModal);
@@ -16,7 +16,7 @@ export function UpgradeModal() {
 
   const handleSubscribe = () => {
     if (isNativeApp()) {
-      openExternalBrowser("https://hymnz.com/subscribe");
+      openExternalLinkAccount("https://www.hymnz.com/subscribe");
     } else {
       window.location.href = "/subscribe";
     }
