@@ -30,8 +30,17 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { page, sectionKey, title, bodyText, icon, sortOrder, active } =
-      body;
+    const {
+      page,
+      sectionKey,
+      title,
+      bodyText,
+      icon,
+      imageKey,
+      imagePosition,
+      sortOrder,
+      active,
+    } = body;
 
     if (!page || !sectionKey || !title || !bodyText) {
       return NextResponse.json(
@@ -45,7 +54,9 @@ export async function POST(request: Request) {
       sectionKey,
       title,
       body: bodyText,
-      icon: icon ?? undefined,
+      icon: icon ?? null,
+      imageKey: imageKey ?? null,
+      imagePosition: imagePosition ?? null,
       sortOrder: sortOrder ?? 0,
       active: active ?? true,
     });

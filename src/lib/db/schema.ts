@@ -151,6 +151,8 @@ export const contentBlocks = pgTable(
     title: text("title").notNull(),
     body: text("body").notNull(),
     icon: text("icon"),
+    imageKey: text("image_key"),
+    imagePosition: text("image_position"),
     sortOrder: integer("sort_order").default(0).notNull(),
     active: boolean("active").default(true).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),

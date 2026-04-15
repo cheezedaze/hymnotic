@@ -525,7 +525,9 @@ export async function createContentBlock(data: {
   sectionKey: string;
   title: string;
   body: string;
-  icon?: string;
+  icon?: string | null;
+  imageKey?: string | null;
+  imagePosition?: "top" | "bottom" | null;
   sortOrder?: number;
   active?: boolean;
 }) {
@@ -542,6 +544,8 @@ export async function updateContentBlock(
     title: string;
     body: string;
     icon: string | null;
+    imageKey: string | null;
+    imagePosition: "top" | "bottom" | null;
     sectionKey: string;
     sortOrder: number;
     active: boolean;

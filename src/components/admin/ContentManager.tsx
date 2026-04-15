@@ -1,8 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, Plus, Pencil, Trash2, Eye, EyeOff } from "lucide-react";
+import { FileText, Plus, Pencil, Trash2, Eye, EyeOff, X } from "lucide-react";
 import { AdminModal } from "./AdminModal";
+import { AdminFileUpload } from "./AdminFileUpload";
+import { getMediaUrl } from "@/lib/s3/client";
+
+type ImagePosition = "top" | "bottom";
 
 interface ContentBlock {
   id: number;
@@ -11,6 +15,8 @@ interface ContentBlock {
   title: string;
   body: string;
   icon: string | null;
+  imageKey: string | null;
+  imagePosition: ImagePosition | null;
   sortOrder: number;
   active: boolean;
 }
@@ -26,6 +32,8 @@ const emptyForm = {
   title: "",
   bodyText: "",
   icon: "",
+  imageKey: null as string | null,
+  imagePosition: null as ImagePosition | null,
   sortOrder: 0,
   active: true,
 };
@@ -53,6 +61,8 @@ export function ContentManager({
       title: b.title,
       bodyText: b.body,
       icon: b.icon ?? "",
+      imageKey: b.imageKey ?? null,
+      imagePosition: b.imagePosition ?? null,
       sortOrder: b.sortOrder,
       active: b.active,
     });
@@ -66,6 +76,8 @@ export function ContentManager({
       title: form.title,
       bodyText: form.bodyText,
       icon: form.icon || null,
+      imageKey: form.imageKey,
+      imagePosition: form.imageKey ? form.imagePosition ?? "top" : null,
       sortOrder: form.sortOrder,
       active: form.active,
     };
@@ -263,6 +275,66 @@ export function ContentManager({
                 rows={5}
                 className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-text-primary focus:outline-none focus:border-accent/50 transition-colors resize-none"
               />
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-xs font-medium text-text-secondary">
+                  Image (optional)
+                </label>
+                {form.imageKey && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setForm({
+                        ...form,
+                        imageKey: null,
+                        imagePosition: null,
+                      })
+                    }
+                    className="flex items-center gap-1 text-[10px] text-text-muted hover:text-red-400 transition-colors"
+                  >
+                    <X size={12} />
+                    Remove image
+                  </button>
+                )}
+              </div>
+              <AdminFileUpload
+                label=""
+                accept="image/*"
+                folder="images/misc"
+                maxSizeMB={10}
+                currentFile={
+                  form.imageKey
+                    ? getMediaUrl(form.imageKey) ?? undefined
+                    : undefined
+                }
+                onUploadComplete={(r) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    imageKey: r.key,
+                    imagePosition: prev.imagePosition ?? "top",
+                  }))
+                }
+              />
+              <div className="mt-2">
+                <label className="block text-xs font-medium text-text-secondary mb-1.5">
+                  Image Position
+                </label>
+                <select
+                  value={form.imagePosition ?? "top"}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      imagePosition: e.target.value as ImagePosition,
+                    })
+                  }
+                  disabled={!form.imageKey}
+                  className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-text-primary focus:outline-none focus:border-accent/50 transition-colors disabled:opacity-40"
+                >
+                  <option value="top">Top of content</option>
+                  <option value="bottom">Bottom of content</option>
+                </select>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>

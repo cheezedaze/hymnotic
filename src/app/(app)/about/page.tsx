@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import Image from "next/image";
 import {
   Heart,
@@ -10,6 +11,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { getActiveContentBlocksByPage } from "@/lib/db/queries";
+import { getMediaUrl } from "@/lib/s3/client";
+import JoinTheDiscussion from "@/components/about/JoinTheDiscussion";
 
 const iconMap: Record<string, LucideIcon> = {
   Heart,
@@ -28,6 +31,8 @@ const defaultBlocks = [
     title: "Our Mission",
     body: "HYMNZ is built to bring timeless hymns into a modern listening experience. We believe sacred music deserves the same care and presentation as any other genre \u2014 complete with synchronized lyrics, stunning artwork, and immersive backgrounds.",
     icon: "Heart",
+    imageKey: null,
+    imagePosition: null,
   },
   {
     id: -2,
@@ -35,6 +40,8 @@ const defaultBlocks = [
     title: "The Story",
     body: "Born from a love of hymns and a desire to share them in new ways, HYMNZ curates collections of sacred songs paired with original arrangements and visual storytelling. Every track is crafted to help you connect, reflect, and find peace.",
     icon: "BookOpen",
+    imageKey: null,
+    imagePosition: null,
   },
   {
     id: -3,
@@ -42,6 +49,8 @@ const defaultBlocks = [
     title: "Get in Touch",
     body: "Have questions, feedback, or just want to say hello? We'd love to hear from you.",
     icon: "Mail",
+    imageKey: null,
+    imagePosition: null,
   },
 ];
 
@@ -80,8 +89,9 @@ export default async function AboutPage() {
         {sections.map((block, i) => {
           const IconComponent = iconMap[block.icon ?? ""] ?? Info;
           const iconColor = i % 2 === 0 ? "text-accent" : "text-gold";
+          const imageUrl = block.imageKey ? getMediaUrl(block.imageKey) : null;
 
-          return (
+          const card = (
             <div
               key={block.id}
               className="glass-heavy rounded-2xl p-6 space-y-3"
@@ -92,10 +102,26 @@ export default async function AboutPage() {
                   {block.title}
                 </h2>
               </div>
+              {imageUrl && block.imagePosition === "top" && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={imageUrl}
+                  alt=""
+                  className="w-full rounded-xl object-cover"
+                />
+              )}
               <div
                 className="text-text-secondary text-sm leading-relaxed prose prose-invert prose-sm max-w-none [&_p]:text-text-secondary [&_a]:text-accent [&_ul]:text-text-secondary [&_ol]:text-text-secondary [&_blockquote]:border-l-2 [&_blockquote]:border-accent/30 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-text-dim"
                 dangerouslySetInnerHTML={{ __html: block.body }}
               />
+              {imageUrl && block.imagePosition === "bottom" && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={imageUrl}
+                  alt=""
+                  className="w-full rounded-xl object-cover"
+                />
+              )}
               {block.sectionKey === "contact" && (
                 <a
                   href="mailto:hello@hymnz.com"
@@ -107,6 +133,17 @@ export default async function AboutPage() {
               )}
             </div>
           );
+
+          if (block.sectionKey === "story") {
+            return (
+              <Fragment key={block.id}>
+                <JoinTheDiscussion />
+                {card}
+              </Fragment>
+            );
+          }
+
+          return card;
         })}
       </div>
     </div>
