@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { signIn } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
@@ -28,6 +28,14 @@ function GoogleIcon() {
 }
 
 export default function SignInPage() {
+  return (
+    <Suspense fallback={<div className="min-h-dvh bg-midnight" />}>
+      <SignInPageInner />
+    </Suspense>
+  );
+}
+
+function SignInPageInner() {
   const searchParams = useSearchParams();
   const next = getSafeNextPath(searchParams.get("next"));
   const [email, setEmail] = useState("");

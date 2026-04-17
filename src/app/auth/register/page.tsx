@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { signIn } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
@@ -28,6 +28,14 @@ function GoogleIcon() {
 }
 
 export default function RegisterPage() {
+  return (
+    <Suspense fallback={<div className="min-h-dvh bg-midnight" />}>
+      <RegisterPageInner />
+    </Suspense>
+  );
+}
+
+function RegisterPageInner() {
   const searchParams = useSearchParams();
   const next = getSafeNextPath(searchParams.get("next"));
   const [name, setName] = useState("");

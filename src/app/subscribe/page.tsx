@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -8,6 +8,14 @@ import { Check, Loader2, Crown, ExternalLink, Music } from "lucide-react";
 import { isNativeApp, openExternalLinkAccount } from "@/lib/utils/platform";
 
 export default function SubscribePage() {
+  return (
+    <Suspense fallback={<div className="min-h-dvh bg-midnight" />}>
+      <SubscribePageInner />
+    </Suspense>
+  );
+}
+
+function SubscribePageInner() {
   const [loading, setLoading] = useState<"monthly" | "yearly" | null>(null);
   const [error, setError] = useState("");
   const [tier, setTier] = useState<"visitor" | "free" | "paid">("visitor");
