@@ -41,6 +41,14 @@ export function middleware(request: NextRequest) {
 
   // Gate everything else behind auth
   if (!hasSession) {
+    // API routes should return 401 JSON so clients can handle it,
+    // rather than redirecting (which breaks non-GET fetches with 405).
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json(
+        { error: "Authentication required" },
+        { status: 401 }
+      );
+    }
     const signInUrl = new URL("/auth/signin", request.url);
     return NextResponse.redirect(signInUrl);
   }
