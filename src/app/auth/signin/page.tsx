@@ -4,7 +4,9 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Mail, Lock, Loader2 } from "lucide-react";
+import { getSafeNextPath } from "@/lib/utils/safe-redirect";
 
 function AppleIcon() {
   return (
@@ -26,6 +28,8 @@ function GoogleIcon() {
 }
 
 export default function SignInPage() {
+  const searchParams = useSearchParams();
+  const next = getSafeNextPath(searchParams.get("next"));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -50,7 +54,7 @@ export default function SignInPage() {
         setLoading(false);
       } else {
         // Full navigation to ensure cookie is sent
-        window.location.href = "/";
+        window.location.href = next;
       }
     } catch {
       setError("Something went wrong. Please try again.");
@@ -85,7 +89,7 @@ export default function SignInPage() {
             disabled={appleLoading}
             onClick={() => {
               setAppleLoading(true);
-              signIn("apple", { callbackUrl: "/" });
+              signIn("apple", { callbackUrl: next });
             }}
             className="w-full py-3 bg-white hover:bg-white/90 text-black font-medium rounded-xl transition-colors flex items-center justify-center gap-3 disabled:opacity-50"
           >
@@ -101,7 +105,7 @@ export default function SignInPage() {
             disabled={googleLoading}
             onClick={() => {
               setGoogleLoading(true);
-              signIn("google", { callbackUrl: "/" });
+              signIn("google", { callbackUrl: next });
             }}
             className="w-full py-3 bg-white/10 hover:bg-white/15 border border-white/15 text-text-primary font-medium rounded-xl transition-colors flex items-center justify-center gap-3 disabled:opacity-50"
           >
@@ -194,7 +198,10 @@ export default function SignInPage() {
 
         <p className="text-center text-text-muted text-sm mt-6">
           Don&apos;t have an account?{" "}
-          <Link href="/auth/register" className="text-accent hover:underline">
+          <Link
+            href={next !== "/" ? `/auth/register?next=${encodeURIComponent(next)}` : "/auth/register"}
+            className="text-accent hover:underline"
+          >
             Create Free Account
           </Link>
         </p>

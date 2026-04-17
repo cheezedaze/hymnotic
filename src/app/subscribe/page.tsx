@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Check, Loader2, Crown, ExternalLink, Music } from "lucide-react";
 import { isNativeApp, openExternalLinkAccount } from "@/lib/utils/platform";
 
@@ -10,6 +11,10 @@ export default function SubscribePage() {
   const [loading, setLoading] = useState<"monthly" | "yearly" | null>(null);
   const [error, setError] = useState("");
   const [tier, setTier] = useState<"visitor" | "free" | "paid">("visitor");
+  const searchParams = useSearchParams();
+  const rawPlan = searchParams.get("plan");
+  const preselectedPlan: "monthly" | "yearly" | null =
+    rawPlan === "monthly" || rawPlan === "yearly" ? rawPlan : null;
 
   useEffect(() => {
     fetch("/api/user/subscription")
@@ -35,7 +40,8 @@ export default function SubscribePage() {
 
       if (!res.ok) {
         if (res.status === 401) {
-          window.location.href = "/auth/register";
+          const next = encodeURIComponent(`/subscribe?plan=${plan}`);
+          window.location.href = `/auth/register?next=${next}`;
           return;
         }
         setError(data.error || "Something went wrong");
@@ -230,36 +236,63 @@ export default function SubscribePage() {
                   Current Plan
                 </div>
               ) : (
-                <>
-                  <button
-                    onClick={() => handleSubscribe("monthly")}
-                    disabled={!!loading}
-                    className="w-full py-3 bg-accent-50 hover:bg-accent/60 text-white font-semibold rounded-xl transition-colors glow-accent disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {loading === "monthly" ? (
-                      <Loader2 size={16} className="animate-spin" />
-                    ) : (
-                      "Start for $1.99"
-                    )}
-                  </button>
+                (() => {
+                  const showSelection =
+                    preselectedPlan !== null && tier === "free";
+                  const monthlySelected =
+                    showSelection && preselectedPlan === "monthly";
+                  const yearlySelected =
+                    showSelection && preselectedPlan === "yearly";
 
-                  <button
-                    onClick={() => handleSubscribe("yearly")}
-                    disabled={!!loading}
-                    className="w-full py-3 text-center text-text-primary font-semibold rounded-xl border border-white/20 hover:border-accent/30 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 relative"
-                  >
-                    {loading === "yearly" ? (
-                      <Loader2 size={16} className="animate-spin text-accent" />
-                    ) : (
-                      <>
-                        Yearly &mdash; $47.90/yr
-                        <span className="text-accent text-xs font-bold ml-1">
-                          Save 20%
-                        </span>
-                      </>
-                    )}
-                  </button>
-                </>
+                  const monthlyBtn = (
+                    <button
+                      key="monthly"
+                      onClick={() => handleSubscribe("monthly")}
+                      disabled={!!loading}
+                      className={`w-full py-3 bg-accent-50 hover:bg-accent/60 text-white font-semibold rounded-xl transition-colors glow-accent disabled:opacity-50 flex items-center justify-center gap-2 ${
+                        monthlySelected ? "ring-2 ring-accent" : ""
+                      }`}
+                    >
+                      {loading === "monthly" ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        <>
+                          {monthlySelected && <Check size={14} />}
+                          Start for $1.99
+                        </>
+                      )}
+                    </button>
+                  );
+
+                  const yearlyBtn = (
+                    <button
+                      key="yearly"
+                      onClick={() => handleSubscribe("yearly")}
+                      disabled={!!loading}
+                      className={`w-full py-3 text-center text-text-primary font-semibold rounded-xl border transition-colors disabled:opacity-50 flex items-center justify-center gap-2 relative ${
+                        yearlySelected
+                          ? "border-accent ring-2 ring-accent"
+                          : "border-white/20 hover:border-accent/30"
+                      }`}
+                    >
+                      {loading === "yearly" ? (
+                        <Loader2 size={16} className="animate-spin text-accent" />
+                      ) : (
+                        <>
+                          {yearlySelected && <Check size={14} className="text-accent" />}
+                          Yearly &mdash; $47.90/yr
+                          <span className="text-accent text-xs font-bold ml-1">
+                            Save 20%
+                          </span>
+                        </>
+                      )}
+                    </button>
+                  );
+
+                  return yearlySelected
+                    ? [yearlyBtn, monthlyBtn]
+                    : [monthlyBtn, yearlyBtn];
+                })()
               )}
             </div>
           </div>
@@ -278,9 +311,13 @@ export default function SubscribePage() {
 
         {/* Auto-renewal disclosure and legal links */}
         <p className="text-text-dim text-xs text-center mt-6 leading-relaxed max-w-md mx-auto">
-          Subscriptions automatically renew unless canceled before the end of
-          the current billing period. You can cancel anytime from your account
-          settings.{" "}
+          Payment will be charged to your Apple ID account at confirmation of
+          purchase. Subscriptions automatically renew unless auto-renew is
+          turned off at least 24 hours before the end of the current period.
+          Your account will be charged for renewal within 24 hours prior to the
+          end of the current period. You can manage and cancel your
+          subscriptions by going to your account settings on the App Store
+          after purchase.{" "}
           <Link href="/terms" className="text-text-muted hover:text-accent underline">
             Terms of Service
           </Link>
