@@ -42,11 +42,12 @@ export default async function HomePage() {
     if (track) {
       const collection = await getCollectionById(track.collectionId);
       const collectionArtworkKey = collection?.artworkKey ?? null;
+      const featuredFull = access.tier !== "visitor";
       featuredTrack = {
         ...track,
         ...buildTrackMediaUrlsWithFallback(track, collectionArtworkKey),
-        isLocked: false,
-        previewDuration: track.duration,
+        isLocked: !featuredFull,
+        previewDuration: featuredFull ? track.duration : previewDur,
         isFeatured: true,
       };
       const queueTracks = await getTracksByCollection(track.collectionId);
