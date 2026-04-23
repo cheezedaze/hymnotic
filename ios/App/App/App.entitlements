@@ -6,7 +6,5 @@
 	<array>
 		<string>Default</string>
 	</array>
-	<key>com.apple.developer.storekit.external-link.account</key>
-	<true/>
 </dict>
 </plist>
