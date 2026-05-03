@@ -3,6 +3,7 @@ import { Playfair_Display, Inter } from "next/font/google";
 import "./globals.css";
 import { AppShell } from "@/components/layout/AppShell";
 import { ServiceWorkerRegistration } from "@/components/layout/ServiceWorkerRegistration";
+import { NativeBootstrap } from "@/components/layout/NativeBootstrap";
 
 
 const playfair = Playfair_Display({
@@ -49,6 +50,7 @@ export default function RootLayout({
       <head />
       <body className={`${playfair.variable} ${inter.variable} antialiased`}>
         <ServiceWorkerRegistration />
+        <NativeBootstrap />
         <AppShell>{children}</AppShell>
       </body>
     </html>

@@ -3,9 +3,10 @@ import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import Apple from "next-auth/providers/apple";
 import bcrypt from "bcryptjs";
+import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { upsertOAuthUser } from "./oauth-upsert";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
@@ -65,53 +66,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async signIn({ user, account }) {
       if (account?.provider === "google" || account?.provider === "apple") {
-        const email = user.email?.toLowerCase();
-        if (!email) return false;
+        if (!user.email) return false;
+        const dbUser = await upsertOAuthUser({
+          email: user.email,
+          name: user.name || null,
+        });
 
-        // Look up existing user by email
-        const result = await db
-          .select()
-          .from(users)
-          .where(eq(users.email, email))
-          .limit(1);
-
-        let dbUser = result[0];
-
-        if (!dbUser) {
-          // Create a new user for first-time OAuth sign-in
-          const id = crypto.randomUUID();
-          // Apple may not provide a name after the first sign-in
-          const userName = user.name || null;
-          await db.insert(users).values({
-            id,
-            email,
-            name: userName,
-            passwordHash: null,
-            role: "USER",
-            accountTier: "free",
-            isPremium: false,
-            manualPremium: false,
-            newsletterOptIn: false,
-          });
-          dbUser = {
-            id,
-            email,
-            name: userName,
-            passwordHash: null,
-            role: "USER",
-            accountTier: "free",
-            isPremium: false,
-            manualPremium: false,
-            stripeCustomerId: null,
-            subscriptionStatus: null,
-            subscriptionEndDate: null,
-            newsletterOptIn: false,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          };
-        }
-
-        // Attach custom fields so the jwt callback can pick them up
         user.id = dbUser.id;
         user.role = dbUser.role;
         user.accountTier = dbUser.accountTier;
