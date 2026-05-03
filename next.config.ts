@@ -45,11 +45,14 @@ const nextConfig: NextConfig = {
     ];
   },
 
-  // Headers for API CORS and streaming support
+  // Headers for API CORS and streaming support.
+  // NextAuth (`/api/auth/*`) MUST be excluded — it relies on browser-managed
+  // cookies (state, PKCE, callback-url) and wildcard CORS interferes with the
+  // OAuth redirect/cookie flow, especially in Capacitor WebViews.
   async headers() {
     return [
       {
-        source: "/api/:path*",
+        source: "/api/:path((?!auth/).*)",
         headers: [
           { key: "Access-Control-Allow-Origin", value: "*" },
           {
