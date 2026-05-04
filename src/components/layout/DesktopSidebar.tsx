@@ -10,12 +10,6 @@ import { BrandHeader } from "@/components/layout/BrandHeader";
 import { signOut } from "next-auth/react";
 import { useSubscriptionStore, type UserTier } from "@/lib/store/subscriptionStore";
 
-const navItems = [
-  { href: "/", icon: Home, label: "Home" },
-  { href: "/library", icon: Library, label: "Library" },
-  { href: "/profile", icon: User, label: "Profile" },
-];
-
 interface SessionUser {
   name?: string | null;
   email?: string | null;
@@ -62,6 +56,14 @@ export function DesktopSidebar() {
   const overrideLabel = viewAsOverride
     ? viewOptions.find((o) => o.tier === viewAsOverride)?.label
     : null;
+
+  const navItems = [
+    { href: "/", icon: Home, label: "Home" },
+    { href: "/library", icon: Library, label: "Library" },
+    user
+      ? { href: "/profile", icon: User, label: "Profile" }
+      : { href: "/auth/signin", icon: User, label: "Sign-In" },
+  ];
 
   return (
     <aside className="fixed top-0 left-0 w-60 h-dvh flex flex-col border-r border-white/6 z-30" style={{ background: "linear-gradient(to bottom, var(--color-midnight) 100px, var(--color-midnight-deep) 400px)" }}>

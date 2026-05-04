@@ -1,19 +1,37 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { Home, Library, User } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
-const navItems = [
-  { href: "/", icon: Home, label: "Home" },
-  { href: "/library", icon: Library, label: "Library" },
-  { href: "/profile", icon: User, label: "Profile" },
-];
+interface SessionUser {
+  name?: string | null;
+  email?: string | null;
+}
 
 export function NavBar() {
   const pathname = usePathname();
+  const [user, setUser] = useState<SessionUser | null>(null);
+
+  useEffect(() => {
+    fetch("/api/auth/session")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.user) setUser(data.user);
+      })
+      .catch(() => {});
+  }, []);
+
+  const navItems = [
+    { href: "/", icon: Home, label: "Home" },
+    { href: "/library", icon: Library, label: "Library" },
+    user
+      ? { href: "/profile", icon: User, label: "Profile" }
+      : { href: "/auth/signin", icon: User, label: "Sign-In" },
+  ];
 
   return (
     <nav className="pt-2">
