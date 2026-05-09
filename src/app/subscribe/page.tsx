@@ -222,7 +222,7 @@ function SubscribePageInner() {
               </h2>
             </div>
             <div className="flex items-baseline gap-1 mb-1">
-              <span className="text-2xl font-bold text-accent">$1.99</span>
+              <span className="text-2xl font-bold text-accent">$0.99</span>
               <span className="text-text-muted text-sm">/first month</span>
             </div>
             <p className="text-text-dim text-xs mb-5">
@@ -266,7 +266,7 @@ function SubscribePageInner() {
                       ) : (
                         <>
                           {monthlySelected && <Check size={14} />}
-                          Start for $1.99
+                          Start for $0.99
                         </>
                       )}
                     </button>

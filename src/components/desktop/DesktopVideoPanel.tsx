@@ -71,7 +71,7 @@ function PromoPanel() {
           </span>
         </div>
         <p className="text-text-primary text-sm mb-1">
-          <span className="text-gold font-bold text-lg">$1.99</span>
+          <span className="text-gold font-bold text-lg">$0.99</span>
           <span className="text-text-muted"> for the first month</span>
         </p>
         <p className="text-text-dim text-xs mb-3">
