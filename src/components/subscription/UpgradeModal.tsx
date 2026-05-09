@@ -112,7 +112,7 @@ export function UpgradeModal() {
                 </button>
                 {!isVisitor && (
                   <p className="text-text-dim text-xs mt-3">
-                    Starting at $4.99/month
+                    Starting at $3.99/month
                   </p>
                 )}
               </>

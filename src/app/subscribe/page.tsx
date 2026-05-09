@@ -226,7 +226,7 @@ function SubscribePageInner() {
               <span className="text-text-muted text-sm">/first month</span>
             </div>
             <p className="text-text-dim text-xs mb-5">
-              Then $4.99/mo &middot; Cancel anytime
+              Then $3.99/mo &middot; Cancel anytime
             </p>
             <ul className="space-y-3 mb-6 flex-1">
               {premiumFeatures.map((feature) => (
@@ -288,7 +288,7 @@ function SubscribePageInner() {
                       ) : (
                         <>
                           {yearlySelected && <Check size={14} className="text-accent" />}
-                          Yearly &mdash; $47.90/yr
+                          Yearly &mdash; $38.30/yr
                           <span className="text-accent text-xs font-bold ml-1">
                             Save 20%
                           </span>
