@@ -11,8 +11,10 @@ import {
   Users,
   UserPlus,
   RotateCcw,
+  Activity,
 } from "lucide-react";
 import { Leaderboard } from "./Leaderboard";
+import { TopListeners } from "./TopListeners";
 
 interface StatsCardProps {
   label: string;
@@ -40,6 +42,7 @@ interface AdminDashboardProps {
     totalPlays: number;
     featured: number;
     users: number;
+    activeUsers: number;
   };
   recentTracks: Array<{
     id: string;
@@ -101,7 +104,7 @@ export function AdminDashboard({ stats, recentTracks }: AdminDashboardProps) {
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <StatsCard
           label="Collections"
           value={stats.collections}
@@ -131,6 +134,12 @@ export function AdminDashboard({ stats, recentTracks }: AdminDashboardProps) {
           value={stats.users}
           icon={Users}
           color="text-blue-400"
+        />
+        <StatsCard
+          label="Active (30d)"
+          value={stats.activeUsers}
+          icon={Activity}
+          color="text-pink-400"
         />
       </div>
 
@@ -179,6 +188,9 @@ export function AdminDashboard({ stats, recentTracks }: AdminDashboardProps) {
 
       {/* Leaderboard */}
       <Leaderboard />
+
+      {/* Top listeners */}
+      <TopListeners />
 
       {/* Recent tracks */}
       <div className="glass-heavy rounded-xl p-4">

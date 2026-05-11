@@ -378,6 +378,7 @@ export async function getAdminStats() {
   const [userCount] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(users);
+  const activeUsers = await getActiveUserCount("month");
 
   return {
     collections: collectionCount.count,
@@ -385,6 +386,7 @@ export async function getAdminStats() {
     totalPlays: totalPlays.total,
     featured: featuredCount.count,
     users: userCount.count,
+    activeUsers,
   };
 }
 
@@ -946,6 +948,137 @@ export async function getTopTracksByPlays(
     .groupBy(playEvents.trackId, tracks.title, collections.title)
     .orderBy(sql`count(*) desc`)
     .limit(10);
+}
+
+// Premium predicate used in user-tier filtering.
+const isPremiumSql = sql<boolean>`(${users.isPremium} = true OR ${users.manualPremium} = true OR ${users.accountTier} = 'paid')`;
+
+export async function getActiveUserCount(
+  period: "all" | "month" | "week" | "today"
+): Promise<number> {
+  if (period === "all") {
+    const [result] = await db
+      .select({ count: sql<number>`count(distinct ${playEvents.userId})::int` })
+      .from(playEvents);
+    return result?.count ?? 0;
+  }
+  const startDate = getStartDate(period);
+  const [result] = await db
+    .select({ count: sql<number>`count(distinct ${playEvents.userId})::int` })
+    .from(playEvents)
+    .where(gte(playEvents.playedAt, startDate));
+  return result?.count ?? 0;
+}
+
+export async function getTopListeners(
+  period: "all" | "month" | "week" | "today",
+  tier: "all" | "free" | "premium",
+  limit: number = 20
+): Promise<
+  Array<{
+    userId: string;
+    email: string;
+    name: string | null;
+    tier: "free" | "premium";
+    playCount: number;
+  }>
+> {
+  const tierField = sql<"free" | "premium">`(case when ${isPremiumSql} then 'premium' else 'free' end)`;
+  const tierFilter =
+    tier === "premium"
+      ? isPremiumSql
+      : tier === "free"
+        ? sql`NOT ${isPremiumSql}`
+        : undefined;
+
+  if (period === "all") {
+    const rows = await db
+      .select({
+        userId: users.id,
+        email: users.email,
+        name: users.name,
+        tier: tierField,
+        playCount: sql<number>`coalesce(sum(${userTrackPlays.playCount}), 0)::int`,
+      })
+      .from(users)
+      .leftJoin(userTrackPlays, eq(userTrackPlays.userId, users.id))
+      .where(tierFilter)
+      .groupBy(users.id, users.email, users.name, users.isPremium, users.manualPremium, users.accountTier)
+      .orderBy(sql`coalesce(sum(${userTrackPlays.playCount}), 0) desc`)
+      .limit(limit);
+    return rows.filter((r) => r.playCount > 0);
+  }
+
+  const startDate = getStartDate(period);
+  const rows = await db
+    .select({
+      userId: users.id,
+      email: users.email,
+      name: users.name,
+      tier: tierField,
+      playCount: sql<number>`count(${playEvents.id})::int`,
+    })
+    .from(users)
+    .innerJoin(playEvents, eq(playEvents.userId, users.id))
+    .where(
+      tierFilter
+        ? and(gte(playEvents.playedAt, startDate), tierFilter)
+        : gte(playEvents.playedAt, startDate)
+    )
+    .groupBy(users.id, users.email, users.name, users.isPremium, users.manualPremium, users.accountTier)
+    .orderBy(sql`count(${playEvents.id}) desc`)
+    .limit(limit);
+  return rows;
+}
+
+export async function getUserTopTracks(
+  userId: string,
+  period: "all" | "month" | "week" | "today",
+  limit: number = 20
+): Promise<
+  Array<{
+    trackId: string;
+    title: string;
+    collection: string;
+    playCount: number;
+  }>
+> {
+  if (period === "all") {
+    return db
+      .select({
+        trackId: userTrackPlays.trackId,
+        title: tracks.title,
+        collection: collections.title,
+        playCount: userTrackPlays.playCount,
+      })
+      .from(userTrackPlays)
+      .innerJoin(tracks, eq(userTrackPlays.trackId, tracks.id))
+      .innerJoin(collections, eq(tracks.collectionId, collections.id))
+      .where(eq(userTrackPlays.userId, userId))
+      .orderBy(desc(userTrackPlays.playCount))
+      .limit(limit);
+  }
+
+  const startDate = getStartDate(period);
+  return db
+    .select({
+      trackId: playEvents.trackId,
+      title: tracks.title,
+      collection: collections.title,
+      playCount: sql<number>`count(*)::int`,
+    })
+    .from(playEvents)
+    .innerJoin(tracks, eq(playEvents.trackId, tracks.id))
+    .innerJoin(collections, eq(tracks.collectionId, collections.id))
+    .where(
+      and(
+        eq(playEvents.userId, userId),
+        gte(playEvents.playedAt, startDate)
+      )
+    )
+    .groupBy(playEvents.trackId, tracks.title, collections.title)
+    .orderBy(sql`count(*) desc`)
+    .limit(limit);
 }
 
 export async function getTopTracksByFavorites(
