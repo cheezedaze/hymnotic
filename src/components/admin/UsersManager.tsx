@@ -31,6 +31,7 @@ interface InvitationInfo {
   expiresAt: string;
   usedAt: string | null;
   createdAt: string;
+  grantPremium?: boolean;
 }
 
 interface UsersManagerProps {
@@ -41,6 +42,7 @@ interface UsersManagerProps {
 export function UsersManager({ users, invitations }: UsersManagerProps) {
   const router = useRouter();
   const [email, setEmail] = useState("");
+  const [grantPremium, setGrantPremium] = useState(false);
   const [sending, setSending] = useState(false);
   const [togglingPremium, setTogglingPremium] = useState<string | null>(null);
   const [message, setMessage] = useState<{
@@ -80,7 +82,7 @@ export function UsersManager({ users, invitations }: UsersManagerProps) {
       const res = await fetch("/api/admin/invitations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.toLowerCase() }),
+        body: JSON.stringify({ email: email.toLowerCase(), grantPremium }),
       });
 
       if (res.ok) {
@@ -94,6 +96,7 @@ export function UsersManager({ users, invitations }: UsersManagerProps) {
           setMessage({ type: "success", text: `Invitation sent to ${email}` });
         }
         setEmail("");
+        setGrantPremium(false);
         router.refresh();
       } else {
         const data = await res.json();
@@ -132,32 +135,44 @@ export function UsersManager({ users, invitations }: UsersManagerProps) {
           <UserPlus size={16} className="text-accent" />
           Invite User
         </h2>
-        <form onSubmit={handleInvite} className="flex gap-3">
-          <div className="relative flex-1">
-            <Mail
-              size={16}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
-            />
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="email@example.com"
-              className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-text-primary placeholder:text-text-dim focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 transition-colors"
-            />
+        <form onSubmit={handleInvite} className="space-y-3">
+          <div className="flex gap-3">
+            <div className="relative flex-1">
+              <Mail
+                size={16}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
+              />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="email@example.com"
+                className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-text-primary placeholder:text-text-dim focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 transition-colors"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={sending || !email}
+              className="px-4 py-2.5 bg-accent/20 hover:bg-accent/30 border border-accent/30 text-accent font-medium rounded-xl text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {sending ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <UserPlus size={14} />
+              )}
+              Send Invite
+            </button>
           </div>
-          <button
-            type="submit"
-            disabled={sending || !email}
-            className="px-4 py-2.5 bg-accent/20 hover:bg-accent/30 border border-accent/30 text-accent font-medium rounded-xl text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {sending ? (
-              <Loader2 size={14} className="animate-spin" />
-            ) : (
-              <UserPlus size={14} />
-            )}
-            Send Invite
-          </button>
+          <label className="flex items-center gap-2 text-sm text-text-muted cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={grantPremium}
+              onChange={(e) => setGrantPremium(e.target.checked)}
+              className="h-4 w-4 rounded border-white/20 bg-white/5 accent-accent focus:ring-1 focus:ring-accent/25"
+            />
+            <Crown size={14} className="text-gold" />
+            Grant premium on signup
+          </label>
         </form>
         {message && (
           <p
@@ -258,6 +273,12 @@ export function UsersManager({ users, invitations }: UsersManagerProps) {
                   <span className="text-sm text-text-secondary">
                     {inv.email}
                   </span>
+                  {inv.grantPremium && (
+                    <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-gold/20 text-gold">
+                      <Crown size={10} />
+                      Premium
+                    </span>
+                  )}
                 </div>
                 <span className="text-xs text-text-dim">
                   Expires{" "}

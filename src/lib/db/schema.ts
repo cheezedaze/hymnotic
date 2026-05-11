@@ -204,6 +204,7 @@ export const invitations = pgTable(
     invitedById: varchar("invited_by_id", { length: 128 }).references(
       () => users.id
     ),
+    grantPremium: boolean("grant_premium").default(false).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [

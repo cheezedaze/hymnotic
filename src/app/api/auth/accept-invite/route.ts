@@ -67,6 +67,9 @@ export async function POST(request: Request) {
       name: name || null,
       passwordHash,
       role: "USER",
+      manualPremium: invitation.grantPremium,
+      isPremium: invitation.grantPremium,
+      accountTier: invitation.grantPremium ? "paid" : "free",
     });
 
     // Mark invitation as used

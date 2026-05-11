@@ -28,6 +28,7 @@ export default async function AdminUsersPage() {
         expiresAt: i.expiresAt.toISOString(),
         usedAt: i.usedAt?.toISOString() ?? null,
         createdAt: i.createdAt.toISOString(),
+        grantPremium: i.grantPremium,
       }))}
     />
   );

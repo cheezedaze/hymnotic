@@ -27,7 +27,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { email } = await request.json();
+    const { email, grantPremium } = await request.json();
 
     if (!email) {
       return NextResponse.json(
@@ -64,6 +64,7 @@ export async function POST(request: Request) {
         token,
         expiresAt,
         invitedById: session.user?.id,
+        grantPremium: Boolean(grantPremium),
       })
       .returning();
 
