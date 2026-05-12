@@ -184,11 +184,32 @@ export const users = pgTable(
     subscriptionStatus: varchar("subscription_status", { length: 30 }), // "active" | "canceled" | "trialing" | "past_due"
     subscriptionEndDate: timestamp("subscription_end_date"),
     newsletterOptIn: boolean("newsletter_opt_in").default(false).notNull(),
+    onboardingCompletedAt: timestamp("onboarding_completed_at"),
+    onboardingLastDismissedAt: timestamp("onboarding_last_dismissed_at"),
+    onboardingDismissCount: integer("onboarding_dismiss_count")
+      .default(0)
+      .notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => [uniqueIndex("idx_users_email").on(table.email)]
 );
+
+// =============================================================================
+// Onboarding Responses (welcome-wizard answers; one row per user)
+// =============================================================================
+export const onboardingResponses = pgTable("onboarding_responses", {
+  userId: varchar("user_id", { length: 128 })
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  referralSource: varchar("referral_source", { length: 64 }),
+  referralDetail: text("referral_detail"),
+  favoriteMusic: text("favorite_music"),
+  favoriteHymns: text("favorite_hymns"),
+  completedAt: timestamp("completed_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
 
 // =============================================================================
 // Invitations
@@ -429,3 +450,5 @@ export type Ad = typeof ads.$inferSelect;
 export type NewAd = typeof ads.$inferInsert;
 export type BannerAd = typeof bannerAds.$inferSelect;
 export type NewBannerAd = typeof bannerAds.$inferInsert;
+export type OnboardingResponse = typeof onboardingResponses.$inferSelect;
+export type NewOnboardingResponse = typeof onboardingResponses.$inferInsert;

@@ -12,6 +12,7 @@ import { DesktopLayout } from "./DesktopLayout";
 import { UpgradeModal } from "@/components/subscription/UpgradeModal";
 import { ShareSheet } from "@/components/share/ShareSheet";
 import { WhatsNewChecker } from "@/components/announcements/WhatsNewChecker";
+import { OnboardingChecker } from "@/components/onboarding/OnboardingChecker";
 import { AndroidInstallBanner } from "./AndroidInstallBanner";
 
 const tierLabels: Record<string, string> = {
@@ -66,6 +67,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <UpgradeModal />
         <ShareSheet />
         <WhatsNewChecker />
+        <OnboardingChecker />
       </>
     );
   }
@@ -78,6 +80,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <UpgradeModal />
       <ShareSheet />
       <WhatsNewChecker />
+      <OnboardingChecker />
     </>
   );
 }
