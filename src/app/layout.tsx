@@ -30,6 +30,9 @@ export const metadata: Metadata = {
   icons: {
     apple: "/icons/apple-touch-icon.png",
   },
+  other: process.env.NEXT_PUBLIC_IOS_APP_ID
+    ? { "apple-itunes-app": `app-id=${process.env.NEXT_PUBLIC_IOS_APP_ID}` }
+    : undefined,
 };
 
 export const viewport: Viewport = {
