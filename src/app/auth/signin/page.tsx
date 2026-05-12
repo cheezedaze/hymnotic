@@ -87,6 +87,7 @@ export default function SignInPage() {
 function SignInPageInner() {
   const searchParams = useSearchParams();
   const next = getSafeNextPath(searchParams.get("next"));
+  const justReset = searchParams.get("reset") === "1";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -138,6 +139,12 @@ function SignInPageInner() {
             Sign in to continue
           </p>
         </div>
+
+        {justReset && (
+          <div className="mb-3 rounded-xl border border-accent/30 bg-accent/10 px-4 py-3 text-sm text-accent text-center">
+            Password updated. Sign in with your new password.
+          </div>
+        )}
 
         {/* Social sign-in */}
         <div className="glass-heavy rounded-2xl p-6 mb-3 space-y-3">
@@ -233,12 +240,20 @@ function SignInPageInner() {
           </div>
 
           <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-text-secondary mb-2"
-            >
-              Password
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium text-text-secondary"
+              >
+                Password
+              </label>
+              <Link
+                href="/auth/forgot-password"
+                className="text-xs text-accent hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
             <div className="relative">
               <Lock
                 size={16}

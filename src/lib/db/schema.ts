@@ -235,6 +235,28 @@ export const invitations = pgTable(
 );
 
 // =============================================================================
+// Password Reset Tokens
+// =============================================================================
+export const passwordResetTokens = pgTable(
+  "password_reset_tokens",
+  {
+    id: serial("id").primaryKey(),
+    userId: varchar("user_id", { length: 128 })
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: varchar("token_hash", { length: 64 }).notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    usedAt: timestamp("used_at"),
+    requestedIp: varchar("requested_ip", { length: 64 }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_password_reset_token_hash").on(table.tokenHash),
+    index("idx_password_reset_user").on(table.userId),
+  ]
+);
+
+// =============================================================================
 // Per-User Play Tracking
 // =============================================================================
 export const userTrackPlays = pgTable(

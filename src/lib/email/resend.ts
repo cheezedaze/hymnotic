@@ -39,3 +39,31 @@ export async function sendInvitationEmail(
     `,
   });
 }
+
+export async function sendPasswordResetEmail(email: string, resetUrl: string) {
+  const fromEmail = process.env.EMAIL_FROM || "HYMNZ <onboarding@resend.dev>";
+
+  const resend = getResend();
+  await resend.emails.send({
+    from: fromEmail,
+    to: email,
+    subject: "Reset your HYMNZ password",
+    html: `
+      <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 40px 20px; color: #e0e0e0; background-color: #141A24;">
+        <div style="text-align: center; margin-bottom: 32px;">
+          <h1 style="font-family: 'Playfair Display', Georgia, serif; font-size: 28px; color: #00FFFB; margin: 0;">HYMNZ</h1>
+        </div>
+        <h2 style="font-size: 20px; color: #ffffff; margin-bottom: 16px;">Reset Your Password</h2>
+        <p style="font-size: 15px; line-height: 1.6; color: #b0b0b0;">
+          We received a request to reset the password for your HYMNZ account. Click the button below to choose a new one.
+        </p>
+        <div style="text-align: center; margin: 32px 0;">
+          <a href="${resetUrl}" style="display: inline-block; padding: 14px 32px; background-color: #00FFFB; color: #141A24; font-weight: 600; font-size: 15px; text-decoration: none; border-radius: 8px;">
+            Reset Password
+          </a>
+        </div>
+        <p style="font-size: 13px; color: #888;">This link expires in 1 hour. If you didn&rsquo;t request a password reset, you can safely ignore this email &mdash; your password won&rsquo;t change.</p>
+      </div>
+    `,
+  });
+}
