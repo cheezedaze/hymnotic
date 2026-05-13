@@ -49,7 +49,7 @@ export async function POST(request: Request) {
         .limit(1);
       const user = userResult[0];
 
-      if (user && user.passwordHash) {
+      if (user) {
         await db
           .update(passwordResetTokens)
           .set({ usedAt: new Date() })
