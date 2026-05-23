@@ -12,6 +12,7 @@ import {
   Shield,
   User,
   Crown,
+  RefreshCw,
 } from "lucide-react";
 
 interface UserInfo {
@@ -45,10 +46,39 @@ export function UsersManager({ users, invitations }: UsersManagerProps) {
   const [grantPremium, setGrantPremium] = useState(false);
   const [sending, setSending] = useState(false);
   const [togglingPremium, setTogglingPremium] = useState<string | null>(null);
+  const [syncingStripe, setSyncingStripe] = useState(false);
   const [message, setMessage] = useState<{
     type: "success" | "error";
     text: string;
   } | null>(null);
+
+  const handleSyncStripe = async () => {
+    setSyncingStripe(true);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/admin/stripe/sync", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        const unmatchedCount = data.unmatched?.length ?? 0;
+        setMessage({
+          type: "success",
+          text: `Synced ${data.updated}/${data.scanned} active Stripe subs${
+            unmatchedCount > 0 ? ` (${unmatchedCount} unmatched)` : ""
+          }`,
+        });
+        if (unmatchedCount > 0) {
+          console.warn("Unmatched Stripe subscriptions:", data.unmatched);
+        }
+        router.refresh();
+      } else {
+        setMessage({ type: "error", text: data.error || "Sync failed" });
+      }
+    } catch {
+      setMessage({ type: "error", text: "Sync request failed" });
+    } finally {
+      setSyncingStripe(false);
+    }
+  };
 
   const handleTogglePremium = async (userId: string, currentManualPremium: boolean) => {
     setTogglingPremium(userId);
@@ -120,13 +150,28 @@ export function UsersManager({ users, invitations }: UsersManagerProps) {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-display text-2xl font-bold text-text-primary">
-          Users
-        </h1>
-        <p className="text-text-muted text-sm mt-1">
-          Manage users and invitations
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-display text-2xl font-bold text-text-primary">
+            Users
+          </h1>
+          <p className="text-text-muted text-sm mt-1">
+            Manage users and invitations
+          </p>
+        </div>
+        <button
+          onClick={handleSyncStripe}
+          disabled={syncingStripe}
+          className="px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-text-secondary rounded-xl text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          title="Reconcile users against active Stripe subscriptions"
+        >
+          {syncingStripe ? (
+            <Loader2 size={14} className="animate-spin" />
+          ) : (
+            <RefreshCw size={14} />
+          )}
+          Sync from Stripe
+        </button>
       </div>
 
       {/* Invite form */}

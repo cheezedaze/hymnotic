@@ -4,6 +4,10 @@ import { db } from "@/lib/db";
 import { users, stripeEvents } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import type Stripe from "stripe";
+import { syncUserFromSubscription } from "@/lib/stripe/sync";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   try {
@@ -18,19 +22,32 @@ export async function POST(request: Request) {
     }
 
     let event: Stripe.Event;
+    let webhookSecret: string;
     try {
-      event = getStripe().webhooks.constructEvent(
-        body,
-        signature,
-        getStripeConfig().webhookSecret
-      );
+      webhookSecret = getStripeConfig().webhookSecret;
     } catch (err) {
-      console.error("Webhook signature verification failed:", err);
+      // Missing/empty STRIPE_WEBHOOK_SECRET — return 500 so the operator sees it
+      // in logs and Stripe retries, rather than silently 400-ing every request.
+      console.error("Stripe webhook misconfigured:", err);
       return NextResponse.json(
-        { error: "Invalid signature" },
-        { status: 400 }
+        { error: "Webhook misconfigured" },
+        { status: 500 }
       );
     }
+
+    try {
+      event = getStripe().webhooks.constructEvent(body, signature, webhookSecret);
+    } catch (err) {
+      console.error(
+        "Webhook signature verification failed (secret length:",
+        webhookSecret.length,
+        "):",
+        err
+      );
+      return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
+    }
+
+    console.log("Stripe webhook received:", event.type, event.id);
 
     // Idempotency check
     const existing = await db
@@ -59,16 +76,20 @@ export async function POST(request: Request) {
         );
         break;
 
+      case "customer.subscription.created":
       case "customer.subscription.updated":
-        await handleSubscriptionUpdated(
-          event.data.object as Stripe.Subscription
-        );
+        await syncUserFromSubscription(event.data.object as Stripe.Subscription);
         break;
 
       case "customer.subscription.deleted":
         await handleSubscriptionDeleted(
           event.data.object as Stripe.Subscription
         );
+        break;
+
+      case "invoice.paid":
+      case "invoice.payment_succeeded":
+        await handleInvicePaid(event.data.object as Stripe.Invoice);
         break;
 
       case "invoice.payment_failed":
@@ -95,10 +116,30 @@ export async function POST(request: Request) {
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const userId = session.metadata?.userId;
   if (!userId) {
-    console.error("No userId in checkout session metadata");
+    console.error("No userId in checkout session metadata", session.id);
     return;
   }
 
+  // Pull the subscription so we can record the end date in one shot.
+  let subscription: Stripe.Subscription | null = null;
+  if (session.subscription) {
+    const subId =
+      typeof session.subscription === "string"
+        ? session.subscription
+        : session.subscription.id;
+    try {
+      subscription = await getStripe().subscriptions.retrieve(subId);
+    } catch (err) {
+      console.error("Failed to retrieve subscription for checkout session:", err);
+    }
+  }
+
+  if (subscription) {
+    await syncUserFromSubscription(subscription, { knownUserId: userId });
+    return;
+  }
+
+  // Fallback when there's no subscription on the session (e.g. one-time payment)
   await db
     .update(users)
     .set({
@@ -106,43 +147,6 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       accountTier: "paid",
       subscriptionStatus: "active",
       stripeCustomerId: session.customer as string,
-      updatedAt: new Date(),
-    })
-    .where(eq(users.id, userId));
-}
-
-async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
-  const userId = subscription.metadata?.userId;
-  if (!userId) {
-    // Try to find user by stripeCustomerId
-    const customerId =
-      typeof subscription.customer === "string"
-        ? subscription.customer
-        : subscription.customer.id;
-    await updateUserByCustomerId(customerId, subscription);
-    return;
-  }
-
-  const isPremiumFromStripe =
-    subscription.status === "active" || subscription.status === "trialing";
-
-  // Check if user has manual premium (don't downgrade manually-granted users)
-  const existing = await db
-    .select({ manualPremium: users.manualPremium })
-    .from(users)
-    .where(eq(users.id, userId))
-    .limit(1);
-  const isPremium = isPremiumFromStripe || (existing[0]?.manualPremium ?? false);
-
-  await db
-    .update(users)
-    .set({
-      isPremium,
-      accountTier: isPremium ? "paid" : "free",
-      subscriptionStatus: subscription.status,
-      subscriptionEndDate: subscription.cancel_at
-        ? new Date(subscription.cancel_at * 1000)
-        : null,
       updatedAt: new Date(),
     })
     .where(eq(users.id, userId));
@@ -180,6 +184,23 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   }
 }
 
+async function handleInvicePaid(invoice: Stripe.Invoice) {
+  // Renewals: pull the subscription and re-sync the user so isPremium stays
+  // true and subscriptionEndDate moves forward.
+  const subscriptionRef = (
+    invoice as Stripe.Invoice & { subscription?: string | Stripe.Subscription | null }
+  ).subscription;
+  if (!subscriptionRef) return;
+  const subId =
+    typeof subscriptionRef === "string" ? subscriptionRef : subscriptionRef.id;
+  try {
+    const subscription = await getStripe().subscriptions.retrieve(subId);
+    await syncUserFromSubscription(subscription);
+  } catch (err) {
+    console.error("Failed to handle invoice.paid:", err);
+  }
+}
+
 async function handlePaymentFailed(invoice: Stripe.Invoice) {
   const customerId =
     typeof invoice.customer === "string"
@@ -192,35 +213,6 @@ async function handlePaymentFailed(invoice: Stripe.Invoice) {
     .update(users)
     .set({
       subscriptionStatus: "past_due",
-      updatedAt: new Date(),
-    })
-    .where(eq(users.stripeCustomerId, customerId));
-}
-
-async function updateUserByCustomerId(
-  customerId: string,
-  subscription: Stripe.Subscription
-) {
-  const isPremiumFromStripe =
-    subscription.status === "active" || subscription.status === "trialing";
-
-  // Check if user has manual premium
-  const existing = await db
-    .select({ manualPremium: users.manualPremium })
-    .from(users)
-    .where(eq(users.stripeCustomerId, customerId))
-    .limit(1);
-  const isPremium = isPremiumFromStripe || (existing[0]?.manualPremium ?? false);
-
-  await db
-    .update(users)
-    .set({
-      isPremium,
-      accountTier: isPremium ? "paid" : "free",
-      subscriptionStatus: subscription.status,
-      subscriptionEndDate: subscription.cancel_at
-        ? new Date(subscription.cancel_at * 1000)
-        : null,
       updatedAt: new Date(),
     })
     .where(eq(users.stripeCustomerId, customerId));

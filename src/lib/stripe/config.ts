@@ -19,6 +19,14 @@ export function getStripeConfig() {
     monthlyPriceId: process.env.STRIPE_MONTHLY_PRICE_ID ?? "",
     yearlyPriceId: process.env.STRIPE_YEARLY_PRICE_ID ?? "",
     introCouponId: process.env.STRIPE_INTRO_COUPON_ID ?? "",
-    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET ?? "",
+    get webhookSecret(): string {
+      const secret = process.env.STRIPE_WEBHOOK_SECRET;
+      if (!secret) {
+        throw new Error(
+          "STRIPE_WEBHOOK_SECRET is not set — webhook signature verification cannot proceed"
+        );
+      }
+      return secret;
+    },
   };
 }
