@@ -23,10 +23,15 @@ export function useAudioPlayer() {
   const currentTrackIdRef = useRef<string | null>(null);
   const fadingRef = useRef(false);
   const bgSafetyRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Counts consecutive audio load errors. Reset whenever a track loads
+  // successfully. Used to pause playback instead of infinite-skipping when
+  // every track in the queue fails to load.
+  const consecutiveErrorsRef = useRef(0);
   const listenersRef = useRef<{
     onLoaded: () => void;
     onTimeUpdate: () => void;
     onEnded: () => void;
+    onError: () => void;
   } | null>(null);
 
   const isPlaying = usePlayerStore((s) => s.isPlaying);
@@ -52,6 +57,7 @@ export function useAudioPlayer() {
         listenersRef.current.onTimeUpdate
       );
       audio.removeEventListener("ended", listenersRef.current.onEnded);
+      audio.removeEventListener("error", listenersRef.current.onError);
       listenersRef.current = null;
     }
   }, []);
@@ -138,6 +144,8 @@ export function useAudioPlayer() {
       audio.load();
 
       const onLoaded = () => {
+        // Successful load — track is playable, so reset the error skip guard.
+        consecutiveErrorsRef.current = 0;
         usePlayerStore.getState().setDuration(audio.duration);
         // Auto-play once the audio is actually ready
         if (usePlayerStore.getState().isPlaying) {
@@ -162,13 +170,28 @@ export function useAudioPlayer() {
       const onEnded = () => {
         usePlayerStore.getState().next();
       };
+      const onError = () => {
+        // Skip past a broken track so a single failure can't strand playback.
+        // Loop guard: if every track in the queue errors in a row, pause
+        // instead of churning forever.
+        consecutiveErrorsRef.current += 1;
+        const store = usePlayerStore.getState();
+        const queueLen = store.queue.length || 1;
+        if (consecutiveErrorsRef.current >= Math.min(queueLen, 5)) {
+          consecutiveErrorsRef.current = 0;
+          store.pause();
+          return;
+        }
+        store.next();
+      };
 
       audio.addEventListener("loadedmetadata", onLoaded);
       audio.addEventListener("timeupdate", onTimeUpdate);
       audio.addEventListener("ended", onEnded);
+      audio.addEventListener("error", onError);
 
       // Store references so we can remove them later
-      listenersRef.current = { onLoaded, onTimeUpdate, onEnded };
+      listenersRef.current = { onLoaded, onTimeUpdate, onEnded, onError };
 
       // Increment play count (skip for visitors — avoids 401 console noise)
       if (useSubscriptionStore.getState().effectiveTier() !== "visitor") {

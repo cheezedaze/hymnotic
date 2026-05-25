@@ -32,6 +32,7 @@ export function DesktopHomePage({ collections, serverTier, featuredTrack, featur
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const togglePlayPause = usePlayerStore((s) => s.togglePlayPause);
   const toggleShuffle = usePlayerStore((s) => s.toggleShuffle);
+  const startShuffledCollection = usePlayerStore((s) => s.startShuffledCollection);
   const shuffle = usePlayerStore((s) => s.shuffle);
 
   // Use server-provided tier until client store loads, preventing hydration mismatch
@@ -87,20 +88,30 @@ export function DesktopHomePage({ collections, serverTier, featuredTrack, featur
   const isPlayingFromThisSet =
     currentTrack && filteredTracks.some((t) => t.id === currentTrack.id);
 
+  // Synthetic shuffle key: real collection ID if a filter is active, else
+  // the "all-tracks" virtual ID so the persistent shuffle queue scope matches
+  // the visible track set.
+  const shuffleScopeId = selectedCollectionId ?? "all-tracks";
+
   const handlePlayAll = () => {
     if (isPlayingFromThisSet) {
       togglePlayPause();
-    } else if (filteredTracks.length > 0) {
-      setQueue(filteredTracks, 0);
+      return;
     }
+    if (filteredTracks.length === 0) return;
+    if (shuffle) {
+      startShuffledCollection(shuffleScopeId, filteredTracks);
+      return;
+    }
+    setQueue(filteredTracks, 0);
   };
 
   const handleShuffle = () => {
-    toggleShuffle();
-    if (!isPlayingFromThisSet && filteredTracks.length > 0) {
-      const randomIndex = Math.floor(Math.random() * filteredTracks.length);
-      setQueue(filteredTracks, randomIndex);
+    if (filteredTracks.length === 0) {
+      toggleShuffle();
+      return;
     }
+    startShuffledCollection(shuffleScopeId, filteredTracks);
   };
 
   return (

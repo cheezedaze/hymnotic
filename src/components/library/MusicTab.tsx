@@ -157,7 +157,12 @@ export function MusicTab() {
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const togglePlayPause = usePlayerStore((s) => s.togglePlayPause);
   const toggleShuffle = usePlayerStore((s) => s.toggleShuffle);
+  const startShuffledCollection = usePlayerStore((s) => s.startShuffledCollection);
   const shuffle = usePlayerStore((s) => s.shuffle);
+
+  // Synthetic collection ID so the persistent shuffle queue works on the
+  // virtual "all tracks" view (same key the route uses for /collection/all-tracks).
+  const LIBRARY_MUSIC_ID = "all-tracks";
 
   useEffect(() => {
     Promise.all([
@@ -251,18 +256,22 @@ export function MusicTab() {
     if (filteredTracks.length === 0) return;
     if (isPlayingFromList) {
       togglePlayPause();
-    } else {
-      setQueue(filteredTracks, 0);
+      return;
     }
-  }, [filteredTracks, isPlayingFromList, togglePlayPause, setQueue]);
+    if (shuffle && tracks.length > 0) {
+      startShuffledCollection(LIBRARY_MUSIC_ID, tracks);
+      return;
+    }
+    setQueue(filteredTracks, 0);
+  }, [filteredTracks, tracks, isPlayingFromList, togglePlayPause, setQueue, shuffle, startShuffledCollection]);
 
   const handleShuffle = useCallback(() => {
-    toggleShuffle();
-    if (!isPlayingFromList && filteredTracks.length > 0) {
-      const randomIndex = Math.floor(Math.random() * filteredTracks.length);
-      setQueue(filteredTracks, randomIndex);
+    if (tracks.length === 0) {
+      toggleShuffle();
+      return;
     }
-  }, [filteredTracks, isPlayingFromList, toggleShuffle, setQueue]);
+    startShuffledCollection(LIBRARY_MUSIC_ID, tracks);
+  }, [tracks, toggleShuffle, startShuffledCollection]);
 
   const toggleSearch = useCallback(() => {
     setSearchOpen((prev) => {

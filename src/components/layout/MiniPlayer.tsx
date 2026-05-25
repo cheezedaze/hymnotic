@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useEffect, useState } from "react";
 import { Play, Pause, Music } from "lucide-react";
 import { usePlayerStore } from "@/lib/store/playerStore";
 import { cn } from "@/lib/utils/cn";
@@ -13,10 +14,16 @@ export function MiniPlayer() {
   const togglePlayPause = usePlayerStore((s) => s.togglePlayPause);
   const expandNowPlaying = usePlayerStore((s) => s.expandNowPlaying);
 
+  const [artworkFailed, setArtworkFailed] = useState(false);
+  useEffect(() => {
+    setArtworkFailed(false);
+  }, [currentTrack?.id]);
+
   if (!currentTrack) return null;
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
-  const displayArtworkUrl = currentTrack.artworkUrl || currentTrack.collectionArtworkUrl;
+  const rawArtworkUrl = currentTrack.artworkUrl || currentTrack.collectionArtworkUrl;
+  const displayArtworkUrl = artworkFailed ? null : rawArtworkUrl;
 
   return (
     <div className="glass mx-2 mb-1 rounded-2xl overflow-hidden">
@@ -40,6 +47,7 @@ export function MiniPlayer() {
             width={40}
             height={40}
             className="rounded-lg flex-shrink-0"
+            onError={() => setArtworkFailed(true)}
           />
         ) : (
           <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center flex-shrink-0">

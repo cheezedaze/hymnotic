@@ -19,6 +19,7 @@ export function ActionRow({ tracks, collectionId, collectionTitle }: ActionRowPr
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const togglePlayPause = usePlayerStore((s) => s.togglePlayPause);
   const toggleShuffle = usePlayerStore((s) => s.toggleShuffle);
+  const startShuffledCollection = usePlayerStore((s) => s.startShuffledCollection);
   const shuffle = usePlayerStore((s) => s.shuffle);
 
   const { share } = useShare();
@@ -35,11 +36,12 @@ export function ActionRow({ tracks, collectionId, collectionTitle }: ActionRowPr
   };
 
   const handleShuffle = () => {
-    toggleShuffle();
-    if (!isPlayingFromThisCollection) {
-      const randomIndex = Math.floor(Math.random() * tracks.length);
-      setQueue(tracks, randomIndex);
+    if (!collectionId || tracks.length === 0) {
+      // No persistent queue possible without a collection — fall back to toggle.
+      toggleShuffle();
+      return;
     }
+    startShuffledCollection(collectionId, tracks);
   };
 
   return (

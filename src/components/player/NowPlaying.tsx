@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Heart, Headphones, Share, Music } from "lucide-react";
 import { usePlayerStore } from "@/lib/store/playerStore";
@@ -30,6 +31,15 @@ export function NowPlaying() {
   const sacred7Ids = useSubscriptionStore((s) => s.sacred7TrackIds);
   const { ads: activeAds } = useActiveAds();
 
+  // Track artwork load failures so we can fall through to the Music-icon
+  // fallback instead of rendering a blank white square (the iOS bug).
+  const [artworkFailed, setArtworkFailed] = useState(false);
+  const [bgArtworkFailed, setBgArtworkFailed] = useState(false);
+  useEffect(() => {
+    setArtworkFailed(false);
+    setBgArtworkFailed(false);
+  }, [currentTrack?.id]);
+
   if (!currentTrack) return null;
 
   const isSacred7Track = sacred7Ids.includes(currentTrack.id);
@@ -38,7 +48,10 @@ export function NowPlaying() {
 
   const isFavorited = favoriteIds.includes(currentTrack.id);
 
-  const displayArtworkUrl = currentTrack.artworkUrl || currentTrack.collectionArtworkUrl;
+  const rawArtworkUrl = currentTrack.artworkUrl || currentTrack.collectionArtworkUrl;
+  const displayArtworkUrl = artworkFailed ? null : rawArtworkUrl;
+  const rawBgArtworkUrl = currentTrack.collectionArtworkUrl || currentTrack.artworkUrl;
+  const bgArtworkUrl = bgArtworkFailed ? null : rawBgArtworkUrl;
 
   return (
     <motion.div
@@ -85,14 +98,15 @@ export function NowPlaying() {
         ) : (
           <>
             {/* Collection artwork as blurred, semi-transparent background */}
-            {(currentTrack.collectionArtworkUrl || currentTrack.artworkUrl) && (
+            {bgArtworkUrl && (
               <Image
-                src={currentTrack.collectionArtworkUrl || currentTrack.artworkUrl!}
+                src={bgArtworkUrl}
                 alt=""
                 fill
                 className="object-cover"
                 style={{ opacity: 0.3, filter: "blur(8px)" }}
                 priority
+                onError={() => setBgArtworkFailed(true)}
               />
             )}
             {/* Logo centered on screen */}
@@ -151,6 +165,7 @@ export function NowPlaying() {
                     fill
                     className="object-cover"
                     priority
+                    onError={() => setArtworkFailed(true)}
                   />
                 ) : (
                   <div className="w-full h-full bg-white/5 flex items-center justify-center">
@@ -189,6 +204,7 @@ export function NowPlaying() {
                       fill
                       className="object-cover"
                       priority
+                      onError={() => setArtworkFailed(true)}
                     />
                   ) : (
                     <div className="w-full h-full bg-white/5 flex items-center justify-center">

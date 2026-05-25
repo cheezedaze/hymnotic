@@ -59,7 +59,12 @@ export function FavoritesCollection({ collection }: FavoritesCollectionProps) {
         trackCount={tracks.length}
       />
       {tracks.length > 0 ? (
-        <CollectionContent tracks={tracks} isMultiCollection={true} />
+        <CollectionContent
+          tracks={tracks}
+          isMultiCollection={true}
+          collectionId="favorites"
+          collectionTitle="Favorites"
+        />
       ) : (
         <div className="px-6 py-16 text-center">
           {loading ? (

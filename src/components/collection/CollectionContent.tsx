@@ -69,6 +69,7 @@ export function CollectionContent({
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const togglePlayPause = usePlayerStore((s) => s.togglePlayPause);
   const toggleShuffle = usePlayerStore((s) => s.toggleShuffle);
+  const startShuffledCollection = usePlayerStore((s) => s.startShuffledCollection);
   const shuffle = usePlayerStore((s) => s.shuffle);
 
   const { share } = useShare();
@@ -123,18 +124,26 @@ export function CollectionContent({
     if (filteredTracks.length === 0) return;
     if (isPlayingFromThis) {
       togglePlayPause();
-    } else {
-      setQueue(filteredTracks, 0);
+      return;
     }
-  }, [filteredTracks, isPlayingFromThis, togglePlayPause, setQueue]);
+    // Honor shuffle mode: when shuffle is on, Play starts/resumes the
+    // persistent shuffled queue instead of sequentially from track #1.
+    if (shuffle && collectionId && accessTracks.length > 0) {
+      startShuffledCollection(collectionId, accessTracks);
+      return;
+    }
+    setQueue(filteredTracks, 0);
+  }, [filteredTracks, isPlayingFromThis, togglePlayPause, setQueue, shuffle, collectionId, accessTracks, startShuffledCollection]);
 
   const handleShuffle = useCallback(() => {
-    toggleShuffle();
-    if (!isPlayingFromThis && filteredTracks.length > 0) {
-      const randomIndex = Math.floor(Math.random() * filteredTracks.length);
-      setQueue(filteredTracks, randomIndex);
+    // Shuffle spans the whole collection (accessTracks), not the current
+    // search/sort filter — matches the user mental model of "shuffle this playlist".
+    if (!collectionId || accessTracks.length === 0) {
+      toggleShuffle();
+      return;
     }
-  }, [filteredTracks, isPlayingFromThis, toggleShuffle, setQueue]);
+    startShuffledCollection(collectionId, accessTracks);
+  }, [collectionId, accessTracks, toggleShuffle, startShuffledCollection]);
 
   return (
     <>

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useEffect, useState } from "react";
 import { Heart, Share, Music } from "lucide-react";
 import { usePlayerStore } from "@/lib/store/playerStore";
 import { useFavoritesStore } from "@/lib/store/favoritesStore";
@@ -14,10 +15,16 @@ export function DesktopPlayerBar() {
   const favoriteIds = useFavoritesStore((s) => s.favoriteIds);
   const toggleFavorite = useFavoritesStore((s) => s.toggleFavorite);
 
+  const [artworkFailed, setArtworkFailed] = useState(false);
+  useEffect(() => {
+    setArtworkFailed(false);
+  }, [currentTrack?.id]);
+
   if (!currentTrack) return null;
 
   const isFavorited = favoriteIds.includes(currentTrack.id);
-  const displayArtwork = currentTrack.artworkUrl || currentTrack.collectionArtworkUrl;
+  const rawArtwork = currentTrack.artworkUrl || currentTrack.collectionArtworkUrl;
+  const displayArtwork = artworkFailed ? null : rawArtwork;
 
   return (
     <div className="shrink-0 border-t border-white/6 bg-midnight-deep">
@@ -37,6 +44,7 @@ export function DesktopPlayerBar() {
                 alt={currentTrack.title}
                 fill
                 className="object-cover"
+                onError={() => setArtworkFailed(true)}
               />
             ) : (
               <div className="w-full h-full bg-white/5 flex items-center justify-center">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import {
   Shuffle,
   SkipBack,
@@ -15,6 +15,12 @@ import { seekAudio } from "@/lib/audio/audioContext";
 import { IconButton } from "@/components/ui/IconButton";
 import { formatTime } from "@/lib/utils/formatTime";
 import { cn } from "@/lib/utils/cn";
+
+// Single-tap on the back button restarts the current track; a second tap
+// within this window jumps to the previous track. iOS lock-screen / Bluetooth
+// controls don't go through this — they call previous() directly and always
+// jump to the previous track (matches Apple Music / Spotify convention).
+const PREV_DOUBLE_TAP_MS = 350;
 
 interface PlaybackControlsProps {
   compact?: boolean;
@@ -36,6 +42,44 @@ export function PlaybackControls({ compact = false, variant = "mobile" }: Playba
   const isPreviewMode = usePlayerStore((s) => s.isPreviewMode);
   const previewCheckpoint = usePlayerStore((s) => s.previewCheckpoint);
   const previewDuration = usePlayerStore((s) => s.previewDuration);
+
+  // Double-tap detection state for the back button. A single tap schedules
+  // a seek-to-0; a second tap within PREV_DOUBLE_TAP_MS cancels that and
+  // triggers previous() instead.
+  const pendingSeekRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastBackTapRef = useRef(0);
+
+  useEffect(() => {
+    return () => {
+      if (pendingSeekRef.current) {
+        clearTimeout(pendingSeekRef.current);
+        pendingSeekRef.current = null;
+      }
+    };
+  }, []);
+
+  const handlePrevious = useCallback(() => {
+    const now = Date.now();
+    if (now - lastBackTapRef.current < PREV_DOUBLE_TAP_MS) {
+      // Second tap inside the double-tap window → go to previous track.
+      if (pendingSeekRef.current) {
+        clearTimeout(pendingSeekRef.current);
+        pendingSeekRef.current = null;
+      }
+      lastBackTapRef.current = 0;
+      previous();
+      return;
+    }
+    // First tap → defer seek-to-0 to give a second tap a chance to land.
+    lastBackTapRef.current = now;
+    if (pendingSeekRef.current) clearTimeout(pendingSeekRef.current);
+    pendingSeekRef.current = setTimeout(() => {
+      seekAudio(0);
+      usePlayerStore.getState().seekTo(0);
+      pendingSeekRef.current = null;
+      lastBackTapRef.current = 0;
+    }, PREV_DOUBLE_TAP_MS);
+  }, [previous]);
 
   const handleScrub = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     let time = parseFloat(e.target.value);
@@ -72,7 +116,7 @@ export function PlaybackControls({ compact = false, variant = "mobile" }: Playba
             <Shuffle size={16} />
           </IconButton>
 
-          <IconButton onClick={previous} size="sm" label="Previous">
+          <IconButton onClick={handlePrevious} size="sm" label="Previous">
             <SkipBack size={18} fill="white" className="text-white" />
           </IconButton>
 
@@ -187,7 +231,7 @@ export function PlaybackControls({ compact = false, variant = "mobile" }: Playba
           <Shuffle size={compact ? 18 : 20} />
         </IconButton>
 
-        <IconButton onClick={previous} size="md" label="Previous">
+        <IconButton onClick={handlePrevious} size="md" label="Previous">
           <SkipBack size={compact ? 22 : 26} fill="white" className="text-white" />
         </IconButton>
 
