@@ -17,6 +17,7 @@ import {
   ChevronDown,
   ImagePlus,
   Image as ImageIcon,
+  Bell,
   type LucideIcon,
 } from "lucide-react";
 import Image from "next/image";
@@ -67,6 +68,7 @@ const navEntries: NavEntry[] = [
       { href: "/admin/users", label: "Users", icon: Users },
       { href: "/admin/ads", label: "Ads", icon: ImagePlus },
       { href: "/admin/banner-ads", label: "Banners", icon: ImageIcon },
+      { href: "/admin/push", label: "Push", icon: Bell },
     ],
   },
   { href: "/admin/settings", label: "Settings", icon: Settings },

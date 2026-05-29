@@ -30,6 +30,12 @@ export function NativeBootstrap() {
         },
         apple: {},
       });
+      if (cancelled) return;
+
+      const { registerPushNotifications } = await import(
+        "@/lib/push/registerPush"
+      );
+      await registerPushNotifications();
     })().catch((err) => {
       console.warn("[NativeBootstrap] SocialLogin.initialize failed:", err);
     });

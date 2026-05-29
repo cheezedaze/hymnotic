@@ -17,6 +17,8 @@ import {
   announcementDismissals,
   ads,
   bannerAds,
+  devicePushTokens,
+  pushNotifications,
   type NewCollection,
   type NewTrack,
   type NewLyric,
@@ -1229,4 +1231,72 @@ export async function updateBannerAd(
 
 export async function deleteBannerAd(id: number) {
   await db.delete(bannerAds).where(eq(bannerAds.id, id));
+}
+
+// =============================================================================
+// Device Push Token Queries
+// =============================================================================
+
+export async function upsertDeviceToken(data: {
+  token: string;
+  platform: string;
+  userId?: string | null;
+}) {
+  const result = await db
+    .insert(devicePushTokens)
+    .values({
+      token: data.token,
+      platform: data.platform,
+      userId: data.userId ?? null,
+      active: true,
+      lastSeenAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: devicePushTokens.token,
+      set: {
+        active: true,
+        lastSeenAt: new Date(),
+        userId: data.userId ?? null,
+        platform: data.platform,
+      },
+    })
+    .returning();
+  return result[0];
+}
+
+export async function getActivePushTokens() {
+  return db
+    .select({ token: devicePushTokens.token })
+    .from(devicePushTokens)
+    .where(eq(devicePushTokens.active, true));
+}
+
+export async function deactivatePushTokens(tokens: string[]) {
+  if (tokens.length === 0) return;
+  await db
+    .update(devicePushTokens)
+    .set({ active: false })
+    .where(inArray(devicePushTokens.token, tokens));
+}
+
+// =============================================================================
+// Push Notification History Queries
+// =============================================================================
+
+export async function logPushNotification(data: {
+  title: string;
+  body: string;
+  sentCount: number;
+  failedCount: number;
+}) {
+  const result = await db.insert(pushNotifications).values(data).returning();
+  return result[0];
+}
+
+export async function getPushHistory() {
+  return db
+    .select()
+    .from(pushNotifications)
+    .orderBy(desc(pushNotifications.createdAt))
+    .limit(50);
 }

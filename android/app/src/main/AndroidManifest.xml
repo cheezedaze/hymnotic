@@ -34,6 +34,10 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Required for FCM push notifications on Android 13+ (API 33).
+         The runtime prompt is triggered by requestPermissions() in the app. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <!-- Strip the AD_ID permission pulled in by Google Play Services
          (transitive dep of Google Sign-In). The app does not use the
          advertising ID; without this removal Play flags a mismatch with

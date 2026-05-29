@@ -442,6 +442,40 @@ export const bannerAds = pgTable(
 );
 
 // =============================================================================
+// Device Push Tokens (FCM — anonymous, broadcast targeting)
+// =============================================================================
+export const devicePushTokens = pgTable(
+  "device_push_tokens",
+  {
+    id: serial("id").primaryKey(),
+    userId: varchar("user_id", { length: 128 }).references(() => users.id, {
+      onDelete: "set null",
+    }), // nullable — tokens are anonymous
+    token: text("token").notNull(),
+    platform: varchar("platform", { length: 10 }).notNull(), // "ios" | "android" | "web"
+    active: boolean("active").default(true).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    lastSeenAt: timestamp("last_seen_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_device_push_tokens_token").on(table.token),
+    index("idx_device_push_tokens_active").on(table.active),
+  ]
+);
+
+// =============================================================================
+// Push Notification History (audit log of broadcasts)
+// =============================================================================
+export const pushNotifications = pgTable("push_notifications", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  sentCount: integer("sent_count").default(0).notNull(),
+  failedCount: integer("failed_count").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// =============================================================================
 // Type exports for use in API routes
 // =============================================================================
 export type Collection = typeof collections.$inferSelect;
@@ -474,3 +508,7 @@ export type BannerAd = typeof bannerAds.$inferSelect;
 export type NewBannerAd = typeof bannerAds.$inferInsert;
 export type OnboardingResponse = typeof onboardingResponses.$inferSelect;
 export type NewOnboardingResponse = typeof onboardingResponses.$inferInsert;
+export type DevicePushToken = typeof devicePushTokens.$inferSelect;
+export type NewDevicePushToken = typeof devicePushTokens.$inferInsert;
+export type PushNotification = typeof pushNotifications.$inferSelect;
+export type NewPushNotification = typeof pushNotifications.$inferInsert;

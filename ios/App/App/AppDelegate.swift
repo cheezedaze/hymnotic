@@ -1,5 +1,6 @@
 import UIKit
 import Capacitor
+import FirebaseCore
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -7,6 +8,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        // Initialize Firebase (powers FCM push notifications). The
+        // @capacitor-firebase/messaging plugin forwards the APNs token to
+        // Firebase via method swizzling (enabled by default).
+        FirebaseApp.configure()
         // Override point for customization after application launch.
         return true
     }
