@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 export function NewsletterToggle() {
   const [optedIn, setOptedIn] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [syncWarning, setSyncWarning] = useState(false);
 
   useEffect(() => {
     fetch("/api/user/newsletter")
@@ -19,6 +20,7 @@ export function NewsletterToggle() {
   const toggle = async () => {
     const newValue = !optedIn;
     setOptedIn(newValue);
+    setSyncWarning(false);
     try {
       const res = await fetch("/api/user/newsletter", {
         method: "PUT",
@@ -27,7 +29,12 @@ export function NewsletterToggle() {
       });
       if (!res.ok) {
         setOptedIn(!newValue);
+        return;
       }
+      const data = await res.json();
+      // Preference saved, but the Resend sync failed — surface it instead of
+      // silently dropping it (this was the cause of DB/Resend drift).
+      setSyncWarning(data.resendSynced === false);
     } catch {
       setOptedIn(!newValue);
     }
@@ -52,6 +59,12 @@ export function NewsletterToggle() {
         <p className="text-xs text-text-dim">
           Receive updates about new music and HYMNZ news
         </p>
+        {syncWarning && (
+          <p className="text-xs text-yellow-400 mt-1">
+            Saved, but we couldn&apos;t update our mailing list right now. We&apos;ll
+            sync it shortly.
+          </p>
+        )}
       </div>
       <button
         onClick={toggle}

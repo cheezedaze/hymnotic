@@ -1,4 +1,7 @@
 import { Resend } from "resend";
+import { db } from "@/lib/db";
+import { users } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 
 function getResend() {
   const apiKey = process.env.RESEND_API_KEY;
@@ -35,6 +38,40 @@ export async function addContactToNewsletter(
   }
 
   return data;
+}
+
+/**
+ * Reconcile every DB newsletter opt-in into the Resend segment. Idempotent:
+ * Resend's contacts.create is upsert-like (creating an existing contact returns
+ * success, not an error), so re-running is safe. Individual failures are
+ * collected rather than swallowed. Used by the admin "Sync to Resend" action to
+ * recover from any silently-failed contact creates.
+ */
+export async function syncAllNewsletterContacts() {
+  const resend = getResend();
+  const segmentId = getSegmentId();
+
+  const optedIn = await db
+    .select({ email: users.email, name: users.name })
+    .from(users)
+    .where(eq(users.newsletterOptIn, true));
+
+  let synced = 0;
+  const failed: { email: string; error: string }[] = [];
+
+  for (const u of optedIn) {
+    const { error } = await resend.contacts.create({
+      email: u.email,
+      firstName: u.name ?? undefined,
+      unsubscribed: false,
+      segments: [{ id: segmentId }],
+    } as unknown as Parameters<typeof resend.contacts.create>[0]);
+
+    if (error) failed.push({ email: u.email, error: JSON.stringify(error) });
+    else synced += 1;
+  }
+
+  return { total: optedIn.length, synced, failed };
 }
 
 export async function removeContactFromNewsletter(email: string) {

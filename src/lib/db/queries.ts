@@ -575,6 +575,73 @@ export async function getAllUsers() {
   return db.select().from(users).orderBy(desc(users.createdAt));
 }
 
+export type DevicePlatform = "ios" | "android" | "web";
+
+/**
+ * Active push-token platforms grouped per user.
+ * Returns a Map<userId, Set<platform>> for users that have ≥1 active token.
+ */
+export async function getActiveDeviceTokensByUser() {
+  const rows = await db
+    .select({
+      userId: devicePushTokens.userId,
+      platform: devicePushTokens.platform,
+    })
+    .from(devicePushTokens)
+    .where(
+      and(
+        eq(devicePushTokens.active, true),
+        isNotNull(devicePushTokens.userId)
+      )
+    );
+
+  const map = new Map<string, Set<DevicePlatform>>();
+  for (const row of rows) {
+    if (!row.userId) continue;
+    const set = map.get(row.userId) ?? new Set<DevicePlatform>();
+    set.add(row.platform as DevicePlatform);
+    map.set(row.userId, set);
+  }
+  return map;
+}
+
+/**
+ * All users enriched with their device platforms and push-enabled flag.
+ * Used by the admin Users page for analytics + per-user badges.
+ */
+export async function getUserDirectory() {
+  const [allUsers, tokensByUser] = await Promise.all([
+    getAllUsers(),
+    getActiveDeviceTokensByUser(),
+  ]);
+
+  return allUsers.map((u) => {
+    const platforms = Array.from(tokensByUser.get(u.id) ?? []);
+    return {
+      ...u,
+      platforms,
+      pushEnabled: platforms.length > 0,
+    };
+  });
+}
+
+/**
+ * Active push-token counts at the DEVICE level (matches what a broadcast sends).
+ * `anonymousDevices` = active tokens with no associated user (registered before
+ * login) — these explain why a broadcast's device count can exceed the number
+ * of push-enabled users.
+ */
+export async function getDeviceStats() {
+  const rows = await db
+    .select({ userId: devicePushTokens.userId })
+    .from(devicePushTokens)
+    .where(eq(devicePushTokens.active, true));
+  return {
+    totalDevices: rows.length,
+    anonymousDevices: rows.filter((r) => !r.userId).length,
+  };
+}
+
 export async function getUserById(id: string) {
   const result = await db
     .select()

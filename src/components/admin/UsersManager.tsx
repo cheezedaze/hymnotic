@@ -13,7 +13,17 @@ import {
   User,
   Crown,
   RefreshCw,
+  Users,
+  Bell,
+  Smartphone,
+  Globe,
+  CreditCard,
+  Gift,
+  DollarSign,
 } from "lucide-react";
+import { DonutChart, BarStat, type DonutSegment } from "./charts/Charts";
+
+type DevicePlatform = "ios" | "android" | "web";
 
 interface UserInfo {
   id: string;
@@ -23,7 +33,27 @@ interface UserInfo {
   isPremium: boolean;
   manualPremium: boolean;
   accountTier: string;
+  newsletterOptIn: boolean;
+  pushEnabled: boolean;
+  platforms: DevicePlatform[];
   createdAt: string;
+}
+
+interface UserStats {
+  total: number;
+  iosCount: number;
+  androidCount: number;
+  webOnlyCount: number;
+  newsletterCount: number;
+  pushCount: number;
+  premiumCount: number;
+  freeCount: number;
+  paidCount: number;
+  trialingCount: number;
+  pastDueCount: number;
+  compedCount: number;
+  totalDevices: number;
+  anonymousDevices: number;
 }
 
 interface InvitationInfo {
@@ -38,15 +68,46 @@ interface InvitationInfo {
 interface UsersManagerProps {
   users: UserInfo[];
   invitations: InvitationInfo[];
+  stats: UserStats;
 }
 
-export function UsersManager({ users, invitations }: UsersManagerProps) {
+function StatCard({
+  label,
+  icon: Icon,
+  value,
+  sub,
+  color = "text-accent",
+}: {
+  label: string;
+  icon: React.ElementType;
+  value: string;
+  sub?: string;
+  color?: string;
+}) {
+  return (
+    <div className="glass-heavy rounded-xl p-4">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-text-muted text-xs font-medium">{label}</span>
+        <Icon size={16} className={color} />
+      </div>
+      <p className="text-2xl font-bold text-text-primary">{value}</p>
+      {sub && <p className="text-xs text-text-muted mt-0.5">{sub}</p>}
+    </div>
+  );
+}
+
+const pct = (n: number, total: number) =>
+  total === 0 ? "0%" : `${Math.round((n / total) * 100)}%`;
+
+export function UsersManager({ users, invitations, stats }: UsersManagerProps) {
   const router = useRouter();
+  const [visible, setVisible] = useState(50);
   const [email, setEmail] = useState("");
   const [grantPremium, setGrantPremium] = useState(false);
   const [sending, setSending] = useState(false);
   const [togglingPremium, setTogglingPremium] = useState<string | null>(null);
   const [syncingStripe, setSyncingStripe] = useState(false);
+  const [syncingResend, setSyncingResend] = useState(false);
   const [message, setMessage] = useState<{
     type: "success" | "error";
     text: string;
@@ -77,6 +138,33 @@ export function UsersManager({ users, invitations }: UsersManagerProps) {
       setMessage({ type: "error", text: "Sync request failed" });
     } finally {
       setSyncingStripe(false);
+    }
+  };
+
+  const handleSyncResend = async () => {
+    setSyncingResend(true);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/admin/newsletter/sync", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        const failedCount = data.failed?.length ?? 0;
+        setMessage({
+          type: failedCount > 0 ? "error" : "success",
+          text: `Synced ${data.synced}/${data.total} opt-ins to Resend${
+            failedCount > 0 ? ` (${failedCount} failed)` : ""
+          }`,
+        });
+        if (failedCount > 0) {
+          console.warn("Newsletter sync failures:", data.failed);
+        }
+      } else {
+        setMessage({ type: "error", text: data.error || "Sync failed" });
+      }
+    } catch {
+      setMessage({ type: "error", text: "Sync request failed" });
+    } finally {
+      setSyncingResend(false);
     }
   };
 
@@ -147,6 +235,15 @@ export function UsersManager({ users, invitations }: UsersManagerProps) {
   );
   const usedInvitations = invitations.filter((i) => !!i.usedAt);
 
+  // All users split into mutually-exclusive subscription buckets (sums to total).
+  const subscriptionSegments: DonutSegment[] = [
+    { label: "Free", value: stats.freeCount, color: "rgba(255,255,255,0.22)" },
+    { label: "Paid", value: stats.paidCount, color: "var(--color-accent)" },
+    { label: "Comped", value: stats.compedCount, color: "var(--color-gold)" },
+    { label: "Trialing", value: stats.trialingCount, color: "#60a5fa" },
+    { label: "Past due", value: stats.pastDueCount, color: "#f87171" },
+  ].filter((s) => s.value > 0);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -159,19 +256,34 @@ export function UsersManager({ users, invitations }: UsersManagerProps) {
             Manage users and invitations
           </p>
         </div>
-        <button
-          onClick={handleSyncStripe}
-          disabled={syncingStripe}
-          className="px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-text-secondary rounded-xl text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          title="Reconcile users against active Stripe subscriptions"
-        >
-          {syncingStripe ? (
-            <Loader2 size={14} className="animate-spin" />
-          ) : (
-            <RefreshCw size={14} />
-          )}
-          Sync from Stripe
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleSyncResend}
+            disabled={syncingResend}
+            className="px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-text-secondary rounded-xl text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            title="Push all newsletter opt-ins into the Resend audience"
+          >
+            {syncingResend ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <Mail size={14} />
+            )}
+            Sync to Resend
+          </button>
+          <button
+            onClick={handleSyncStripe}
+            disabled={syncingStripe}
+            className="px-3 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-text-secondary rounded-xl text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            title="Reconcile users against active Stripe subscriptions"
+          >
+            {syncingStripe ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <RefreshCw size={14} />
+            )}
+            Sync from Stripe
+          </button>
+        </div>
       </div>
 
       {/* Invite form */}
@@ -230,6 +342,154 @@ export function UsersManager({ users, invitations }: UsersManagerProps) {
         )}
       </div>
 
+      {/* Subscriptions */}
+      <div className="glass-heavy rounded-xl p-4">
+        <h2 className="text-sm font-semibold text-text-primary mb-4 flex items-center gap-2">
+          <CreditCard size={16} className="text-accent" />
+          Subscriptions
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+          <DonutChart
+            segments={subscriptionSegments}
+            centerValue={stats.total.toLocaleString()}
+            centerLabel="users"
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <StatCard
+              label="Paid Subscribers"
+              icon={DollarSign}
+              value={stats.paidCount.toLocaleString()}
+              sub="active Stripe subs"
+              color="text-accent"
+            />
+            <StatCard
+              label="Comped"
+              icon={Gift}
+              value={stats.compedCount.toLocaleString()}
+              sub="manually granted"
+              color="text-gold"
+            />
+            <StatCard
+              label="Premium (total)"
+              icon={Crown}
+              value={stats.premiumCount.toLocaleString()}
+              sub={`${pct(stats.premiumCount, stats.total)} of users`}
+              color="text-gold"
+            />
+            <StatCard
+              label="Free"
+              icon={Users}
+              value={stats.freeCount.toLocaleString()}
+              sub={`${pct(stats.freeCount, stats.total)} of users`}
+              color="text-text-muted"
+            />
+            {stats.trialingCount > 0 && (
+              <StatCard
+                label="Trialing"
+                icon={Crown}
+                value={stats.trialingCount.toLocaleString()}
+                color="text-blue-400"
+              />
+            )}
+            {stats.pastDueCount > 0 && (
+              <StatCard
+                label="Past Due"
+                icon={Crown}
+                value={stats.pastDueCount.toLocaleString()}
+                color="text-red-400"
+              />
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Platforms & Devices */}
+      <div className="glass-heavy rounded-xl p-4">
+        <h2 className="text-sm font-semibold text-text-primary mb-4 flex items-center gap-2">
+          <Smartphone size={16} className="text-accent" />
+          Platforms &amp; Devices
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-3 self-center">
+            <BarStat
+              label="iPhone app"
+              value={stats.iosCount}
+              total={stats.total}
+              color="var(--color-accent)"
+            />
+            <BarStat
+              label="Android app"
+              value={stats.androidCount}
+              total={stats.total}
+              color="var(--color-gold)"
+            />
+            <BarStat
+              label="Web only"
+              value={stats.webOnlyCount}
+              total={stats.total}
+              color="rgba(255,255,255,0.35)"
+              sub="no native push registered"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3 content-center">
+            <StatCard
+              label="Total Users"
+              icon={Users}
+              value={stats.total.toLocaleString()}
+            />
+            <StatCard
+              label="Active Devices"
+              icon={Smartphone}
+              value={stats.totalDevices.toLocaleString()}
+              sub={
+                stats.anonymousDevices > 0
+                  ? `${stats.anonymousDevices} anonymous (no account)`
+                  : "all linked to a user"
+              }
+              color="text-text-secondary"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Engagement */}
+      <div className="glass-heavy rounded-xl p-4">
+        <h2 className="text-sm font-semibold text-text-primary mb-4 flex items-center gap-2">
+          <Bell size={16} className="text-accent" />
+          Engagement
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-3 self-center">
+            <BarStat
+              label="Newsletter opt-in"
+              value={stats.newsletterCount}
+              total={stats.total}
+              color="var(--color-accent)"
+            />
+            <BarStat
+              label="Push enabled"
+              value={stats.pushCount}
+              total={stats.total}
+              color="var(--color-gold)"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3 content-center">
+            <StatCard
+              label="Newsletter"
+              icon={Mail}
+              value={stats.newsletterCount.toLocaleString()}
+              sub={`${pct(stats.newsletterCount, stats.total)} opted in`}
+            />
+            <StatCard
+              label="Push Enabled"
+              icon={Bell}
+              value={stats.pushCount.toLocaleString()}
+              sub={`${pct(stats.pushCount, stats.total)} of users`}
+            />
+          </div>
+        </div>
+      </div>
+
       {/* Active users */}
       <div className="glass-heavy rounded-xl p-4">
         <h2 className="text-sm font-semibold text-text-primary mb-3">
@@ -241,7 +501,7 @@ export function UsersManager({ users, invitations }: UsersManagerProps) {
           </p>
         ) : (
           <div className="space-y-1">
-            {users.map((user) => (
+            {users.slice(0, visible).map((user) => (
               <div
                 key={user.id}
                 className="flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors"
@@ -262,6 +522,70 @@ export function UsersManager({ users, invitations }: UsersManagerProps) {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
+                    {user.platforms.includes("ios") && (
+                      <Smartphone
+                        size={13}
+                        className="text-accent"
+                        aria-label="iPhone app"
+                      >
+                        <title>iPhone app</title>
+                      </Smartphone>
+                    )}
+                    {user.platforms.includes("android") && (
+                      <Smartphone
+                        size={13}
+                        className="text-gold"
+                        aria-label="Android app"
+                      >
+                        <title>Android app</title>
+                      </Smartphone>
+                    )}
+                    {!user.platforms.includes("ios") &&
+                      !user.platforms.includes("android") && (
+                        <Globe
+                          size={13}
+                          className="text-text-dim"
+                          aria-label="Web only (no native push)"
+                        >
+                          <title>Web only (no native push)</title>
+                        </Globe>
+                      )}
+                    <Mail
+                      size={13}
+                      className={
+                        user.newsletterOptIn ? "text-accent" : "text-text-dim/40"
+                      }
+                      aria-label={
+                        user.newsletterOptIn
+                          ? "Newsletter subscriber"
+                          : "Not subscribed to newsletter"
+                      }
+                    >
+                      <title>
+                        {user.newsletterOptIn
+                          ? "Newsletter subscriber"
+                          : "Not subscribed to newsletter"}
+                      </title>
+                    </Mail>
+                    <Bell
+                      size={13}
+                      className={
+                        user.pushEnabled ? "text-accent" : "text-text-dim/40"
+                      }
+                      aria-label={
+                        user.pushEnabled
+                          ? "Push notifications enabled"
+                          : "Push notifications disabled"
+                      }
+                    >
+                      <title>
+                        {user.pushEnabled
+                          ? "Push notifications enabled"
+                          : "Push notifications disabled"}
+                      </title>
+                    </Bell>
+                  </div>
                   {user.role !== "ADMIN" && (
                     <button
                       onClick={() => handleTogglePremium(user.id, user.manualPremium)}
@@ -296,6 +620,16 @@ export function UsersManager({ users, invitations }: UsersManagerProps) {
                 </div>
               </div>
             ))}
+            {visible < users.length && (
+              <div className="pt-2 flex justify-center">
+                <button
+                  onClick={() => setVisible((v) => v + 50)}
+                  className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-text-secondary rounded-xl text-sm transition-colors"
+                >
+                  Load more ({users.length - visible} remaining)
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

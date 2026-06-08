@@ -41,7 +41,10 @@ export async function PUT(request: Request) {
     .set({ newsletterOptIn, updatedAt: new Date() })
     .where(eq(users.id, session.user.id));
 
-  // Sync with Resend Audience (non-blocking)
+  // Sync with Resend Audience. The DB flag is the source of truth, so we don't
+  // fail the request if Resend errors — but we DO report it so the failure is
+  // visible instead of silently dropped (admins can recover via Sync to Resend).
+  let resendSynced = true;
   try {
     if (newsletterOptIn) {
       await addContactToNewsletter(
@@ -52,8 +55,9 @@ export async function PUT(request: Request) {
       await removeContactFromNewsletter(session.user.email!);
     }
   } catch (err) {
+    resendSynced = false;
     console.error("Failed to sync newsletter preference with Resend:", err);
   }
 
-  return NextResponse.json({ newsletterOptIn });
+  return NextResponse.json({ newsletterOptIn, resendSynced });
 }
