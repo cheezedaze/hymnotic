@@ -13,6 +13,20 @@ import { upsertOAuthUser } from "./oauth-upsert";
 // months). Minting it at runtime from the structured key material means it is
 // refreshed on every deploy/cold start and can never silently expire. Falls
 // back to a pre-generated AUTH_APPLE_SECRET if the structured vars are absent.
+// Normalize a .p8 private key supplied via an env var: strip surrounding quotes
+// (a common copy/paste artifact) and convert literal "\n" escapes into real
+// newlines so jose can parse the PKCS#8 PEM.
+function normalizePrivateKey(raw: string): string {
+  let key = raw.trim();
+  if (
+    (key.startsWith('"') && key.endsWith('"')) ||
+    (key.startsWith("'") && key.endsWith("'"))
+  ) {
+    key = key.slice(1, -1);
+  }
+  return key.replace(/\\n/g, "\n");
+}
+
 async function appleClientSecret(): Promise<string | undefined> {
   const teamId = process.env.AUTH_APPLE_TEAM_ID;
   const keyId = process.env.AUTH_APPLE_KEY_ID;
@@ -23,15 +37,21 @@ async function appleClientSecret(): Promise<string | undefined> {
     return process.env.AUTH_APPLE_SECRET;
   }
 
-  const key = await importPKCS8(privateKey.replace(/\\n/g, "\n"), "ES256");
-  return new SignJWT({})
-    .setProtectedHeader({ alg: "ES256", kid: keyId })
-    .setIssuer(teamId)
-    .setIssuedAt()
-    .setExpirationTime("180d")
-    .setAudience("https://appleid.apple.com")
-    .setSubject(clientId)
-    .sign(key);
+  // Never let a malformed key crash the build/module load — fall back instead.
+  try {
+    const key = await importPKCS8(normalizePrivateKey(privateKey), "ES256");
+    return await new SignJWT({})
+      .setProtectedHeader({ alg: "ES256", kid: keyId })
+      .setIssuer(teamId)
+      .setIssuedAt()
+      .setExpirationTime("180d")
+      .setAudience("https://appleid.apple.com")
+      .setSubject(clientId)
+      .sign(key);
+  } catch (err) {
+    console.error("[auth] Failed to mint Apple client secret:", err);
+    return process.env.AUTH_APPLE_SECRET;
+  }
 }
 
 const APPLE_CLIENT_SECRET = await appleClientSecret();
