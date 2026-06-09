@@ -13,18 +13,26 @@ import { upsertOAuthUser } from "./oauth-upsert";
 // months). Minting it at runtime from the structured key material means it is
 // refreshed on every deploy/cold start and can never silently expire. Falls
 // back to a pre-generated AUTH_APPLE_SECRET if the structured vars are absent.
-// Normalize a .p8 private key supplied via an env var: strip surrounding quotes
-// (a common copy/paste artifact) and convert literal "\n" escapes into real
-// newlines so jose can parse the PKCS#8 PEM.
+// Normalize a .p8 private key supplied via an env var. Handles common
+// copy/paste artifacts: surrounding quotes, literal "\n"/"\r\n" escapes, and a
+// bare base64 body pasted without the PEM markers — so jose can parse the
+// PKCS#8 key.
 function normalizePrivateKey(raw: string): string {
   let key = raw.trim();
-  if (
+  while (
     (key.startsWith('"') && key.endsWith('"')) ||
     (key.startsWith("'") && key.endsWith("'"))
   ) {
-    key = key.slice(1, -1);
+    key = key.slice(1, -1).trim();
   }
-  return key.replace(/\\n/g, "\n");
+  key = key
+    .replace(/\\r\\n/g, "\n")
+    .replace(/\\n/g, "\n")
+    .replace(/\r\n/g, "\n");
+  if (!key.includes("-----BEGIN")) {
+    key = `-----BEGIN PRIVATE KEY-----\n${key}\n-----END PRIVATE KEY-----`;
+  }
+  return key;
 }
 
 async function appleClientSecret(): Promise<string | undefined> {
@@ -49,7 +57,17 @@ async function appleClientSecret(): Promise<string | undefined> {
       .setSubject(clientId)
       .sign(key);
   } catch (err) {
-    console.error("[auth] Failed to mint Apple client secret:", err);
+    // Safe diagnostics only — describe the shape of the value, never its bytes.
+    const trimmed = privateKey.trim();
+    console.error(
+      "[auth] Failed to mint Apple client secret:",
+      (err as Error).message,
+      `| diag: len=${privateKey.length}`,
+      `hasBeginMarker=${trimmed.includes("-----BEGIN")}`,
+      `literalNewline=${/\\n/.test(privateKey)}`,
+      `realNewline=${privateKey.includes("\n")}`,
+      `quoted=${trimmed.startsWith('"') || trimmed.startsWith("'")}`
+    );
     return process.env.AUTH_APPLE_SECRET;
   }
 }
