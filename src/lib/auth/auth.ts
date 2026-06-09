@@ -2,17 +2,45 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import Apple from "next-auth/providers/apple";
+import { SignJWT, importPKCS8 } from "jose";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { upsertOAuthUser } from "./oauth-upsert";
 
+// Apple requires the OAuth client secret to be a short-lived ES256 JWT (max 6
+// months). Minting it at runtime from the structured key material means it is
+// refreshed on every deploy/cold start and can never silently expire. Falls
+// back to a pre-generated AUTH_APPLE_SECRET if the structured vars are absent.
+async function appleClientSecret(): Promise<string | undefined> {
+  const teamId = process.env.AUTH_APPLE_TEAM_ID;
+  const keyId = process.env.AUTH_APPLE_KEY_ID;
+  const clientId = process.env.AUTH_APPLE_ID; // Services ID, e.g. com.hymnz.app.web
+  const privateKey = process.env.AUTH_APPLE_PRIVATE_KEY; // .p8 contents
+
+  if (!teamId || !keyId || !clientId || !privateKey) {
+    return process.env.AUTH_APPLE_SECRET;
+  }
+
+  const key = await importPKCS8(privateKey.replace(/\\n/g, "\n"), "ES256");
+  return new SignJWT({})
+    .setProtectedHeader({ alg: "ES256", kid: keyId })
+    .setIssuer(teamId)
+    .setIssuedAt()
+    .setExpirationTime("180d")
+    .setAudience("https://appleid.apple.com")
+    .setSubject(clientId)
+    .sign(key);
+}
+
+const APPLE_CLIENT_SECRET = await appleClientSecret();
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   providers: [
     Google({}),
-    Apple({}),
+    Apple({ clientId: process.env.AUTH_APPLE_ID, clientSecret: APPLE_CLIENT_SECRET }),
     Credentials({
       credentials: {
         email: { label: "Email", type: "email" },
