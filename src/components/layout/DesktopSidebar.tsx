@@ -62,7 +62,11 @@ export function DesktopSidebar() {
     { href: "/library", icon: Library, label: "Library" },
     user
       ? { href: "/profile", icon: User, label: "Profile" }
-      : { href: "/auth/signin", icon: User, label: "Sign-In" },
+      : {
+          href: `/auth/signin?next=${encodeURIComponent(pathname)}`,
+          icon: User,
+          label: "Sign-In",
+        },
   ];
 
   return (
@@ -232,7 +236,7 @@ export function DesktopSidebar() {
             </div>
           ) : (
             <Link
-              href="/auth/signin"
+              href={`/auth/signin?next=${encodeURIComponent(pathname)}`}
               className="flex items-center gap-3 px-4 py-2 text-sm text-text-muted hover:text-text-secondary transition-colors"
             >
               <User size={18} />

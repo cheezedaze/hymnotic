@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth/auth";
 import { getStripe } from "@/lib/stripe/config";
+import { syncUserFromSubscription } from "@/lib/stripe/sync";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
@@ -45,17 +46,33 @@ export async function POST(request: Request) {
       );
     }
 
-    // Update user to premium (same as webhook handler)
-    await db
-      .update(users)
-      .set({
-        isPremium: true,
-        accountTier: "paid",
-        subscriptionStatus: "active",
-        stripeCustomerId: checkoutSession.customer as string,
-        updatedAt: new Date(),
-      })
-      .where(eq(users.id, session.user.id));
+    // Provision premium. Prefer reconciling from the actual subscription so
+    // subscriptionStatus + subscriptionEndDate are accurate (same helper the
+    // webhook and admin "Sync from Stripe" use).
+    const subscriptionId =
+      typeof checkoutSession.subscription === "string"
+        ? checkoutSession.subscription
+        : checkoutSession.subscription?.id;
+
+    if (subscriptionId) {
+      const subscription =
+        await getStripe().subscriptions.retrieve(subscriptionId);
+      await syncUserFromSubscription(subscription, {
+        knownUserId: session.user.id,
+      });
+    } else {
+      // No subscription on the session — set the minimal premium flags directly.
+      await db
+        .update(users)
+        .set({
+          isPremium: true,
+          accountTier: "paid",
+          subscriptionStatus: "active",
+          stripeCustomerId: checkoutSession.customer as string,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, session.user.id));
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

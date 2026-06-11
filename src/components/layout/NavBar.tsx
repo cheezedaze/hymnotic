@@ -30,7 +30,11 @@ export function NavBar() {
     { href: "/library", icon: Library, label: "Library" },
     user
       ? { href: "/profile", icon: User, label: "Profile" }
-      : { href: "/auth/signin", icon: User, label: "Sign-In" },
+      : {
+          href: `/auth/signin?next=${encodeURIComponent(pathname)}`,
+          icon: User,
+          label: "Sign-In",
+        },
   ];
 
   return (

@@ -586,25 +586,33 @@ export function UsersManager({ users, invitations, stats }: UsersManagerProps) {
                       </title>
                     </Bell>
                   </div>
-                  {user.role !== "ADMIN" && (
-                    <button
-                      onClick={() => handleTogglePremium(user.id, user.manualPremium)}
-                      disabled={togglingPremium === user.id}
-                      className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full transition-colors ${
-                        user.manualPremium
-                          ? "bg-gold/20 text-gold hover:bg-gold/30"
-                          : "bg-white/5 text-text-dim hover:bg-white/10 hover:text-text-muted"
-                      }`}
-                      title={user.manualPremium ? "Revoke manual premium" : "Grant manual premium"}
-                    >
-                      {togglingPremium === user.id ? (
-                        <Loader2 size={10} className="animate-spin" />
-                      ) : (
-                        <Crown size={10} />
-                      )}
-                      {user.manualPremium ? "Premium" : "Free"}
-                    </button>
-                  )}
+                  {user.role !== "ADMIN" && (() => {
+                    const effectivePremium = user.isPremium || user.manualPremium;
+                    const title = user.manualPremium
+                      ? "Revoke manual premium"
+                      : user.isPremium
+                        ? "Premium via Stripe subscription — click to pin manual premium"
+                        : "Grant manual premium";
+                    return (
+                      <button
+                        onClick={() => handleTogglePremium(user.id, user.manualPremium)}
+                        disabled={togglingPremium === user.id}
+                        className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full transition-colors ${
+                          effectivePremium
+                            ? "bg-gold/20 text-gold hover:bg-gold/30"
+                            : "bg-white/5 text-text-dim hover:bg-white/10 hover:text-text-muted"
+                        }`}
+                        title={title}
+                      >
+                        {togglingPremium === user.id ? (
+                          <Loader2 size={10} className="animate-spin" />
+                        ) : (
+                          <Crown size={10} />
+                        )}
+                        {effectivePremium ? "Premium" : "Free"}
+                      </button>
+                    );
+                  })()}
                   <span
                     className={`text-xs px-2 py-0.5 rounded-full ${
                       user.role === "ADMIN"
