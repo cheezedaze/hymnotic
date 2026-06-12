@@ -257,6 +257,28 @@ export const passwordResetTokens = pgTable(
 );
 
 // =============================================================================
+// Auth Handoff Tokens (native app -> external Safari sign-in handoff)
+// =============================================================================
+export const authHandoffTokens = pgTable(
+  "auth_handoff_tokens",
+  {
+    id: serial("id").primaryKey(),
+    userId: varchar("user_id", { length: 128 })
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: varchar("token_hash", { length: 64 }).notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    usedAt: timestamp("used_at"),
+    requestedIp: varchar("requested_ip", { length: 64 }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_auth_handoff_token_hash").on(table.tokenHash),
+    index("idx_auth_handoff_user").on(table.userId),
+  ]
+);
+
+// =============================================================================
 // Per-User Play Tracking
 // =============================================================================
 export const userTrackPlays = pgTable(

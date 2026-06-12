@@ -5,7 +5,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Check, Loader2, Crown, ExternalLink, Music } from "lucide-react";
-import { isNativeApp, openExternalLinkAccount } from "@/lib/utils/platform";
+import {
+  isNativeApp,
+  openExternalLinkAccountWithHandoff,
+} from "@/lib/utils/platform";
 
 export default function SubscribePage() {
   return (
@@ -125,7 +128,7 @@ function SubscribePageInner() {
           </div>
 
           <button
-            onClick={() => openExternalLinkAccount("https://www.hymnz.com/subscribe")}
+            onClick={() => openExternalLinkAccountWithHandoff("/subscribe")}
             className="w-full py-3.5 bg-accent-50 hover:bg-accent/60 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 glow-accent"
           >
             <ExternalLink size={16} />

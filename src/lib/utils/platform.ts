@@ -76,3 +76,44 @@ export async function openExternalLinkAccount(
   // Android, web, or plugin not available — open in external browser
   openExternalBrowser(fallbackUrl);
 }
+
+/**
+ * Open the external subscribe flow in Safari while carrying the native user's
+ * sign-in over via a one-time handoff token, so they land already
+ * authenticated (no second login). Mints the token from the authenticated
+ * WebView, then opens the exchange endpoint via {@link openExternalLinkAccount}
+ * (keeping Apple's reader disclosure). Falls back to the plain page on any
+ * failure so behavior never regresses.
+ */
+export async function openExternalLinkAccountWithHandoff(
+  next = "/subscribe"
+): Promise<void> {
+  const base = "https://www.hymnz.com";
+  const plainUrl = `${base}${next}`;
+
+  if (!isNativeApp()) {
+    window.location.href = plainUrl;
+    return;
+  }
+
+  try {
+    const res = await fetch("/api/auth/handoff/create", {
+      method: "POST",
+      credentials: "include",
+    });
+    if (res.ok) {
+      const { token } = await res.json();
+      if (token) {
+        const exchangeUrl = `${base}/api/auth/handoff/exchange?token=${encodeURIComponent(
+          token
+        )}&next=${encodeURIComponent(next)}`;
+        await openExternalLinkAccount(exchangeUrl);
+        return;
+      }
+    }
+  } catch {
+    // fall through to the plain (re-login) flow
+  }
+
+  await openExternalLinkAccount(plainUrl);
+}
