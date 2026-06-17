@@ -132,7 +132,7 @@ function SubscribePageInner() {
             className="w-full py-3.5 bg-accent-50 hover:bg-accent/60 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 glow-accent"
           >
             <ExternalLink size={16} />
-            Learn More on hymnz.com
+            Continue to subscribe
           </button>
           <p className="text-text-dim text-xs mt-3">
             Your subscription will sync automatically to this app.
@@ -322,13 +322,11 @@ function SubscribePageInner() {
 
         {/* Auto-renewal disclosure and legal links */}
         <p className="text-text-dim text-xs text-center mt-6 leading-relaxed max-w-md mx-auto">
-          Payment will be charged to your Apple ID account at confirmation of
-          purchase. Subscriptions automatically renew unless auto-renew is
-          turned off at least 24 hours before the end of the current period.
-          Your account will be charged for renewal within 24 hours prior to the
-          end of the current period. You can manage and cancel your
-          subscriptions by going to your account settings on the App Store
-          after purchase.{" "}
+          Payment is processed securely by Stripe and charged to your payment
+          method at confirmation of purchase. Your subscription renews
+          automatically — $3.99/month after your first month, or $38.30/year —
+          unless you cancel before the end of the current period. You can cancel
+          anytime.{" "}
           <Link href="/terms" className="text-text-muted hover:text-accent underline">
             Terms of Service
           </Link>
