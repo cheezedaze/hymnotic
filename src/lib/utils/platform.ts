@@ -41,10 +41,12 @@ export function isAndroid(): boolean {
  * Open a URL in the system browser (Safari on iOS, Chrome on Android).
  * On web, navigates in the current tab.
  */
-export function openExternalBrowser(url: string): void {
+export async function openExternalBrowser(url: string): Promise<void> {
   if (isNativeApp()) {
-    // Open in system browser, not in-app webview
-    window.open(url, "_system");
+    // Capacitor's Browser plugin opens a Custom Tab (Android) / SFSafariView
+    // (iOS) — the Cordova-only `window.open(url, "_system")` is a no-op here.
+    const { Browser } = await import("@capacitor/browser");
+    await Browser.open({ url });
   } else {
     window.open(url, "_blank");
   }
@@ -74,7 +76,7 @@ export async function openExternalLinkAccount(
   }
 
   // Android, web, or plugin not available — open in external browser
-  openExternalBrowser(fallbackUrl);
+  await openExternalBrowser(fallbackUrl);
 }
 
 /**

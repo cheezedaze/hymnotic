@@ -23,7 +23,7 @@ export function PersistentCTA() {
     // On desktop, the DesktopVisitorBanner handles this — only show on mobile
     const handleCreateAccount = () => {
       minimizeNowPlaying();
-      router.push("/subscribe");
+      router.push("/auth/register");
     };
 
     return (

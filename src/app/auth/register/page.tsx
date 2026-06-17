@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { User, Mail, Lock, CheckCircle, Loader2 } from "lucide-react";
 import { getSafeNextPath } from "@/lib/utils/safe-redirect";
+import { nativeSignIn } from "@/lib/auth/native-signin";
 
 function AppleIcon() {
   return (
@@ -121,8 +122,24 @@ function RegisterPageInner() {
           <button
             type="button"
             disabled={appleLoading}
-            onClick={() => {
+            onClick={async () => {
               setAppleLoading(true);
+              setError("");
+              const { Capacitor } = await import("@capacitor/core");
+              if (Capacitor.isNativePlatform()) {
+                try {
+                  const r = await nativeSignIn("apple");
+                  if (r.ok) {
+                    window.location.href = next;
+                    return;
+                  }
+                } catch {
+                  // fall through to the error message below
+                }
+                setError("Apple sign-up failed. Please try again.");
+                setAppleLoading(false);
+                return;
+              }
               signIn("apple", { callbackUrl: next });
             }}
             className="w-full py-3 bg-white hover:bg-white/90 text-black font-medium rounded-xl transition-colors flex items-center justify-center gap-3 disabled:opacity-50"
@@ -137,8 +154,24 @@ function RegisterPageInner() {
           <button
             type="button"
             disabled={googleLoading}
-            onClick={() => {
+            onClick={async () => {
               setGoogleLoading(true);
+              setError("");
+              const { Capacitor } = await import("@capacitor/core");
+              if (Capacitor.isNativePlatform()) {
+                try {
+                  const r = await nativeSignIn("google");
+                  if (r.ok) {
+                    window.location.href = next;
+                    return;
+                  }
+                } catch {
+                  // fall through to the error message below
+                }
+                setError("Google sign-up failed. Please try again.");
+                setGoogleLoading(false);
+                return;
+              }
               signIn("google", { callbackUrl: next });
             }}
             className="w-full py-3 bg-white/10 hover:bg-white/15 border border-white/15 text-text-primary font-medium rounded-xl transition-colors flex items-center justify-center gap-3 disabled:opacity-50"
@@ -182,7 +215,6 @@ function RegisterPageInner() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Your first name"
-                autoFocus
                 autoComplete="given-name"
                 className="w-full pl-10 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-text-primary placeholder:text-text-dim focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 transition-colors"
               />

@@ -7,55 +7,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Mail, Lock, Loader2 } from "lucide-react";
 import { getSafeNextPath } from "@/lib/utils/safe-redirect";
-
-/**
- * Native platforms (Capacitor WebView) cannot complete Google's OAuth in-app:
- * Google detects the embedded user agent and bumps the flow to the system
- * browser, which doesn't share cookies with the WebView. So on native we use
- * the Google/Apple SDK to obtain an ID token, then exchange it server-side
- * via /api/auth/mobile/{provider} for a NextAuth-compatible session cookie.
- */
-async function nativeSignIn(provider: "google" | "apple"): Promise<{ ok: boolean; error?: string }> {
-  const { Capacitor } = await import("@capacitor/core");
-  if (!Capacitor.isNativePlatform()) return { ok: false, error: "not_native" };
-
-  const { SocialLogin } = await import("@capgo/capacitor-social-login");
-
-  if (provider === "google") {
-    const res = await SocialLogin.login({
-      provider: "google",
-      options: { scopes: ["email", "profile"] },
-    });
-    const idToken =
-      res.result && "idToken" in res.result ? (res.result.idToken as string | null) : null;
-    if (!idToken) return { ok: false, error: "no_id_token" };
-    const r = await fetch("/api/auth/mobile/google", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idToken }),
-      credentials: "include",
-    });
-    return r.ok ? { ok: true } : { ok: false, error: `server_${r.status}` };
-  }
-
-  const res = await SocialLogin.login({
-    provider: "apple",
-    options: { scopes: ["name", "email"] },
-  });
-  const idToken = res.result?.idToken ?? null;
-  if (!idToken) return { ok: false, error: "no_id_token" };
-  const profile = res.result?.profile;
-  const fullName = profile
-    ? [profile.givenName, profile.familyName].filter(Boolean).join(" ").trim() || null
-    : null;
-  const r = await fetch("/api/auth/mobile/apple", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ idToken, name: fullName }),
-    credentials: "include",
-  });
-  return r.ok ? { ok: true } : { ok: false, error: `server_${r.status}` };
-}
+import { nativeSignIn } from "@/lib/auth/native-signin";
 
 function AppleIcon() {
   return (
@@ -156,13 +108,17 @@ function SignInPageInner() {
               setError("");
               const { Capacitor } = await import("@capacitor/core");
               if (Capacitor.isNativePlatform()) {
-                const r = await nativeSignIn("apple");
-                if (r.ok) {
-                  window.location.href = next;
-                } else {
-                  setError("Apple sign-in failed. Please try again.");
-                  setAppleLoading(false);
+                try {
+                  const r = await nativeSignIn("apple");
+                  if (r.ok) {
+                    window.location.href = next;
+                    return;
+                  }
+                } catch {
+                  // fall through to the error message below
                 }
+                setError("Apple sign-in failed. Please try again.");
+                setAppleLoading(false);
                 return;
               }
               signIn("apple", { callbackUrl: next });
@@ -184,13 +140,17 @@ function SignInPageInner() {
               setError("");
               const { Capacitor } = await import("@capacitor/core");
               if (Capacitor.isNativePlatform()) {
-                const r = await nativeSignIn("google");
-                if (r.ok) {
-                  window.location.href = next;
-                } else {
-                  setError("Google sign-in failed. Please try again.");
-                  setGoogleLoading(false);
+                try {
+                  const r = await nativeSignIn("google");
+                  if (r.ok) {
+                    window.location.href = next;
+                    return;
+                  }
+                } catch {
+                  // fall through to the error message below
                 }
+                setError("Google sign-in failed. Please try again.");
+                setGoogleLoading(false);
                 return;
               }
               signIn("google", { callbackUrl: next });
