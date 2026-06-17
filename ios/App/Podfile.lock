@@ -12,6 +12,8 @@ PODS:
     - PromisesObjC (~> 2.4)
   - Capacitor (8.1.0):
     - CapacitorCordova
+  - CapacitorBrowser (8.0.3):
+    - Capacitor
   - CapacitorCordova (8.1.0)
   - CapacitorFirebaseMessaging (8.2.0):
     - Capacitor
@@ -95,6 +97,7 @@ PODS:
 
 DEPENDENCIES:
   - "Capacitor (from `../../node_modules/@capacitor/ios`)"
+  - "CapacitorBrowser (from `../../node_modules/@capacitor/browser`)"
   - "CapacitorCordova (from `../../node_modules/@capacitor/ios`)"
   - "CapacitorFirebaseMessaging (from `../../node_modules/@capacitor-firebase/messaging`)"
   - "CapgoCapacitorSocialLogin (from `../../node_modules/@capgo/capacitor-social-login`)"
@@ -123,6 +126,8 @@ SPEC REPOS:
 EXTERNAL SOURCES:
   Capacitor:
     :path: "../../node_modules/@capacitor/ios"
+  CapacitorBrowser:
+    :path: "../../node_modules/@capacitor/browser"
   CapacitorCordova:
     :path: "../../node_modules/@capacitor/ios"
   CapacitorFirebaseMessaging:
@@ -135,6 +140,7 @@ SPEC CHECKSUMS:
   AppAuth: 1c1a8afa7e12f2ec3a294d9882dfa5ab7d3cb063
   AppCheckCore: cc8fd0a3a230ddd401f326489c99990b013f0c4f
   Capacitor: 47b825120c6b8b6d6f9f053e9350a8960d436710
+  CapacitorBrowser: c987c73d09d8bd3b5ec13f06338b1e14d5d2be69
   CapacitorCordova: e8b76fd95fc1e157775abc484c59cc0de464095d
   CapacitorFirebaseMessaging: 09f9402613a755af4ef37c6ce2fd7b4c02250246
   CapgoCapacitorSocialLogin: 3b51f02c83896f727635c2cd32dbea857ab7b0c1
@@ -154,6 +160,6 @@ SPEC CHECKSUMS:
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
 
-PODFILE CHECKSUM: 854516d77cdf1ba9bc4884e6afde9b8ed001780a
+PODFILE CHECKSUM: 3802c7d8998261ae27a3449d7b9dd69b023cbbd9
 
 COCOAPODS: 1.16.2
