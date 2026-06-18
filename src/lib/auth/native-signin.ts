@@ -42,7 +42,12 @@ export async function nativeSignIn(
     const res = await withTimeout(
       SocialLogin.login({
         provider: "google",
-        options: { scopes: ["email", "profile"] },
+        // Don't pass a custom `scopes` array: the plugin already requests
+        // email/profile/openid by default, and supplying scopes triggers the
+        // Google authorization flow, which requires a native MainActivity
+        // subclass we don't use ("CANNOT use scopes without modifying the main
+        // activity"). The returned ID token still carries email + name.
+        options: {},
       }),
       NATIVE_LOGIN_TIMEOUT_MS
     );
