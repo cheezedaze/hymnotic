@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
@@ -8,6 +8,7 @@ import { useSearchParams } from "next/navigation";
 import { Mail, Lock, Loader2 } from "lucide-react";
 import { getSafeNextPath } from "@/lib/utils/safe-redirect";
 import { nativeSignIn } from "@/lib/auth/native-signin";
+import { isAndroid } from "@/lib/utils/platform";
 
 function AppleIcon() {
   return (
@@ -46,6 +47,11 @@ function SignInPageInner() {
   const [loading, setLoading] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  // Apple sign-in is iOS/web only (not initialized on Android); hide it there.
+  const [hideAppleButton, setHideAppleButton] = useState(false);
+  useEffect(() => {
+    setHideAppleButton(isAndroid());
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,6 +106,7 @@ function SignInPageInner() {
 
         {/* Social sign-in */}
         <div className="glass-heavy rounded-2xl p-6 mb-3 space-y-3">
+          {!hideAppleButton && (
           <button
             type="button"
             disabled={appleLoading}
@@ -132,6 +139,7 @@ function SignInPageInner() {
             )}
             Continue with Apple
           </button>
+          )}
           <button
             type="button"
             disabled={googleLoading}
