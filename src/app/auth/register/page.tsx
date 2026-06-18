@@ -165,10 +165,14 @@ function RegisterPageInner() {
                     window.location.href = next;
                     return;
                   }
-                } catch {
-                  // fall through to the error message below
+                  // TEMP DIAGNOSTIC: surface the real reason on screen
+                  setError(`Google sign-up failed: ${r.error ?? "unknown"}`);
+                } catch (e) {
+                  // TEMP DIAGNOSTIC: surface the thrown native error on screen
+                  setError(
+                    `Google sign-up error: ${e instanceof Error ? e.message : String(e)}`
+                  );
                 }
-                setError("Google sign-up failed. Please try again.");
                 setGoogleLoading(false);
                 return;
               }
