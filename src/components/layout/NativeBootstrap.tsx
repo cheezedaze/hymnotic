@@ -20,16 +20,21 @@ export function NativeBootstrap() {
       const { SocialLogin } = await import("@capgo/capacitor-social-login");
       if (cancelled) return;
 
-      await SocialLogin.initialize({
-        google: {
-          // Web client ID — used as the ID-token audience on Android and Web.
-          // Same value as AUTH_GOOGLE_ID on the server.
-          webClientId: process.env.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-          // iOS client ID — used as the ID-token audience on iOS only.
-          iOSClientId: process.env.NEXT_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-        },
-        apple: {},
-      });
+      const google = {
+        // Web client ID — used as the ID-token audience on Android and Web.
+        // Same value as AUTH_GOOGLE_ID on the server.
+        webClientId: process.env.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+        // iOS client ID — used as the ID-token audience on iOS only.
+        iOSClientId: process.env.NEXT_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+      };
+      // Apple is initialized only on iOS (native Sign in with Apple needs no
+      // config). On Android the plugin REQUIRES apple.redirectUrl + clientId
+      // and otherwise rejects the WHOLE initialize() call before Google is
+      // registered — which broke native "Continue with Google" with
+      // "provider 'google' was not initialized". So only send Apple on iOS.
+      await SocialLogin.initialize(
+        Capacitor.getPlatform() === "ios" ? { google, apple: {} } : { google }
+      );
       if (cancelled) return;
 
       const { registerPushNotifications } = await import(
