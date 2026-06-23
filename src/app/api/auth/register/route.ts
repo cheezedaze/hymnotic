@@ -3,11 +3,26 @@ import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { addContactToNewsletter } from "@/lib/email/newsletter";
+import { createNewsletterConfirmToken } from "@/lib/email/newsletter-confirm";
+import { sendNewsletterConfirmEmail } from "@/lib/email/resend";
+import { verifyTurnstileToken } from "@/lib/security/turnstile";
+import { isRateLimited } from "@/lib/security/rate-limit";
+
+const HONEYPOT_FIELD = "company";
 
 export async function POST(request: Request) {
   try {
-    const { name, email, password, newsletterOptIn } = await request.json();
+    const body = await request.json();
+    const { name, email, password, newsletterOptIn, turnstileToken } = body;
+    const honeypot = body[HONEYPOT_FIELD];
+
+    // 1. Honeypot — real users never fill this hidden field. Generic error.
+    if (typeof honeypot === "string" && honeypot.trim() !== "") {
+      return NextResponse.json(
+        { error: "Failed to create account" },
+        { status: 400 }
+      );
+    }
 
     if (!email || !password) {
       return NextResponse.json(
@@ -15,7 +30,6 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-
     if (password.length < 8) {
       return NextResponse.json(
         { error: "Password must be at least 8 characters" },
@@ -23,9 +37,33 @@ export async function POST(request: Request) {
       );
     }
 
+    const ip =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      request.headers.get("x-real-ip") ||
+      "unknown";
+
+    // 2. Best-effort rate limit by IP.
+    if (isRateLimited(`register:${ip}`)) {
+      return NextResponse.json(
+        { error: "Too many attempts. Please try again later." },
+        { status: 429 }
+      );
+    }
+
+    // 3. Turnstile (enforced when configured; fails open when unconfigured).
+    const turnstileOk = await verifyTurnstileToken(
+      typeof turnstileToken === "string" ? turnstileToken : "",
+      ip
+    );
+    if (!turnstileOk) {
+      return NextResponse.json(
+        { error: "Verification failed. Please try again." },
+        { status: 400 }
+      );
+    }
+
     const normalizedEmail = email.toLowerCase().trim();
 
-    // Check if user already exists
     const existingUser = await db
       .select()
       .from(users)
@@ -39,10 +77,10 @@ export async function POST(request: Request) {
       );
     }
 
-    // Create user with free tier
     const passwordHash = await bcrypt.hash(password, 12);
     const userId = crypto.randomUUID();
 
+    // newsletterOptIn stays false until the user confirms (double opt-in).
     await db.insert(users).values({
       id: userId,
       email: normalizedEmail,
@@ -51,15 +89,23 @@ export async function POST(request: Request) {
       role: "USER",
       accountTier: "free",
       isPremium: false,
-      newsletterOptIn: newsletterOptIn === true,
+      newsletterOptIn: false,
     });
 
-    // Sync with Resend Audience (non-blocking)
+    // 4. Double opt-in: send a confirm email instead of adding to Resend now.
     if (newsletterOptIn === true) {
       try {
-        await addContactToNewsletter(normalizedEmail, name?.trim() || undefined);
+        const token = await createNewsletterConfirmToken(userId);
+        const appUrl =
+          process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3333";
+        const confirmUrl = `${appUrl}/auth/confirm-newsletter?token=${token}`;
+        await sendNewsletterConfirmEmail(
+          normalizedEmail,
+          confirmUrl,
+          name?.trim() || undefined
+        );
       } catch (err) {
-        console.error("Failed to add contact to newsletter audience:", err);
+        console.error("Failed to send newsletter confirmation email:", err);
       }
     }
 
