@@ -2,6 +2,9 @@
  * Purge confirmed bot signups from Resend + the DB.
  * DRY-RUN by default — prints what it WOULD delete and exits.
  * Pass --confirm to actually delete.
+ * Idempotent: deleted users drop out of the query and already-removed Resend
+ * contacts are skipped, so re-running --confirm after a partial failure is the
+ * intended recovery path.
  *
  * Run (dry-run):
  *   DOTENV_CONFIG_PATH=.env.local NODE_OPTIONS='-r dotenv/config' npx tsx scripts/cleanup-bot-signups.ts
@@ -31,6 +34,7 @@ type Row = {
   favorites: number;
   onboarding_rows: number;
   dismissals: number;
+  invitations: number;
 };
 
 const CONFIRM = process.argv.includes("--confirm");
@@ -49,7 +53,8 @@ async function main() {
       (select count(*)::int from play_events e where e.user_id = u.id) as play_events,
       (select count(*)::int from user_favorites f where f.user_id = u.id) as favorites,
       (select count(*)::int from onboarding_responses o where o.user_id = u.id) as onboarding_rows,
-      (select count(*)::int from announcement_dismissals d where d.user_id = u.id) as dismissals
+      (select count(*)::int from announcement_dismissals d where d.user_id = u.id) as dismissals,
+      (select count(*)::int from invitations i where i.invited_by_id = u.id) as invitations
     from users u
     order by u.created_at asc
   `;
@@ -67,7 +72,8 @@ async function main() {
     r.play_events > 0 ||
     r.favorites > 0 ||
     r.onboarding_rows > 0 ||
-    r.dismissals > 0;
+    r.dismissals > 0 ||
+    r.invitations > 0;
 
   const canonMap = new Map<string, number>();
   for (const r of rows) {
@@ -102,6 +108,7 @@ async function main() {
   }
 
   let resendRemoved = 0;
+  let resendFailed = 0;
   let dbDeleted = 0;
   for (const t of targets) {
     try {
@@ -115,14 +122,24 @@ async function main() {
         resendRemoved += 1;
       }
     } catch (e) {
+      resendFailed += 1;
       console.warn(`  Resend remove failed for ${t.email}:`, (e as Error).message);
     }
 
-    await sql`delete from users where id = ${t.id}`;
-    dbDeleted += 1;
+    // Delete is guarded so one failure (e.g. an unexpected FK reference) logs
+    // and the run continues rather than aborting mid-purge. The script is
+    // idempotent — re-run to finish after any partial failure.
+    try {
+      await sql`delete from users where id = ${t.id}`;
+      dbDeleted += 1;
+    } catch (e) {
+      console.warn(`  DB delete failed for ${t.email}:`, (e as Error).message);
+    }
   }
 
-  console.log(`\nDeleted ${dbDeleted} users; removed ${resendRemoved} Resend contacts.\n`);
+  console.log(
+    `\nDeleted ${dbDeleted} users; removed ${resendRemoved} Resend contacts; ${resendFailed} Resend removals failed.\n`
+  );
   await sql.end();
 }
 
