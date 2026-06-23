@@ -22,6 +22,11 @@ describe("looksGibberish", () => {
       "JohnDoe",
       "Jean-Luc",
       "Sarah O'Brien",
+      "Krzysztof",
+      "Schwartz",
+      "Przybylski",
+      "Strzelczyk",
+      "Nguyen",
       null,
       "",
     ]) {
