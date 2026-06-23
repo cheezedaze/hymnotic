@@ -39,10 +39,13 @@ export async function createNewsletterConfirmToken(
 export type ConfirmResult = "confirmed" | "invalid" | "expired" | "already";
 
 /**
- * Validate a raw confirm token and, on success, add the user to the Resend
- * audience and mark them a confirmed subscriber. Resend add happens BEFORE the
- * token is marked used, so a Resend failure (which throws) leaves the token
- * reusable for a retry.
+ * Validate a raw confirm token and, on success, subscribe the user.
+ *
+ * Ordering is deliberate: the Resend add (an idempotent upsert) happens BEFORE
+ * the token is claimed, so a Resend failure — which throws — leaves the token
+ * unused and retryable. The "claim" is an atomic conditional update; a
+ * concurrent double-submit (e.g. a double-clicked button) loses the claim and
+ * gets "already" rather than a second "confirmed".
  */
 export async function confirmNewsletterToken(
   rawToken: string
@@ -68,17 +71,28 @@ export async function confirmNewsletterToken(
   const user = userRows[0];
   if (!user) return "invalid";
 
+  // Idempotent upsert; safe to repeat, so doing it before the claim preserves
+  // retry-on-failure (a throw here leaves the token unclaimed).
   await addContactToNewsletter(user.email, user.name ?? undefined);
+
+  // Atomic claim: only the request that flips usedAt from null wins.
+  const claimed = await db
+    .update(newsletterConfirmTokens)
+    .set({ usedAt: new Date() })
+    .where(
+      and(
+        eq(newsletterConfirmTokens.id, row.id),
+        isNull(newsletterConfirmTokens.usedAt)
+      )
+    )
+    .returning({ id: newsletterConfirmTokens.id });
+
+  if (claimed.length === 0) return "already";
 
   await db
     .update(users)
     .set({ newsletterOptIn: true, updatedAt: new Date() })
     .where(eq(users.id, user.id));
-
-  await db
-    .update(newsletterConfirmTokens)
-    .set({ usedAt: new Date() })
-    .where(eq(newsletterConfirmTokens.id, row.id));
 
   return "confirmed";
 }
