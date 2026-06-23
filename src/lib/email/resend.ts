@@ -67,3 +67,35 @@ export async function sendPasswordResetEmail(email: string, resetUrl: string) {
     `,
   });
 }
+
+export async function sendNewsletterConfirmEmail(
+  email: string,
+  confirmUrl: string,
+  firstName?: string
+) {
+  const fromEmail = process.env.EMAIL_FROM || "HYMNZ <onboarding@resend.dev>";
+
+  const resend = getResend();
+  await resend.emails.send({
+    from: fromEmail,
+    to: email,
+    subject: "Confirm your HYMNZ subscription",
+    html: `
+      <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 40px 20px; color: #e0e0e0; background-color: #141A24;">
+        <div style="text-align: center; margin-bottom: 32px;">
+          <h1 style="font-family: 'Playfair Display', Georgia, serif; font-size: 28px; color: #00FFFB; margin: 0;">HYMNZ</h1>
+        </div>
+        <h2 style="font-size: 20px; color: #ffffff; margin-bottom: 16px;">Confirm Your Subscription</h2>
+        <p style="font-size: 15px; line-height: 1.6; color: #b0b0b0;">
+          ${firstName ? `Hi ${firstName}, ` : ""}please confirm you'd like to receive updates about new music, collections, and HYMNZ news. Click the button below to subscribe.
+        </p>
+        <div style="text-align: center; margin: 32px 0;">
+          <a href="${confirmUrl}" style="display: inline-block; padding: 14px 32px; background-color: #00FFFB; color: #141A24; font-weight: 600; font-size: 15px; text-decoration: none; border-radius: 8px;">
+            Confirm Subscription
+          </a>
+        </div>
+        <p style="font-size: 13px; color: #888;">This link expires in 7 days. If you didn&rsquo;t sign up for HYMNZ, you can safely ignore this email &mdash; you won&rsquo;t be subscribed.</p>
+      </div>
+    `,
+  });
+}
