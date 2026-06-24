@@ -68,3 +68,6 @@ android/keystore.properties
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Bot-signup audit output (contains third-party PII — never commit)
+scripts/bot-signup-candidates.csv

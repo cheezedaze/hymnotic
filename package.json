@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "test": "vitest run",
     "dev": "rm -f .next/dev/lock && next dev --port 3333",
     "build": "next build",
     "start": "next start",
@@ -68,6 +69,7 @@
     "eslint-config-next": "16.1.6",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.6"
   }
 }

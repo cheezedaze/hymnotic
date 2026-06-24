@@ -9,6 +9,7 @@ import { User, Mail, Lock, CheckCircle, Loader2 } from "lucide-react";
 import { getSafeNextPath } from "@/lib/utils/safe-redirect";
 import { nativeSignIn } from "@/lib/auth/native-signin";
 import { isAndroid } from "@/lib/utils/platform";
+import { TurnstileWidget } from "@/components/auth/TurnstileWidget";
 
 function AppleIcon() {
   return (
@@ -45,6 +46,9 @@ function RegisterPageInner() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [newsletterOptIn, setNewsletterOptIn] = useState(false);
+  const [company, setCompany] = useState(""); // honeypot — must stay empty
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
@@ -69,13 +73,25 @@ function RegisterPageInner() {
       return;
     }
 
+    if (turnstileSiteKey && !turnstileToken) {
+      setError("Please complete the verification below.");
+      return;
+    }
+
     setLoading(true);
 
     try {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password, newsletterOptIn }),
+        body: JSON.stringify({
+          name,
+          email,
+          password,
+          newsletterOptIn,
+          company,
+          turnstileToken,
+        }),
       });
 
       if (!res.ok) {
@@ -204,6 +220,23 @@ function RegisterPageInner() {
           onSubmit={handleSubmit}
           className="glass-heavy rounded-2xl p-6 space-y-4"
         >
+          {/* Honeypot — real users never see or fill this */}
+          <input
+            type="text"
+            name="company"
+            value={company}
+            onChange={(e) => setCompany(e.target.value)}
+            tabIndex={-1}
+            autoComplete="off"
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              left: "-9999px",
+              width: "1px",
+              height: "1px",
+              opacity: 0,
+            }}
+          />
           {/* Name */}
           <div>
             <label
@@ -323,6 +356,13 @@ function RegisterPageInner() {
 
           {error && (
             <p className="text-red-400 text-sm text-center">{error}</p>
+          )}
+
+          {turnstileSiteKey && (
+            <TurnstileWidget
+              siteKey={turnstileSiteKey}
+              onToken={setTurnstileToken}
+            />
           )}
 
           <button

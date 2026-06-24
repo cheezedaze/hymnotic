@@ -257,6 +257,27 @@ export const passwordResetTokens = pgTable(
 );
 
 // =============================================================================
+// Newsletter Confirm Tokens (double opt-in)
+// =============================================================================
+export const newsletterConfirmTokens = pgTable(
+  "newsletter_confirm_tokens",
+  {
+    id: serial("id").primaryKey(),
+    userId: varchar("user_id", { length: 128 })
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: varchar("token_hash", { length: 64 }).notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    usedAt: timestamp("used_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_newsletter_confirm_token_hash").on(table.tokenHash),
+    index("idx_newsletter_confirm_user").on(table.userId),
+  ]
+);
+
+// =============================================================================
 // Auth Handoff Tokens (native app -> external Safari sign-in handoff)
 // =============================================================================
 export const authHandoffTokens = pgTable(
@@ -534,3 +555,4 @@ export type DevicePushToken = typeof devicePushTokens.$inferSelect;
 export type NewDevicePushToken = typeof devicePushTokens.$inferInsert;
 export type PushNotification = typeof pushNotifications.$inferSelect;
 export type NewPushNotification = typeof pushNotifications.$inferInsert;
+export type NewsletterConfirmToken = typeof newsletterConfirmTokens.$inferSelect;
