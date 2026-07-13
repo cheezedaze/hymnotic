@@ -56,6 +56,7 @@ function RegisterPageInner() {
   const handleTurnstileError = useCallback(() => setTurnstileFailed(true), []);
   const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
   const [error, setError] = useState("");
+  const [emailTaken, setEmailTaken] = useState(false);
   const [loading, setLoading] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -68,6 +69,7 @@ function RegisterPageInner() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setEmailTaken(false);
 
     if (password.length < 8) {
       setError("Password must be at least 8 characters");
@@ -102,6 +104,9 @@ function RegisterPageInner() {
 
       if (!res.ok) {
         const data = await res.json();
+        if (res.status === 409) {
+          setEmailTaken(true);
+        }
         setError(data.error || "Failed to create account");
         setLoading(false);
         return;
@@ -361,15 +366,29 @@ function RegisterPageInner() {
           </div>
 
           {error && (
-            <p className="text-red-400 text-sm text-center">{error}</p>
+            <div className="text-center space-y-1">
+              <p className="text-red-400 text-sm">{error}</p>
+              {emailTaken && (
+                <Link
+                  href={`/auth/signin?next=${encodeURIComponent(next)}`}
+                  className="inline-block text-sm text-accent hover:underline"
+                >
+                  Sign in instead
+                </Link>
+              )}
+            </div>
           )}
 
           {turnstileSiteKey && (
-            <TurnstileWidget
-              siteKey={turnstileSiteKey}
-              onToken={setTurnstileToken}
-              onError={handleTurnstileError}
-            />
+            // Keep the widget mounted so it can attempt to load, but hide it
+            // once it fails so users never see Cloudflare's raw error box.
+            <div className={turnstileFailed ? "hidden" : ""}>
+              <TurnstileWidget
+                siteKey={turnstileSiteKey}
+                onToken={setTurnstileToken}
+                onError={handleTurnstileError}
+              />
+            </div>
           )}
 
           <button

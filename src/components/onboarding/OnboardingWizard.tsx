@@ -13,30 +13,44 @@ import { OnboardingStepMusic } from "./OnboardingStepMusic";
 import { OnboardingStepHymns } from "./OnboardingStepHymns";
 import { OnboardingStepUpgrade } from "./OnboardingStepUpgrade";
 import { OnboardingStepShare } from "./OnboardingStepShare";
+import { OnboardingStepNewsletter } from "./OnboardingStepNewsletter";
 
 export interface OnboardingPayload {
   referralSource: ReferralSource | null;
   referralDetail: string;
   favoriteMusic: string;
   favoriteHymns: string;
+  newsletterOptIn: boolean;
 }
 
 interface OnboardingWizardProps {
   isOpen: boolean;
   tier: "free" | "paid";
+  // Whether to include the newsletter opt-in step (hidden if already subscribed).
+  showNewsletter: boolean;
   onSkip: () => void;
   onComplete: (payload: OnboardingPayload) => void;
 }
 
-const TOTAL_STEPS = 4;
+type StepKey = "welcome" | "music" | "hymns" | "newsletter" | "closer";
 
 export function OnboardingWizard({
   isOpen,
   tier,
+  showNewsletter,
   onSkip,
   onComplete,
 }: OnboardingWizardProps) {
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const stepKeys: StepKey[] = [
+    "welcome",
+    "music",
+    "hymns",
+    ...(showNewsletter ? (["newsletter"] as StepKey[]) : []),
+    "closer",
+  ];
+  const totalSteps = stepKeys.length;
+  const [step, setStep] = useState(1);
+  const currentKey = stepKeys[step - 1];
   const [direction, setDirection] = useState<1 | -1>(1);
   const [referralSource, setReferralSource] = useState<ReferralSource | null>(
     null
@@ -44,6 +58,7 @@ export function OnboardingWizard({
   const [referralDetail, setReferralDetail] = useState("");
   const [favoriteMusic, setFavoriteMusic] = useState("");
   const [favoriteHymns, setFavoriteHymns] = useState("");
+  const [newsletterOptIn, setNewsletterOptIn] = useState(true);
 
   const panelRef = useRef<HTMLDivElement | null>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
@@ -69,24 +84,21 @@ export function OnboardingWizard({
     };
   }, [isOpen, onSkip]);
 
-  const canAdvance = useCallback(() => {
-    if (step === 1) return referralSource !== null || referralDetail.trim().length > 0;
-    if (step === 2) return favoriteMusic.trim().length > 0;
-    if (step === 3) return favoriteHymns.trim().length > 0;
-    return true;
-  }, [step, referralSource, referralDetail, favoriteMusic, favoriteHymns]);
+  // Every step is optional now — users can advance without answering so they
+  // always reach the newsletter + upgrade asks.
+  const canAdvance = useCallback(() => true, []);
 
   const handleNext = () => {
-    if (step < TOTAL_STEPS) {
+    if (step < totalSteps) {
       setDirection(1);
-      setStep((s) => ((s + 1) as 1 | 2 | 3 | 4));
+      setStep((s) => s + 1);
     }
   };
 
   const handleBack = () => {
     if (step > 1) {
       setDirection(-1);
-      setStep((s) => ((s - 1) as 1 | 2 | 3 | 4));
+      setStep((s) => s - 1);
     }
   };
 
@@ -96,6 +108,7 @@ export function OnboardingWizard({
       referralDetail: referralDetail.trim(),
       favoriteMusic: favoriteMusic.trim(),
       favoriteHymns: favoriteHymns.trim(),
+      newsletterOptIn: showNewsletter ? newsletterOptIn : false,
     });
   };
 
@@ -141,7 +154,7 @@ export function OnboardingWizard({
             {/* Header: progress + close */}
             <div className="flex items-center justify-between px-5 pt-4 pb-3">
               <div className="flex-1" />
-              <OnboardingProgressDots total={TOTAL_STEPS} current={step} />
+              <OnboardingProgressDots total={totalSteps} current={step} />
               <div className="flex-1 flex justify-end">
                 <button
                   type="button"
@@ -166,7 +179,7 @@ export function OnboardingWizard({
                   exit="exit"
                   transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
                 >
-                  {step === 1 && (
+                  {currentKey === "welcome" && (
                     <OnboardingStepWelcome
                       selectedSource={referralSource}
                       onSourceChange={setReferralSource}
@@ -174,20 +187,30 @@ export function OnboardingWizard({
                       onDetailChange={setReferralDetail}
                     />
                   )}
-                  {step === 2 && (
+                  {currentKey === "music" && (
                     <OnboardingStepMusic
                       value={favoriteMusic}
                       onChange={setFavoriteMusic}
                     />
                   )}
-                  {step === 3 && (
+                  {currentKey === "hymns" && (
                     <OnboardingStepHymns
                       value={favoriteHymns}
                       onChange={setFavoriteHymns}
                     />
                   )}
-                  {step === 4 && tier === "free" && <OnboardingStepUpgrade />}
-                  {step === 4 && tier === "paid" && <OnboardingStepShare />}
+                  {currentKey === "newsletter" && (
+                    <OnboardingStepNewsletter
+                      optedIn={newsletterOptIn}
+                      onChange={setNewsletterOptIn}
+                    />
+                  )}
+                  {currentKey === "closer" && tier === "free" && (
+                    <OnboardingStepUpgrade />
+                  )}
+                  {currentKey === "closer" && tier === "paid" && (
+                    <OnboardingStepShare />
+                  )}
                 </motion.div>
               </AnimatePresence>
             </div>
@@ -210,7 +233,7 @@ export function OnboardingWizard({
                   Back
                 </button>
 
-                {step < TOTAL_STEPS ? (
+                {step < totalSteps ? (
                   <button
                     type="button"
                     onClick={handleNext}
