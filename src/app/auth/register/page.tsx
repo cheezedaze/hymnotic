@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useEffect } from "react";
+import { Suspense, useState, useEffect, useCallback } from "react";
 import { signIn } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
@@ -48,6 +48,12 @@ function RegisterPageInner() {
   const [newsletterOptIn, setNewsletterOptIn] = useState(false);
   const [company, setCompany] = useState(""); // honeypot — must stay empty
   const [turnstileToken, setTurnstileToken] = useState("");
+  // If the Turnstile widget fails to load/verify (blocked script, invalid key,
+  // webview quirks), we degrade gracefully instead of blocking signup — the
+  // server still enforces Turnstile when a token IS present, and honeypot +
+  // rate limiting + newsletter double opt-in remain in force.
+  const [turnstileFailed, setTurnstileFailed] = useState(false);
+  const handleTurnstileError = useCallback(() => setTurnstileFailed(true), []);
   const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -73,7 +79,7 @@ function RegisterPageInner() {
       return;
     }
 
-    if (turnstileSiteKey && !turnstileToken) {
+    if (turnstileSiteKey && !turnstileToken && !turnstileFailed) {
       setError("Please complete the verification below.");
       return;
     }
@@ -362,6 +368,7 @@ function RegisterPageInner() {
             <TurnstileWidget
               siteKey={turnstileSiteKey}
               onToken={setTurnstileToken}
+              onError={handleTurnstileError}
             />
           )}
 
