@@ -5,7 +5,7 @@ import {
   getActiveTracks,
   getUserPlayCounts,
 } from "@/lib/db/queries";
-import { buildTrackMediaUrlsWithFallback } from "@/lib/s3/client";
+import { buildTrackMediaUrlsWithFallback, getMediaUrl } from "@/lib/s3/client";
 import {
   getAccessContext,
   getSacred7TrackIds,
@@ -78,6 +78,13 @@ export async function GET(request: Request) {
             track,
             collectionMap.get(track.collectionId) ?? null
           ),
+          // Gate audio: full-access tracks stream from the CDN; locked tracks
+          // go through the tier-checked route so the full file is never handed
+          // out. The lossless master is never exposed via the public API.
+          audioUrl: isFull
+            ? getMediaUrl(track.audioKey)
+            : `/api/tracks/${track.id}/audio`,
+          originalAudioUrl: null,
         };
       });
       return NextResponse.json(tracksWithUrls);
@@ -122,6 +129,13 @@ export async function GET(request: Request) {
         previewDuration: isFull ? track.duration : previewDuration,
         isSacred7: sacred7TrackIds.includes(track.id),
         ...buildTrackMediaUrlsWithFallback(track, collectionArtworkKey),
+        // Gate audio: full-access tracks stream from the CDN; locked tracks go
+        // through the tier-checked route so the full file is never handed out.
+        // The lossless master is never exposed via the public API.
+        audioUrl: isFull
+          ? getMediaUrl(track.audioKey)
+          : `/api/tracks/${track.id}/audio`,
+        originalAudioUrl: null,
       };
     });
 
