@@ -71,3 +71,13 @@ next-env.d.ts
 
 # Bot-signup audit output (contains third-party PII — never commit)
 scripts/bot-signup-candidates.csv
+
+# Claude Code worktrees (multi-GB duplicate checkouts — never commit)
+.claude/worktrees/
+
+# Local strategy/brainstorm scratch — never commit to this PUBLIC repo
+brainstorms/
+claude-assessment.txt
+grok-assessment.txt
+council-report-*.html
+council-transcript-*.md

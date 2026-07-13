@@ -14,7 +14,7 @@ type SocialLink = {
   Icon: (props: { size?: number; className?: string }) => React.JSX.Element;
 };
 
-const DISCORD_URL = "https://discord.gg/TT3x2Df8";
+const DISCORD_URL = "https://discord.gg/kdjW3rcau5";
 
 const secondaryLinks: SocialLink[] = [
   {

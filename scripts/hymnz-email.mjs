@@ -86,17 +86,29 @@ async function cmdCount() {
   return subscribed.length;
 }
 
-async function cmdTest(slug) {
-  const { html, subject, from } = await renderCampaign(slug);
+// Resend resolves merge tags like {{{FIRST_NAME|fallback}}} only in broadcasts,
+// not in transactional test sends. For tests, substitute them locally so the
+// personalized result is visible — using --name when given, else the fallback.
+function resolveMergeTags(html, name) {
+  return html.replace(
+    /\{\{\{FIRST_NAME(?:\|([^}]*))?\}\}\}/g,
+    (_m, fallback) => name || fallback || "there",
+  );
+}
+
+async function cmdTest(slug, opts = {}) {
+  const recipient = opts.to || TEST_RECIPIENT;
+  const { html: rawHtml, subject, from } = await renderCampaign(slug);
+  const html = resolveMergeTags(rawHtml, opts.name);
   const resend = getResend();
   const { data, error } = await resend.emails.send({
     from,
-    to: TEST_RECIPIENT,
+    to: recipient,
     subject: `[TEST] ${subject}`,
     html,
   });
   if (error) throw new Error(`Test send failed: ${JSON.stringify(error)}`);
-  console.log(`Test sent to ${TEST_RECIPIENT} (id: ${data?.id})`);
+  console.log(`Test sent to ${recipient} (id: ${data?.id})`);
 }
 
 async function cmdBroadcast(slug, opts) {
@@ -170,6 +182,8 @@ function parseFlags(argv) {
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--confirm") opts.confirm = true;
     else if (argv[i] === "--at") opts.at = argv[++i];
+    else if (argv[i] === "--to") opts.to = argv[++i];
+    else if (argv[i] === "--name") opts.name = argv[++i];
   }
   return opts;
 }
@@ -181,7 +195,7 @@ const opts = parseFlags(rest);
 const commands = {
   preview: () => cmdPreview(slug),
   count: () => cmdCount(),
-  test: () => cmdTest(slug),
+  test: () => cmdTest(slug, opts),
   broadcast: () => cmdBroadcast(slug, opts),
   "save-template": () => cmdSaveTemplate(),
 };
