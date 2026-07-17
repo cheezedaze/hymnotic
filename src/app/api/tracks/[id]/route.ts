@@ -36,7 +36,7 @@ export async function GET(
       videoCount: track.videoCount,
       hasLyrics: track.hasLyrics,
       ...buildTrackMediaUrlsWithFallback(track, collection?.artworkKey ?? null),
-      audioUrl: `/api/tracks/${track.id}/audio`,
+      audioUrl: track.audioKey ? `/api/tracks/${track.id}/audio` : null,
     };
 
     return NextResponse.json(response);

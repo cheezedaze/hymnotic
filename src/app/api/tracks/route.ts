@@ -78,7 +78,7 @@ export async function GET(request: Request) {
             track,
             collectionMap.get(track.collectionId) ?? null
           ),
-          audioUrl: `/api/tracks/${track.id}/audio`,
+          audioUrl: track.audioKey ? `/api/tracks/${track.id}/audio` : null,
           originalAudioUrl: null,
         };
       });
@@ -124,7 +124,7 @@ export async function GET(request: Request) {
         previewDuration: isFull ? track.duration : previewDuration,
         isSacred7: sacred7TrackIds.includes(track.id),
         ...buildTrackMediaUrlsWithFallback(track, collectionArtworkKey),
-        audioUrl: `/api/tracks/${track.id}/audio`,
+        audioUrl: track.audioKey ? `/api/tracks/${track.id}/audio` : null,
         originalAudioUrl: null,
       };
     });

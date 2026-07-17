@@ -34,7 +34,7 @@ export async function PATCH(
       );
     }
 
-    return NextResponse.json({ ...track, ...buildTrackMediaUrls(track), audioUrl: `/api/tracks/${track.id}/audio` });
+    return NextResponse.json({ ...track, ...buildTrackMediaUrls(track), audioUrl: track.audioKey ? `/api/tracks/${track.id}/audio` : null });
   } catch (error) {
     console.error("Error updating track:", error);
     return NextResponse.json(

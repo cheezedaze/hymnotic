@@ -73,7 +73,7 @@ export async function GET(
           previewDuration: isFull ? track.duration : previewDuration,
           isSacred7: sacred7TrackIds.includes(track.id),
           ...buildTrackMediaUrlsWithFallback(track, collection.artworkKey),
-          audioUrl: `/api/tracks/${track.id}/audio`,
+          audioUrl: track.audioKey ? `/api/tracks/${track.id}/audio` : null,
         };
       }),
     };

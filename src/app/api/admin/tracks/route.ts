@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json(
-      { ...track, ...buildTrackMediaUrls(track), audioUrl: `/api/tracks/${track.id}/audio` },
+      { ...track, ...buildTrackMediaUrls(track), audioUrl: track.audioKey ? `/api/tracks/${track.id}/audio` : null },
       { status: 201 }
     );
   } catch (error) {

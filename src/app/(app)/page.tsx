@@ -46,7 +46,7 @@ export default async function HomePage() {
       featuredTrack = {
         ...track,
         ...buildTrackMediaUrlsWithFallback(track, collectionArtworkKey),
-        audioUrl: `/api/tracks/${track.id}/audio`,
+        audioUrl: track.audioKey ? `/api/tracks/${track.id}/audio` : null,
         isLocked: !featuredFull,
         previewDuration: featuredFull ? track.duration : previewDur,
         isFeatured: true,
@@ -57,7 +57,7 @@ export default async function HomePage() {
         return {
           ...t,
           ...buildTrackMediaUrlsWithFallback(t, collectionArtworkKey),
-          audioUrl: `/api/tracks/${t.id}/audio`,
+          audioUrl: t.audioKey ? `/api/tracks/${t.id}/audio` : null,
           isLocked: !tFull,
           previewDuration: tFull ? t.duration : previewDur,
         };
