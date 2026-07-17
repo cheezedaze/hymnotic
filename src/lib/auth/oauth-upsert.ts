@@ -39,6 +39,7 @@ export async function upsertOAuthUser(profile: OAuthProfile): Promise<User> {
     subscriptionStatus: null,
     subscriptionEndDate: null,
     newsletterOptIn: false,
+    signupRef: null,
     onboardingCompletedAt: null,
     onboardingLastDismissedAt: null,
     onboardingDismissCount: 0,
