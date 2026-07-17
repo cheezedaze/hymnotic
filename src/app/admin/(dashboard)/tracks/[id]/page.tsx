@@ -24,7 +24,7 @@ export default async function EditTrackPage({ params }: EditTrackPageProps) {
 
   return (
     <EditTrack
-      track={{ ...track, ...buildTrackMediaUrls(track) }}
+      track={{ ...track, ...buildTrackMediaUrls(track), audioUrl: `/api/tracks/${track.id}/audio` }}
       lyrics={lyrics}
       collections={collections.map((c) => ({ id: c.id, title: c.title }))}
     />

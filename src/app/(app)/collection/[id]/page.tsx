@@ -114,6 +114,7 @@ export default async function CollectionPage({ params, searchParams }: Collectio
     return {
       ...t,
       ...buildTrackMediaUrlsWithFallback(t, collection.artworkKey),
+      audioUrl: `/api/tracks/${t.id}/audio`,
       isLocked: !isFull,
       previewDuration: isFull ? t.duration : previewDuration,
       isSacred7: sacred7TrackIds.includes(t.id),

@@ -49,6 +49,7 @@ export async function POST(request: Request) {
         track,
         collectionMap.get(track.collectionId) ?? null
       ),
+      audioUrl: `/api/tracks/${track.id}/audio`,
     }));
 
     return NextResponse.json(tracksWithUrls);

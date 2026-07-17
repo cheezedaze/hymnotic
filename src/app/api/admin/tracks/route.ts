@@ -52,7 +52,7 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json(
-      { ...track, ...buildTrackMediaUrls(track) },
+      { ...track, ...buildTrackMediaUrls(track), audioUrl: `/api/tracks/${track.id}/audio` },
       { status: 201 }
     );
   } catch (error) {
