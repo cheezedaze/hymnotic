@@ -663,34 +663,18 @@ export async function getUserCount() {
 // =============================================================================
 
 export async function incrementUserPlayCount(userId: string, trackId: string) {
-  const existing = await db
-    .select()
-    .from(userTrackPlays)
-    .where(
-      and(
-        eq(userTrackPlays.userId, userId),
-        eq(userTrackPlays.trackId, trackId)
-      )
-    )
-    .limit(1);
-
-  if (existing[0]) {
-    const result = await db
-      .update(userTrackPlays)
-      .set({
-        playCount: existing[0].playCount + 1,
+  const [row] = await db
+    .insert(userTrackPlays)
+    .values({ userId, trackId, playCount: 1 })
+    .onConflictDoUpdate({
+      target: [userTrackPlays.userId, userTrackPlays.trackId],
+      set: {
+        playCount: sql`${userTrackPlays.playCount} + 1`,
         lastPlayedAt: new Date(),
-      })
-      .where(eq(userTrackPlays.id, existing[0].id))
-      .returning();
-    return result[0];
-  } else {
-    const result = await db
-      .insert(userTrackPlays)
-      .values({ userId, trackId, playCount: 1 })
-      .returning();
-    return result[0];
-  }
+      },
+    })
+    .returning();
+  return row;
 }
 
 export async function getUserPlayCounts(userId: string, trackIds?: string[]) {
@@ -720,6 +704,51 @@ export async function getUserTotalPlays(userId: string) {
     .from(userTrackPlays)
     .where(eq(userTrackPlays.userId, userId));
   return result.total;
+}
+
+/**
+ * Atomically claim a free user's one full listen for a track.
+ * Sets free_listen_consumed_at only if it is currently NULL.
+ * Returns true if THIS call consumed the listen (i.e. it was available),
+ * false if it was already consumed. Safe to call concurrently.
+ */
+export async function claimFreeListen(
+  userId: string,
+  trackId: string
+): Promise<boolean> {
+  const now = new Date();
+  const rows = await db
+    .insert(userTrackPlays)
+    .values({ userId, trackId, freeListenConsumedAt: now })
+    .onConflictDoUpdate({
+      target: [userTrackPlays.userId, userTrackPlays.trackId],
+      set: { freeListenConsumedAt: now },
+      setWhere: sql`${userTrackPlays.freeListenConsumedAt} IS NULL`,
+    })
+    .returning({ id: userTrackPlays.id });
+  return rows.length > 0;
+}
+
+/**
+ * Track IDs (optionally filtered to `trackIds`) whose free listen this user
+ * has already consumed. Used by server data to mark tracks preview vs full.
+ */
+export async function getConsumedFreeListenTrackIds(
+  userId: string,
+  trackIds?: string[]
+): Promise<string[]> {
+  if (trackIds && trackIds.length === 0) return [];
+  const rows = await db
+    .select({ trackId: userTrackPlays.trackId })
+    .from(userTrackPlays)
+    .where(
+      and(
+        eq(userTrackPlays.userId, userId),
+        isNotNull(userTrackPlays.freeListenConsumedAt),
+        ...(trackIds ? [inArray(userTrackPlays.trackId, trackIds)] : [])
+      )
+    );
+  return rows.map((r) => r.trackId);
 }
 
 // =============================================================================
