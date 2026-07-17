@@ -315,6 +315,9 @@ export const userTrackPlays = pgTable(
       .references(() => tracks.id),
     playCount: integer("play_count").default(0).notNull(),
     lastPlayedAt: timestamp("last_played_at").defaultNow().notNull(),
+    // Set once when a free user consumes their one full listen of this track.
+    // NULL = free listen still available. Sacred 7 / paid never use this.
+    freeListenConsumedAt: timestamp("free_listen_consumed_at"),
   },
   (table) => [
     uniqueIndex("idx_user_track_plays_user_track").on(
