@@ -43,6 +43,22 @@ const PROTECTED_PATHS = [
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Promo attribution: stamp a ref cookie so signups from promo pages are
+  // attributable (read by the register route / OAuth upsert).
+  if (pathname === "/another-testament") {
+    const utmSource = request.nextUrl.searchParams.get("utm_source");
+    const ref = utmSource
+      ? `another-testament:${utmSource.slice(0, 24)}`
+      : "another-testament";
+    const response = NextResponse.next();
+    response.cookies.set("hymnz_ref", ref, {
+      maxAge: 60 * 60 * 24 * 30,
+      path: "/",
+      sameSite: "lax",
+    });
+    return response;
+  }
+
   // Allow public paths first (takes precedence over PROTECTED_PATHS prefix match,
   // so e.g. /api/user/subscription stays public while /api/user/* is protected).
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
