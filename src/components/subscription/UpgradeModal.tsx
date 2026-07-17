@@ -86,7 +86,7 @@ export function UpgradeModal() {
             </h2>
             <p className="text-text-secondary text-sm mb-6 leading-relaxed">
               {isVisitor
-                ? "Unlock 7 free songs, longer previews, videos, and more. (Full-access subscription also available)"
+                ? "Unlock 7 free songs plus one full listen of every song, longer previews, and more. (Full-access subscription also available)"
                 : "Unlock full-length playback of every hymn in our catalog with no interruptions, exclusive releases, and more."}
             </p>
 

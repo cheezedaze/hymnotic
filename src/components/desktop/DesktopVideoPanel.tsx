@@ -26,8 +26,8 @@ function getYouTubeEmbedUrl(url: string): string | null {
 
 const FREE_FEATURES = [
   "7 full-length hymns",
-  "1-minute previews of all tracks",
-  "Beautiful artwork & visuals",
+  "One full free listen of every song",
+  "1-minute previews after that",
   "Save favorites",
 ];
 

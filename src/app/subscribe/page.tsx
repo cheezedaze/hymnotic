@@ -70,9 +70,9 @@ function SubscribePageInner() {
   };
 
   const freeFeatures = [
-    "7 free songs",
-    "Access to library",
-    "One-minute previews",
+    "7 free full-length hymns",
+    "One full free listen of every song",
+    "1-minute previews after that",
     "Save favorites",
   ];
 

@@ -66,8 +66,8 @@ export function DesktopVisitorBanner() {
           HYMNZ Preview
         </p>
         <p className="text-text-primary text-sm leading-relaxed">
-          Get a FREE HYMNZ account&nbsp;&nbsp;to unlock longer previews and 7
-          free songs. No Credit Card Required.
+          Get a FREE HYMNZ account&nbsp;&nbsp;to unlock 7 free songs plus one
+          full listen of every other song. No Credit Card Required.
         </p>
       </div>
       <button
