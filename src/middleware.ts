@@ -16,6 +16,7 @@ const PUBLIC_PATHS = [
   "/api/tracks",
   "/api/user/subscription",
   "/api/stripe/webhook",
+  "/api/promo",
 
   "/subscribe",
   "/subscription",
