@@ -47,14 +47,21 @@ export function middleware(request: NextRequest) {
   // attributable (read by the register route / OAuth upsert).
   if (pathname === "/another-testament") {
     const utmSource = request.nextUrl.searchParams.get("utm_source");
-    const ref = utmSource
-      ? `another-testament:${utmSource.slice(0, 24)}`
-      : "another-testament";
+    // Sanitize to a safe charset: raw query text can carry null bytes (breaks
+    // the Postgres insert at signup) or split surrogates (breaks cookie
+    // encoding) — and never let attribution block a signup.
+    const cleaned = utmSource
+      ?.toLowerCase()
+      .replace(/[^a-z0-9_-]/g, "")
+      .slice(0, 24);
+    const ref = cleaned ? `another-testament:${cleaned}` : "another-testament";
     const response = NextResponse.next();
     response.cookies.set("hymnz_ref", ref, {
       maxAge: 60 * 60 * 24 * 30,
       path: "/",
       sameSite: "lax",
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
     });
     return response;
   }
