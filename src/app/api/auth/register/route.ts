@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { users } from "@/lib/db/schema";
@@ -83,6 +84,15 @@ export async function POST(request: Request) {
     const passwordHash = await bcrypt.hash(password, 12);
     const userId = crypto.randomUUID();
 
+    // Promo attribution: best-effort, never blocks signup.
+    let signupRef: string | null = null;
+    try {
+      const cookieStore = await cookies();
+      signupRef = cookieStore.get("hymnz_ref")?.value?.slice(0, 64) || null;
+    } catch {
+      signupRef = null;
+    }
+
     // newsletterOptIn stays false until the user confirms (double opt-in).
     await db.insert(users).values({
       id: userId,
@@ -93,6 +103,7 @@ export async function POST(request: Request) {
       accountTier: "free",
       isPremium: false,
       newsletterOptIn: false,
+      signupRef,
     });
 
     // 4. Double opt-in: send a confirm email instead of adding to Resend now.

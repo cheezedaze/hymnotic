@@ -880,8 +880,12 @@ export async function getUserDismissedAnnouncementIds(userId: string) {
 // Play Events (individual timestamped plays for analytics)
 // =============================================================================
 
-export async function recordPlayEvent(userId: string, trackId: string) {
-  await db.insert(playEvents).values({ userId, trackId });
+export async function recordPlayEvent(
+  userId: string | null,
+  trackId: string,
+  source?: string
+) {
+  await db.insert(playEvents).values({ userId, trackId, source: source ?? null });
 }
 
 // =============================================================================

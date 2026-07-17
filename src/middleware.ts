@@ -16,6 +16,7 @@ const PUBLIC_PATHS = [
   "/api/tracks",
   "/api/user/subscription",
   "/api/stripe/webhook",
+  "/api/promo",
 
   "/subscribe",
   "/subscription",
@@ -41,6 +42,29 @@ const PROTECTED_PATHS = [
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Promo attribution: stamp a ref cookie so signups from promo pages are
+  // attributable (read by the register route / OAuth upsert).
+  if (pathname === "/another-testament") {
+    const utmSource = request.nextUrl.searchParams.get("utm_source");
+    // Sanitize to a safe charset: raw query text can carry null bytes (breaks
+    // the Postgres insert at signup) or split surrogates (breaks cookie
+    // encoding) — and never let attribution block a signup.
+    const cleaned = utmSource
+      ?.toLowerCase()
+      .replace(/[^a-z0-9_-]/g, "")
+      .slice(0, 24);
+    const ref = cleaned ? `another-testament:${cleaned}` : "another-testament";
+    const response = NextResponse.next();
+    response.cookies.set("hymnz_ref", ref, {
+      maxAge: 60 * 60 * 24 * 30,
+      path: "/",
+      sameSite: "lax",
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+    });
+    return response;
+  }
 
   // Allow public paths first (takes precedence over PROTECTED_PATHS prefix match,
   // so e.g. /api/user/subscription stays public while /api/user/* is protected).

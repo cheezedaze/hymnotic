@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { cookies } from "next/headers";
 import { db } from "@/lib/db";
 import { users, type User } from "@/lib/db/schema";
 
@@ -26,6 +27,17 @@ export async function upsertOAuthUser(profile: OAuthProfile): Promise<User> {
 
   const id = crypto.randomUUID();
   const now = new Date();
+
+  // Promo attribution: best-effort — cookies() may be unavailable in some
+  // native-auth call paths; never block account creation on it.
+  let signupRef: string | null = null;
+  try {
+    const cookieStore = await cookies();
+    signupRef = cookieStore.get("hymnz_ref")?.value?.slice(0, 64) || null;
+  } catch {
+    signupRef = null;
+  }
+
   const newUser: User = {
     id,
     email,
@@ -39,6 +51,7 @@ export async function upsertOAuthUser(profile: OAuthProfile): Promise<User> {
     subscriptionStatus: null,
     subscriptionEndDate: null,
     newsletterOptIn: false,
+    signupRef,
     onboardingCompletedAt: null,
     onboardingLastDismissedAt: null,
     onboardingDismissCount: 0,
@@ -56,6 +69,7 @@ export async function upsertOAuthUser(profile: OAuthProfile): Promise<User> {
     isPremium: false,
     manualPremium: false,
     newsletterOptIn: false,
+    signupRef,
   });
 
   return newUser;
