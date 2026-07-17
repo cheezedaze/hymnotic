@@ -1,5 +1,6 @@
 import { S3Client, GetObjectCommand, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { getSignedUrl as getCloudFrontSignedUrl } from "@aws-sdk/cloudfront-signer";
 
 // S3 client singleton
 let s3Client: S3Client | null = null;
@@ -49,6 +50,40 @@ export function getMediaUrl(key: string | null | undefined): string | null {
   // Fallback to direct S3 URL
   const region = process.env.AWS_REGION || "us-west-2";
   return `https://${BUCKET}.s3.${region}.amazonaws.com/${key}`;
+}
+
+// How long an audio signed URL stays valid. Long enough to outlive any single
+// listen + seeking session (no mid-song 403), short enough that a scraped
+// redirect URL dies within the day.
+const SIGNED_URL_TTL_SEC = 21600; // 6 hours
+
+/**
+ * Sign a CloudFront URL for a track-audio key so it can be fetched from the
+ * (now access-restricted) `audio/tracks/*` path. Falls back to an unsigned CDN
+ * URL when signing keys aren't configured (local dev) so playback still works.
+ */
+export function signAudioUrl(
+  key: string | null | undefined,
+  ttlSec: number = SIGNED_URL_TTL_SEC
+): string | null {
+  const base = getMediaUrl(key);
+  if (!base) return null;
+
+  const keyPairId = process.env.CLOUDFRONT_KEY_PAIR_ID;
+  const privateKeyRaw = process.env.CLOUDFRONT_PRIVATE_KEY;
+  if (!keyPairId || !privateKeyRaw) {
+    // Unconfigured (local dev): return the unsigned URL. In prod the keys exist.
+    return base;
+  }
+  // Env stores the PEM with literal "\n"; restore real newlines.
+  const privateKey = privateKeyRaw.replace(/\\n/g, "\n");
+
+  return getCloudFrontSignedUrl({
+    url: base,
+    keyPairId,
+    privateKey,
+    dateLessThan: new Date(Date.now() + ttlSec * 1000).toISOString(),
+  });
 }
 
 /**
