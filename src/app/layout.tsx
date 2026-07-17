@@ -4,6 +4,7 @@ import "./globals.css";
 import { AppShell } from "@/components/layout/AppShell";
 import { ServiceWorkerRegistration } from "@/components/layout/ServiceWorkerRegistration";
 import { NativeBootstrap } from "@/components/layout/NativeBootstrap";
+import { Analytics } from "@vercel/analytics/next";
 
 
 const playfair = Playfair_Display({
@@ -55,6 +56,7 @@ export default function RootLayout({
         <ServiceWorkerRegistration />
         <NativeBootstrap />
         <AppShell>{children}</AppShell>
+        <Analytics />
       </body>
     </html>
   );
