@@ -1,4 +1,4 @@
-import { eq, asc, desc, sql, inArray, and, isNotNull, gte } from "drizzle-orm";
+import { eq, asc, desc, sql, inArray, and, isNotNull, gte, lt } from "drizzle-orm";
 import { db } from "./index";
 import {
   collections,
@@ -706,18 +706,31 @@ export async function getUserTotalPlays(userId: string) {
   return result.total;
 }
 
+// One free full listen is granted per non-Sacred-7 track, then the track locks
+// to the 1-minute preview. But a single playback re-hits /audio many times
+// (HTTP range requests, timeline seeks, re-buffers, iOS Safari's probe-then-play).
+// So consumption is not "one request" — it's "one listening session": once the
+// listen is first consumed we keep granting full for this window, then lock.
+// Tune this if you want a tighter/looser session. It also bounds how long a
+// track shows as "available" in server data (see getConsumedFreeListenTrackIds).
+export const FREE_LISTEN_GRACE_MS = 30 * 60 * 1000; // 30 minutes
+
 /**
- * Atomically claim a free user's one full listen for a track.
- * Sets free_listen_consumed_at only if it is currently NULL.
- * Returns true if THIS call consumed the listen (i.e. it was available),
- * false if it was already consumed. Safe to call concurrently.
+ * Decide whether to grant a free user the full listen for a track, and consume
+ * it if this is the first grant. Returns true when full should be served:
+ *  - the listen was still available (first play) → consume it now, or
+ *  - it was consumed within FREE_LISTEN_GRACE_MS → same session, still full.
+ * Returns false once the grace window has elapsed (→ serve preview).
+ * The initial consume is atomic (safe under concurrent first-play requests).
  */
-export async function claimFreeListen(
+export async function grantFreeListen(
   userId: string,
   trackId: string
 ): Promise<boolean> {
   const now = new Date();
-  const rows = await db
+  // Try to claim: set the timestamp only if it is still NULL. A returned row
+  // means this call performed the first consume → grant full.
+  const claimed = await db
     .insert(userTrackPlays)
     .values({ userId, trackId, freeListenConsumedAt: now })
     .onConflictDoUpdate({
@@ -726,25 +739,44 @@ export async function claimFreeListen(
       setWhere: sql`${userTrackPlays.freeListenConsumedAt} IS NULL`,
     })
     .returning({ id: userTrackPlays.id });
-  return rows.length > 0;
+  if (claimed.length > 0) return true;
+
+  // Already consumed — keep granting full within the grace window so the rest
+  // of the same playback (seeks / range re-requests / iOS probes) streams fully.
+  const [row] = await db
+    .select({ consumedAt: userTrackPlays.freeListenConsumedAt })
+    .from(userTrackPlays)
+    .where(
+      and(
+        eq(userTrackPlays.userId, userId),
+        eq(userTrackPlays.trackId, trackId)
+      )
+    )
+    .limit(1);
+  if (!row?.consumedAt) return false;
+  return now.getTime() - row.consumedAt.getTime() < FREE_LISTEN_GRACE_MS;
 }
 
 /**
- * Track IDs (optionally filtered to `trackIds`) whose free listen this user
- * has already consumed. Used by server data to mark tracks preview vs full.
+ * Track IDs (optionally filtered to `trackIds`) whose free listen this user has
+ * consumed AND whose grace window has elapsed — i.e. tracks that should now show
+ * as locked/preview. Tracks still inside the grace window are intentionally
+ * omitted so server data keeps showing them as full during the same session,
+ * matching what grantFreeListen serves. Used by server data to mark tracks.
  */
 export async function getConsumedFreeListenTrackIds(
   userId: string,
   trackIds?: string[]
 ): Promise<string[]> {
   if (trackIds && trackIds.length === 0) return [];
+  const cutoff = new Date(Date.now() - FREE_LISTEN_GRACE_MS);
   const rows = await db
     .select({ trackId: userTrackPlays.trackId })
     .from(userTrackPlays)
     .where(
       and(
         eq(userTrackPlays.userId, userId),
-        isNotNull(userTrackPlays.freeListenConsumedAt),
+        lt(userTrackPlays.freeListenConsumedAt, cutoff),
         ...(trackIds ? [inArray(userTrackPlays.trackId, trackIds)] : [])
       )
     );

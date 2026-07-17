@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getTrackById, claimFreeListen } from "@/lib/db/queries";
+import { getTrackById, grantFreeListen } from "@/lib/db/queries";
 import { signAudioUrl, getObjectRange } from "@/lib/s3/client";
 import {
   getAccessContext,
@@ -51,13 +51,14 @@ export async function GET(
       return NextResponse.redirect(url, 302);
     }
 
-    // Free user, non-Sacred-7 → grant the one-time full listen if still available.
-    // Sign first so a signing failure doesn't burn the listen, then claim
-    // atomically. The full path is one redirect per playback, so this consumes
-    // exactly once. A lost claim (already consumed) falls through to preview.
+    // Free user, non-Sacred-7 → grant their one free listen. Sign first so a
+    // signing failure doesn't burn the listen, then grant: grantFreeListen
+    // consumes it on the first play and keeps returning full for the rest of the
+    // same session (seeks / range re-requests / iOS probes), then locks to
+    // preview. A denied grant falls through to the preview path below.
     if (access.tier === "free" && access.userId && !sacred7.includes(id)) {
       const url = signAudioUrl(track.audioKey);
-      if (url && (await claimFreeListen(access.userId, id))) {
+      if (url && (await grantFreeListen(access.userId, id))) {
         return NextResponse.redirect(url, 302);
       }
     }
