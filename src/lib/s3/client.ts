@@ -52,6 +52,35 @@ export function getMediaUrl(key: string | null | undefined): string | null {
 }
 
 /**
+ * Fetch a byte range of an S3 object. Used to stream a capped audio preview
+ * so non-paying tiers can never pull the full file through the app.
+ * Returns the bytes plus the object's true total size (from Content-Range).
+ */
+export async function getObjectRange(
+  key: string,
+  start: number,
+  endInclusive: number
+): Promise<{ bytes: Uint8Array<ArrayBuffer>; total: number }> {
+  const client = getS3Client();
+  const res = await client.send(
+    new GetObjectCommand({
+      Bucket: BUCKET,
+      Key: key,
+      Range: `bytes=${start}-${endInclusive}`,
+    })
+  );
+  const raw = await res.Body!.transformToByteArray();
+  // Copy into a fresh ArrayBuffer-backed view so it satisfies BodyInit.
+  const bytes = new Uint8Array(raw.byteLength);
+  bytes.set(raw);
+  // Content-Range looks like "bytes 0-1599999/3456789"; grab the total.
+  const total = res.ContentRange
+    ? parseInt(res.ContentRange.split("/")[1] ?? "", 10)
+    : bytes.length;
+  return { bytes, total: Number.isFinite(total) ? total : bytes.length };
+}
+
+/**
  * Generate a presigned URL for private media access.
  * Use for content that shouldn't be publicly cacheable.
  */

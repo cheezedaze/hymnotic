@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth/auth";
 import { db } from "@/lib/db";
 import { users, onboardingResponses } from "@/lib/db/schema";
 import { eq, sql } from "drizzle-orm";
+import { createNewsletterConfirmToken } from "@/lib/email/newsletter-confirm";
+import { sendNewsletterConfirmEmail } from "@/lib/email/resend";
 
 const REPROMPT_DAYS = 7;
 const MAX_FIELD_LEN = 2000;
@@ -34,6 +36,7 @@ export async function GET() {
     .select({
       onboardingCompletedAt: users.onboardingCompletedAt,
       onboardingLastDismissedAt: users.onboardingLastDismissedAt,
+      newsletterOptIn: users.newsletterOptIn,
     })
     .from(users)
     .where(eq(users.id, session.user.id))
@@ -41,7 +44,11 @@ export async function GET() {
 
   const row = result[0];
   if (!row) {
-    return NextResponse.json({ shouldShow: false, completed: false });
+    return NextResponse.json({
+      shouldShow: false,
+      completed: false,
+      newsletterOptIn: false,
+    });
   }
 
   const completed = row.onboardingCompletedAt !== null;
@@ -55,7 +62,11 @@ export async function GET() {
     }
   }
 
-  return NextResponse.json({ shouldShow, completed });
+  return NextResponse.json({
+    shouldShow,
+    completed,
+    newsletterOptIn: row.newsletterOptIn === true,
+  });
 }
 
 export async function PUT(request: Request) {
@@ -131,6 +142,40 @@ export async function PUT(request: Request) {
       .update(users)
       .set({ onboardingCompletedAt: now, updatedAt: now })
       .where(eq(users.id, session.user.id));
+
+    // Newsletter opt-in from the onboarding step → send the double opt-in
+    // confirm email (unless the user is already subscribed). Best-effort:
+    // never fail onboarding completion if the email send fails.
+    if ((body as { newsletterOptIn?: unknown }).newsletterOptIn === true) {
+      try {
+        const [u] = await db
+          .select({
+            email: users.email,
+            name: users.name,
+            newsletterOptIn: users.newsletterOptIn,
+          })
+          .from(users)
+          .where(eq(users.id, session.user.id))
+          .limit(1);
+
+        if (u?.email && u.newsletterOptIn !== true) {
+          const token = await createNewsletterConfirmToken(session.user.id);
+          const appUrl =
+            process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3333";
+          const confirmUrl = `${appUrl}/auth/confirm-newsletter?token=${token}`;
+          await sendNewsletterConfirmEmail(
+            u.email,
+            confirmUrl,
+            u.name?.trim() || undefined
+          );
+        }
+      } catch (err) {
+        console.error(
+          "Failed to send newsletter confirm email from onboarding:",
+          err
+        );
+      }
+    }
 
     return NextResponse.json({ ok: true });
   }

@@ -12,6 +12,7 @@ export function OnboardingChecker() {
   const isLoaded = useSubscriptionStore((s) => s.isLoaded);
 
   const [shouldShow, setShouldShow] = useState(false);
+  const [showNewsletter, setShowNewsletter] = useState(false);
   const checkedRef = useRef(false);
 
   // Fetch onboarding state once per session, after subscription has loaded
@@ -28,8 +29,12 @@ export function OnboardingChecker() {
       try {
         const res = await fetch("/api/user/onboarding");
         if (!res.ok) return;
-        const data = (await res.json()) as { shouldShow?: boolean };
+        const data = (await res.json()) as {
+          shouldShow?: boolean;
+          newsletterOptIn?: boolean;
+        };
         if (!cancelled && data.shouldShow) {
+          setShowNewsletter(data.newsletterOptIn === false);
           setShouldShow(true);
         }
       } catch {
@@ -64,6 +69,7 @@ export function OnboardingChecker() {
         referralDetail: payload.referralDetail,
         favoriteMusic: payload.favoriteMusic,
         favoriteHymns: payload.favoriteHymns,
+        newsletterOptIn: payload.newsletterOptIn,
       }),
     }).catch(() => {
       // ignore
@@ -76,6 +82,7 @@ export function OnboardingChecker() {
     <OnboardingWizard
       isOpen
       tier={tier === "paid" ? "paid" : "free"}
+      showNewsletter={showNewsletter}
       onSkip={handleSkip}
       onComplete={handleComplete}
     />

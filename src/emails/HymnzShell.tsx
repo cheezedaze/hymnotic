@@ -12,6 +12,11 @@ import {
 
 export const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://hymnz.com";
 
+// Email images must load from a publicly reachable host — never the dev server
+// (`baseUrl` is localhost in development). Logo + other brand assets live here.
+export const emailAssetUrl =
+  process.env.EMAIL_ASSET_URL || "https://www.hymnz.com";
+
 // HYMNZ brand tokens (mirror of @theme in globals.css)
 export const tokens = {
   midnight: "#141A24",
@@ -44,7 +49,7 @@ export function HymnzShell({ preview, children }: HymnzShellProps) {
         <Container style={container}>
           <Section style={logoSection}>
             <Img
-              src={`${baseUrl}/images/hymnz-logo1.png`}
+              src={`${emailAssetUrl}/images/hymnz-logo1.png`}
               width="140"
               height="auto"
               alt="HYMNZ"

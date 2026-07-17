@@ -50,16 +50,19 @@ export async function POST(request: Request) {
       );
     }
 
-    // 3. Turnstile (enforced when configured; fails open when unconfigured).
-    const turnstileOk = await verifyTurnstileToken(
-      typeof turnstileToken === "string" ? turnstileToken : "",
-      ip
-    );
-    if (!turnstileOk) {
-      return NextResponse.json(
-        { error: "Verification failed. Please try again." },
-        { status: 400 }
-      );
+    // 3. Turnstile — enforced when a token is present (a present-but-invalid
+    //    token is a strong bot signal, so reject it). When the token is absent
+    //    (widget blocked/failed for a legit user), degrade to the honeypot +
+    //    rate limit above rather than locking everyone out.
+    const token = typeof turnstileToken === "string" ? turnstileToken : "";
+    if (token) {
+      const turnstileOk = await verifyTurnstileToken(token, ip);
+      if (!turnstileOk) {
+        return NextResponse.json(
+          { error: "Verification failed. Please try again." },
+          { status: 400 }
+        );
+      }
     }
 
     const normalizedEmail = email.toLowerCase().trim();
