@@ -7,7 +7,6 @@ const BENEFITS = [
   "Unlock every track in every collection",
   "Lossless audio quality",
   "Ad-free, distraction-free listening",
-  "Offline downloads on mobile",
   "Support the artists making HYMNZ",
 ];
 

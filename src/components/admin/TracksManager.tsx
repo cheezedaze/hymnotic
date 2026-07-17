@@ -27,6 +27,7 @@ interface TrackRow {
   hasLyrics: boolean;
   artworkUrl: string | null;
   audioUrl: string | null;
+  audioKey: string | null;
 }
 
 interface TracksManagerProps {
@@ -388,7 +389,7 @@ export function TracksManager({ tracks: initialTracks, collections }: TracksMana
                     <Video size={12} className="text-gold" />
                   </span>
                 )}
-                {track.audioUrl && (
+                {track.audioKey && (
                   <span className="p-1 rounded bg-green-500/10" title="Has audio">
                     <Music size={12} className="text-green-400" />
                   </span>
