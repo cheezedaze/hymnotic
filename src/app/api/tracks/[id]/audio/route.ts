@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getTrackById } from "@/lib/db/queries";
+import { getTrackById, claimFreeListen } from "@/lib/db/queries";
 import { signAudioUrl, getObjectRange } from "@/lib/s3/client";
 import {
   getAccessContext,
@@ -40,16 +40,26 @@ export async function GET(
 
     const access = await getAccessContext();
     const sacred7 = await getSacred7TrackIds();
-    const full = canPlayFullTrack(access.tier, id, sacred7);
+    const baseFull = canPlayFullTrack(access.tier, id, sacred7); // paid or free+Sacred 7
 
-    // Entitled → hand off to the CDN via a short-lived signed URL (no server
-    // bandwidth, and the URL is dead within hours if copied).
-    if (full) {
+    // Paid / Sacred 7 → full, no consumption.
+    if (baseFull) {
       const url = signAudioUrl(track.audioKey);
       if (!url) {
         return NextResponse.json({ error: "Not found" }, { status: 404 });
       }
       return NextResponse.redirect(url, 302);
+    }
+
+    // Free user, non-Sacred-7 → grant the one-time full listen if still available.
+    // Sign first so a signing failure doesn't burn the listen, then claim
+    // atomically. The full path is one redirect per playback, so this consumes
+    // exactly once. A lost claim (already consumed) falls through to preview.
+    if (access.tier === "free" && access.userId && !sacred7.includes(id)) {
+      const url = signAudioUrl(track.audioKey);
+      if (url && (await claimFreeListen(access.userId, id))) {
+        return NextResponse.redirect(url, 302);
+      }
     }
 
     // Preview → serve at most `cap` bytes from the start of the file.
