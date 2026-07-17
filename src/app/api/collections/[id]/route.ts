@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { getCollectionWithTracks, getUserPlayCounts } from "@/lib/db/queries";
+import {
+  getCollectionWithTracks,
+  getConsumedFreeListenTrackIds,
+  getUserPlayCounts,
+} from "@/lib/db/queries";
 import {
   buildCollectionMediaUrls,
   buildTrackMediaUrlsWithFallback,
@@ -47,6 +51,16 @@ export async function GET(
       userPlays.map((p) => [p.trackId, p.playCount])
     );
 
+    const consumed =
+      access.tier === "free" && userId
+        ? new Set(
+            await getConsumedFreeListenTrackIds(
+              userId,
+              collection.tracks.map((t) => t.id)
+            )
+          )
+        : new Set<string>();
+
     const response = {
       id: collection.id,
       title: collection.title,
@@ -56,7 +70,16 @@ export async function GET(
       isSacred7: collection.isSacred7,
       ...buildCollectionMediaUrls(collection),
       tracks: collection.tracks.map((track) => {
-        const isFull = canPlayFullTrack(access.tier, track.id, sacred7TrackIds);
+        const freeListenAvailable =
+          access.tier === "free" &&
+          !sacred7TrackIds.includes(track.id) &&
+          !consumed.has(track.id);
+        const isFull = canPlayFullTrack(
+          access.tier,
+          track.id,
+          sacred7TrackIds,
+          freeListenAvailable
+        );
         return {
           id: track.id,
           title: track.title,
@@ -71,6 +94,7 @@ export async function GET(
           hasLyrics: track.hasLyrics,
           isLocked: !isFull,
           previewDuration: isFull ? track.duration : previewDuration,
+          isFreeListen: freeListenAvailable,
           isSacred7: sacred7TrackIds.includes(track.id),
           ...buildTrackMediaUrlsWithFallback(track, collection.artworkKey),
           audioUrl: track.audioKey ? `/api/tracks/${track.id}/audio` : null,

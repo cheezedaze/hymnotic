@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import {
   getCollectionById,
+  getConsumedFreeListenTrackIds,
   getTracksByCollection,
   getSacred7TracksWithDetails,
 } from "@/lib/db/queries";
@@ -109,8 +110,27 @@ export default async function CollectionPage({ params, searchParams }: Collectio
     ...buildCollectionMediaUrls(collection),
   };
 
+  const consumed =
+    access.tier === "free" && access.userId
+      ? new Set(
+          await getConsumedFreeListenTrackIds(
+            access.userId,
+            rawTracks.map((t) => t.id)
+          )
+        )
+      : new Set<string>();
+
   const tracks = rawTracks.map((t) => {
-    const isFull = canPlayFullTrack(access.tier, t.id, sacred7TrackIds);
+    const freeListenAvailable =
+      access.tier === "free" &&
+      !sacred7TrackIds.includes(t.id) &&
+      !consumed.has(t.id);
+    const isFull = canPlayFullTrack(
+      access.tier,
+      t.id,
+      sacred7TrackIds,
+      freeListenAvailable
+    );
     return {
       ...t,
       ...buildTrackMediaUrlsWithFallback(t, collection.artworkKey),
@@ -118,6 +138,7 @@ export default async function CollectionPage({ params, searchParams }: Collectio
       isLocked: !isFull,
       previewDuration: isFull ? t.duration : previewDuration,
       isSacred7: sacred7TrackIds.includes(t.id),
+      isFreeListen: freeListenAvailable,
     };
   });
 

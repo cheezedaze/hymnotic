@@ -49,6 +49,7 @@ export interface ApiTrack {
   previewDuration?: number;
   isSacred7?: boolean;
   isFeatured?: boolean;
+  isFreeListen?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

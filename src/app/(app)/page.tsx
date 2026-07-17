@@ -1,6 +1,7 @@
 import {
   getAllCollections,
   getCollectionById,
+  getConsumedFreeListenTrackIds,
   getFeaturedContent,
   getTrackById,
   getTracksByCollection,
@@ -42,24 +43,54 @@ export default async function HomePage() {
     if (track) {
       const collection = await getCollectionById(track.collectionId);
       const collectionArtworkKey = collection?.artworkKey ?? null;
-      const featuredFull = access.tier !== "visitor";
+      const queueTracks = await getTracksByCollection(track.collectionId);
+
+      // Which of these tracks has this free user already used their listen on?
+      const consumed =
+        access.tier === "free" && access.userId
+          ? new Set(
+              await getConsumedFreeListenTrackIds(
+                access.userId,
+                [track.id, ...queueTracks.map((t) => t.id)]
+              )
+            )
+          : new Set<string>();
+
+      const avail = (tid: string) =>
+        access.tier === "free" &&
+        !sacred7TrackIds.includes(tid) &&
+        !consumed.has(tid);
+
+      const featuredFull = canPlayFullTrack(
+        access.tier,
+        track.id,
+        sacred7TrackIds,
+        avail(track.id)
+      );
       featuredTrack = {
         ...track,
         ...buildTrackMediaUrlsWithFallback(track, collectionArtworkKey),
         audioUrl: track.audioKey ? `/api/tracks/${track.id}/audio` : null,
         isLocked: !featuredFull,
         previewDuration: featuredFull ? track.duration : previewDur,
+        isFreeListen: avail(track.id),
         isFeatured: true,
       };
-      const queueTracks = await getTracksByCollection(track.collectionId);
+
       featuredQueue = queueTracks.map((t) => {
-        const tFull = canPlayFullTrack(access.tier, t.id, sacred7TrackIds);
+        const tFull = canPlayFullTrack(
+          access.tier,
+          t.id,
+          sacred7TrackIds,
+          avail(t.id)
+        );
         return {
           ...t,
           ...buildTrackMediaUrlsWithFallback(t, collectionArtworkKey),
           audioUrl: t.audioKey ? `/api/tracks/${t.id}/audio` : null,
           isLocked: !tFull,
           previewDuration: tFull ? t.duration : previewDur,
+          isFreeListen: avail(t.id),
         };
       });
     }
