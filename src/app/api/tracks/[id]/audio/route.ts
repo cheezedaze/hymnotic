@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getTrackById } from "@/lib/db/queries";
-import { getMediaUrl, getObjectRange } from "@/lib/s3/client";
+import { signAudioUrl, getObjectRange } from "@/lib/s3/client";
 import {
   getAccessContext,
   getSacred7TrackIds,
@@ -42,9 +42,10 @@ export async function GET(
     const sacred7 = await getSacred7TrackIds();
     const full = canPlayFullTrack(access.tier, id, sacred7);
 
-    // Entitled → hand off the full file to the CDN (no server bandwidth).
+    // Entitled → hand off to the CDN via a short-lived signed URL (no server
+    // bandwidth, and the URL is dead within hours if copied).
     if (full) {
-      const url = getMediaUrl(track.audioKey);
+      const url = signAudioUrl(track.audioKey);
       if (!url) {
         return NextResponse.json({ error: "Not found" }, { status: 404 });
       }
