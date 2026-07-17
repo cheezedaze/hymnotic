@@ -184,6 +184,7 @@ export const users = pgTable(
     subscriptionStatus: varchar("subscription_status", { length: 30 }), // "active" | "canceled" | "trialing" | "past_due"
     subscriptionEndDate: timestamp("subscription_end_date"),
     newsletterOptIn: boolean("newsletter_opt_in").default(false).notNull(),
+    signupRef: varchar("signup_ref", { length: 64 }),
     onboardingCompletedAt: timestamp("onboarding_completed_at"),
     onboardingLastDismissedAt: timestamp("onboarding_last_dismissed_at"),
     onboardingDismissCount: integer("onboarding_dismiss_count")
@@ -331,12 +332,12 @@ export const playEvents = pgTable(
   "play_events",
   {
     id: serial("id").primaryKey(),
-    userId: varchar("user_id", { length: 128 })
-      .notNull()
-      .references(() => users.id),
+    // Nullable: anonymous plays from promo pages are recorded without a user.
+    userId: varchar("user_id", { length: 128 }).references(() => users.id),
     trackId: varchar("track_id", { length: 128 })
       .notNull()
       .references(() => tracks.id),
+    source: varchar("source", { length: 32 }),
     playedAt: timestamp("played_at").defaultNow().notNull(),
   },
   (table) => [
