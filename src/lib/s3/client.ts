@@ -145,10 +145,13 @@ export function buildTrackMediaUrls(track: {
 }) {
   return {
     artworkUrl: getMediaUrl(track.artworkKey),
-    audioUrl: getMediaUrl(track.audioKey),
+    // Audio is never handed out as a raw URL — playback goes through
+    // /api/tracks/:id/audio, which signs a short-lived CloudFront URL.
+    audioUrl: null,
     videoUrl: getMediaUrl(track.videoKey),
     videoThumbnailUrl: getMediaUrl(track.videoThumbnailKey),
-    originalAudioUrl: getMediaUrl(track.originalAudioKey),
+    // Lossless master is never exposed to the browser.
+    originalAudioUrl: null,
   };
 }
 

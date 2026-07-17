@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { signAudioUrl } from "./client";
+import { signAudioUrl, buildTrackMediaUrls } from "./client";
 
 // A throwaway RSA private key can be provided via env for the signed-path test.
 const TEST_PRIVATE_KEY = process.env.TEST_CF_PRIVATE_KEY ?? "";
@@ -33,5 +33,22 @@ describe("signAudioUrl", () => {
     expect(url).toContain("Expires=");
     expect(url).toContain("Signature=");
     expect(url).toContain("Key-Pair-Id=TESTKEYPAIRID");
+  });
+});
+
+describe("buildTrackMediaUrls audio safety", () => {
+  it("never emits a raw CDN audio URL", () => {
+    process.env.NEXT_PUBLIC_CDN_URL = "https://d2y722s9xxtvrs.cloudfront.net";
+    const urls = buildTrackMediaUrls({
+      artworkKey: "images/artwork/a.jpg",
+      audioKey: "audio/tracks/x.mp3",
+      videoKey: null,
+      videoThumbnailKey: null,
+      originalAudioKey: "audio/originals/x.wav",
+    });
+    expect(urls.audioUrl).toBeNull();
+    expect(urls.originalAudioUrl).toBeNull();
+    // artwork stays a real URL
+    expect(urls.artworkUrl).toContain("images/artwork/a.jpg");
   });
 });
