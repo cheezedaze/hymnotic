@@ -13,6 +13,18 @@ PATH_PATTERN="audio/tracks/*"
 SCRATCH="$(mktemp -d)"
 trap 'rm -rf "$SCRATCH"' EXIT
 
+# The AWS CLI needs valid credentials. This repo's working creds live in
+# .env.local (the machine's ~/.aws profile may be stale/invalid). Load the
+# AWS_* vars from it if present. Run this script from the repo root.
+if [ -f .env.local ]; then
+  set +e; set -a; . ./.env.local >/dev/null 2>&1; set +a; set -e
+fi
+if ! aws sts get-caller-identity >/dev/null 2>&1; then
+  echo "ERROR: no valid AWS credentials. Run from the repo root so .env.local"
+  echo "loads, or export AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY first." >&2
+  exit 1
+fi
+
 echo "Fetching live distribution config for $DIST_ID ..."
 aws cloudfront get-distribution-config --id "$DIST_ID" > "$SCRATCH/full.json"
 ETAG=$(python3 -c "import json;print(json.load(open('$SCRATCH/full.json'))['ETag'])")
