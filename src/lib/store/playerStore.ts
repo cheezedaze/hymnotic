@@ -27,6 +27,10 @@ interface PlayerState {
 
   history: ApiTrack[];
 
+  // Track IDs the user consumed their one free full listen on THIS session.
+  // In-memory only (not persisted) — a reload refetches authoritative server data.
+  freeListenPlayed: string[];
+
   // Per-collection persisted shuffle queues. Key = collectionId.
   shuffleQueues: Record<string, ShuffleQueueEntry>;
   // Which collection's persisted shuffle queue drives next()/previous().
@@ -69,13 +73,28 @@ interface PlayerState {
   setVoiceoverPlaying: (playing: boolean) => void;
   setShowUpgradeModal: (show: boolean) => void;
   setShowPreviewActions: (show: boolean) => void;
+  markFreeListenPlayed: (trackId: string) => void;
   tryNextSong: () => void;
 }
 
-/** Compute preview state fields from a track's access metadata */
-function previewStateForTrack(track: ApiTrack | null | undefined) {
-  const isPreview = track?.isLocked ?? false;
-  const previewDur = isPreview ? (track?.previewDuration ?? null) : null;
+// Mirror of getPreviewDuration("free") in src/lib/auth/access.ts. A free user's
+// second (and later) listen of a one-free-listen track cuts off here.
+const FREE_LISTEN_PREVIEW_SEC = 60;
+
+/** Compute preview state fields from a track's access metadata. */
+function previewStateForTrack(
+  track: ApiTrack | null | undefined,
+  freeListenPlayed: string[] = []
+) {
+  // A track played this session as a free full listen is preview-only on replay,
+  // even though the server data it was loaded with still says "full".
+  const consumedReplay = !!track && freeListenPlayed.includes(track.id);
+  const isPreview = (track?.isLocked ?? false) || consumedReplay;
+  const previewDur = consumedReplay
+    ? FREE_LISTEN_PREVIEW_SEC
+    : isPreview
+    ? track?.previewDuration ?? null
+    : null;
   return {
     isPreviewMode: isPreview,
     previewDuration: previewDur,
@@ -131,6 +150,8 @@ export const usePlayerStore = create<PlayerState>()(
       repeat: "off",
 
       history: [],
+
+      freeListenPlayed: [],
 
       shuffleQueues: {},
       activeShuffleCollectionId: null,
@@ -222,7 +243,7 @@ export const usePlayerStore = create<PlayerState>()(
               duration: nextTrack.duration,
               isPlaying: true,
               history: newHistory,
-              ...previewStateForTrack(nextTrack),
+              ...previewStateForTrack(nextTrack, get().freeListenPlayed),
             });
             return;
           }
@@ -262,7 +283,7 @@ export const usePlayerStore = create<PlayerState>()(
           duration: nextTrack.duration,
           isPlaying: true,
           history: newHistory,
-          ...previewStateForTrack(nextTrack),
+          ...previewStateForTrack(nextTrack, get().freeListenPlayed),
         });
       },
 
@@ -311,7 +332,7 @@ export const usePlayerStore = create<PlayerState>()(
             isPlaying: true,
             history: newHistory,
             shuffleQueues: nextShuffleQueues,
-            ...previewStateForTrack(prevTrack),
+            ...previewStateForTrack(prevTrack, get().freeListenPlayed),
           });
           return;
         }
@@ -346,7 +367,7 @@ export const usePlayerStore = create<PlayerState>()(
               currentTime: 0,
               duration: prevTrack.duration,
               isPlaying: true,
-              ...previewStateForTrack(prevTrack),
+              ...previewStateForTrack(prevTrack, get().freeListenPlayed),
             });
             return;
           }
@@ -361,7 +382,7 @@ export const usePlayerStore = create<PlayerState>()(
           currentTime: 0,
           duration: prevTrack.duration,
           isPlaying: true,
-          ...previewStateForTrack(prevTrack),
+          ...previewStateForTrack(prevTrack, get().freeListenPlayed),
         });
       },
 
@@ -387,7 +408,7 @@ export const usePlayerStore = create<PlayerState>()(
           isMiniPlayerVisible: true,
           history: newHistory,
           activeShuffleCollectionId: null,
-          ...previewStateForTrack(startTrack),
+          ...previewStateForTrack(startTrack, get().freeListenPlayed),
         });
       },
 
@@ -439,7 +460,7 @@ export const usePlayerStore = create<PlayerState>()(
           history: newHistory,
           shuffleQueues: nextShuffleQueues,
           activeShuffleCollectionId: nextActiveId,
-          ...previewStateForTrack(track),
+          ...previewStateForTrack(track, get().freeListenPlayed),
         };
 
         if (index === -1) {
@@ -505,7 +526,7 @@ export const usePlayerStore = create<PlayerState>()(
           isMiniPlayerVisible: true,
           shuffle: true,
           history: newHistory,
-          ...previewStateForTrack(startTrack),
+          ...previewStateForTrack(startTrack, get().freeListenPlayed),
         });
       },
 
@@ -535,6 +556,12 @@ export const usePlayerStore = create<PlayerState>()(
       setVoiceoverPlaying: (playing) => set({ isVoiceoverPlaying: playing }),
       setShowUpgradeModal: (show) => set({ showUpgradeModal: show }),
       setShowPreviewActions: (show) => set({ showPreviewActions: show }),
+      markFreeListenPlayed: (trackId) =>
+        set((s) =>
+          s.freeListenPlayed.includes(trackId)
+            ? s
+            : { freeListenPlayed: [...s.freeListenPlayed, trackId] }
+        ),
       tryNextSong: () => {
         stopVoiceover();
         set({

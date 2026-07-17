@@ -199,6 +199,12 @@ export function useAudioPlayer() {
           () => {}
         );
       }
+
+      // If this play is the free user's one full listen for the track, remember
+      // it so a same-session replay shows the 60s preview + upgrade modal.
+      if (currentTrack.isFreeListen) {
+        usePlayerStore.getState().markFreeListenPlayed(currentTrack.id);
+      }
     } else {
       // Simulated mode — stop real audio, duration comes from track data
       audio.pause();
