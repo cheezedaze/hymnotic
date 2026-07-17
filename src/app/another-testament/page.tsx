@@ -50,7 +50,7 @@ export default async function AnotherTestamentPage() {
     getTrackById("carry-on").catch(() => null),
     auth().catch(() => null),
   ]);
-  const audioUrl = track ? getMediaUrl(track.audioKey) : null;
+  const audioUrl = track ? `/api/promo/audio?track=${track.id}` : null;
   const artworkUrl = track ? getMediaUrl(track.artworkKey) : null;
 
   return (
