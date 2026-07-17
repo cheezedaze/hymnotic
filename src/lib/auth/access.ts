@@ -40,10 +40,12 @@ export async function getSacred7TrackIds(): Promise<string[]> {
 export function canPlayFullTrack(
   tier: UserTier,
   trackId: string,
-  sacred7TrackIds: string[]
+  sacred7TrackIds: string[],
+  freeListenAvailable = false
 ): boolean {
   if (tier === "paid") return true;
   if (tier === "free" && sacred7TrackIds.includes(trackId)) return true;
+  if (tier === "free" && freeListenAvailable) return true;
   return false;
 }
 
