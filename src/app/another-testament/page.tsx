@@ -47,8 +47,8 @@ const ART = [
 
 export default async function AnotherTestamentPage() {
   const [track, session] = await Promise.all([
-    getTrackById("carry-on"),
-    auth(),
+    getTrackById("carry-on").catch(() => null),
+    auth().catch(() => null),
   ]);
   const audioUrl = track ? getMediaUrl(track.audioKey) : null;
   const artworkUrl = track ? getMediaUrl(track.artworkKey) : null;
@@ -85,7 +85,6 @@ export default async function AnotherTestamentPage() {
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               allowFullScreen
               className="w-full h-full"
-              loading="lazy"
             />
           </div>
           <p className="text-center mt-3">

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Play, Pause } from "lucide-react";
+import { usePlayerStore } from "@/lib/store/playerStore";
 import {
   canPlayPromo,
   getPromoListenState,
@@ -39,6 +40,7 @@ export function PromoPlayer({
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [errored, setErrored] = useState(false);
   // null until mounted (localStorage is client-only) to avoid hydration mismatch
   const [gated, setGated] = useState<boolean | null>(null);
 
@@ -54,8 +56,19 @@ export function PromoPlayer({
 
     const onLoadedMetadata = () => setDuration(audio.duration || 0);
     const onTimeUpdate = () => setCurrentTime(audio.currentTime);
-    const onPlay = () => setIsPlaying(true);
+    const onPlay = () => {
+      setIsPlaying(true);
+      if (!reportedRef.current) {
+        reportedRef.current = true;
+        fetch("/api/promo/play", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ trackId, source: "another-testament" }),
+        }).catch(() => {});
+      }
+    };
     const onPause = () => setIsPlaying(false);
+    const onError = () => setErrored(true);
     const onEnded = () => {
       setIsPlaying(false);
       setCurrentTime(0);
@@ -70,32 +83,28 @@ export function PromoPlayer({
     audio.addEventListener("play", onPlay);
     audio.addEventListener("pause", onPause);
     audio.addEventListener("ended", onEnded);
+    audio.addEventListener("error", onError);
 
     return () => {
       audio.pause();
-      audio.src = "";
+      audio.removeAttribute("src");
+      audio.load();
       audio.removeEventListener("loadedmetadata", onLoadedMetadata);
       audio.removeEventListener("timeupdate", onTimeUpdate);
       audio.removeEventListener("play", onPlay);
       audio.removeEventListener("pause", onPause);
       audio.removeEventListener("ended", onEnded);
+      audio.removeEventListener("error", onError);
       audioRef.current = null;
     };
   }, [audioUrl, isAuthenticated, trackId]);
 
   const togglePlay = () => {
     const audio = audioRef.current;
-    if (!audio || gated) return;
+    if (!audio || gated !== false) return;
     if (audio.paused) {
-      audio.play();
-      if (!reportedRef.current) {
-        reportedRef.current = true;
-        fetch("/api/promo/play", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ trackId, source: "another-testament" }),
-        }).catch(() => {});
-      }
+      usePlayerStore.getState().pause();
+      audio.play().catch(() => setErrored(true));
     } else {
       audio.pause();
     }
@@ -103,7 +112,7 @@ export function PromoPlayer({
 
   const seek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const audio = audioRef.current;
-    if (!audio || gated) return;
+    if (!audio || gated !== false) return;
     const t = Number(e.target.value);
     audio.currentTime = t;
     setCurrentTime(t);
@@ -146,7 +155,7 @@ export function PromoPlayer({
           value={currentTime}
           onChange={seek}
           disabled={gated === true}
-          className="flex-1 accent-[#00FFFB] h-1"
+          className="flex-1 accent-[#00FFFB] h-1 py-3 -my-3"
           aria-label="Seek"
         />
         <span className="text-text-dim text-xs tabular-nums">
@@ -154,7 +163,16 @@ export function PromoPlayer({
         </span>
       </div>
 
-      {gated === true && (
+      {errored ? (
+        <div className="mt-4 rounded-xl bg-accent-dim border border-accent-26 p-4 text-center">
+          <p className="text-text-secondary text-sm">
+            Couldn&apos;t load the audio.{" "}
+            <Link href="/" className="text-accent hover:underline">
+              Listen on HYMNZ
+            </Link>
+          </p>
+        </div>
+      ) : gated === true && (
         <div className="mt-4 rounded-xl bg-accent-dim border border-accent-26 p-4 text-center">
           <p className="text-text-primary text-sm font-medium">
             Hope you enjoyed your free listen.
