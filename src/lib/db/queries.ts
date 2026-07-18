@@ -713,7 +713,7 @@ export async function getUserTotalPlays(userId: string) {
 // listen is first consumed we keep granting full for this window, then lock.
 // Tune this if you want a tighter/looser session. It also bounds how long a
 // track shows as "available" in server data (see getConsumedFreeListenTrackIds).
-export const FREE_LISTEN_GRACE_MS = 30 * 60 * 1000; // 30 minutes
+export const FREE_LISTEN_GRACE_MS = 10 * 60 * 1000; // 10 minutes
 
 /**
  * Decide whether to grant a free user the full listen for a track, and consume
