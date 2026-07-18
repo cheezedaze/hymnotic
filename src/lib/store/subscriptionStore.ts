@@ -27,8 +27,13 @@ export function recomputeTrackAccess(
         previewDuration: isFull ? t.duration : previewDur,
       };
     }
+    // A free user's one-time full listen must survive this recompute. The server
+    // sets t.isFreeListen (true while the listen is still available — it already
+    // accounts for Sacred 7, consumption, and the grace window). Without this,
+    // the tier-only rule re-locks the track and the free listen plays as a preview.
     const isFull =
-      tier === "paid" || (tier === "free" && sacred7Ids.includes(t.id));
+      tier === "paid" ||
+      (tier === "free" && (sacred7Ids.includes(t.id) || t.isFreeListen === true));
     return {
       ...t,
       isLocked: !isFull,
