@@ -10,7 +10,6 @@ import {
   getPromoListenState,
   markPromoListenUsed,
 } from "@/lib/promo/promo-gate";
-import { isNativeApp } from "@/lib/utils/platform";
 
 interface PromoPlayerProps {
   trackId: string;
@@ -183,7 +182,7 @@ export function PromoPlayer({
             arrangements.
           </p>
           <Link
-            href={isNativeApp() ? "/auth/register" : "/subscribe"}
+            href="/subscribe"
             className="inline-block mt-3 px-6 py-2.5 rounded-full bg-accent text-midnight text-sm font-semibold glow-accent"
           >
             Create free account

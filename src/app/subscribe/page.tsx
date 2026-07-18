@@ -86,7 +86,9 @@ function SubscribePageInner() {
     "Support sacred music",
   ];
 
-  // On native apps, show premium benefits without pricing (reader app compliance)
+  // On native apps, show plans without pricing (reader app compliance).
+  // Free-tier signup in-app is allowed (App Review 3.1.3(a)); only the paid
+  // subscription must route externally, with no in-app pricing shown.
   if (isNativeApp()) {
     const nativePremiumBenefits = [
       "Full access to our entire catalog of sacred music",
@@ -97,7 +99,7 @@ function SubscribePageInner() {
     ];
 
     return (
-      <div className="min-h-dvh bg-midnight flex items-center justify-center px-6">
+      <div className="min-h-dvh bg-midnight flex items-center justify-center px-6 py-10">
         <div className="w-full max-w-sm text-center">
           <Image
             src="/images/hymnz-logo1.png"
@@ -106,6 +108,35 @@ function SubscribePageInner() {
             height={48}
             className="mx-auto mb-6"
           />
+
+          {/* Free tier — visitors only (account creation is allowed in-app) */}
+          {tier === "visitor" && (
+            <div className="glass-heavy rounded-2xl p-5 mb-6 text-left">
+              <div className="flex items-center gap-2 mb-3">
+                <Music size={16} className="text-accent" />
+                <h2 className="text-display text-base font-bold text-text-primary">
+                  Free Account
+                </h2>
+              </div>
+              <ul className="space-y-2.5 mb-4">
+                {freeFeatures.map((feature) => (
+                  <li key={feature} className="flex items-start gap-3">
+                    <Check size={14} className="text-accent shrink-0 mt-0.5" />
+                    <span className="text-text-secondary text-sm">
+                      {feature}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <Link
+                href="/auth/register"
+                className="block w-full py-3 text-center bg-accent-50 hover:bg-accent/60 text-white font-semibold rounded-xl transition-colors glow-accent"
+              >
+                Create Free Account
+              </Link>
+            </div>
+          )}
+
           <div className="flex items-center justify-center gap-2 mb-2">
             <Crown size={18} className="text-gold" />
             <h1 className="text-display text-xl font-bold text-text-primary">

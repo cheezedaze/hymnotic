@@ -12,17 +12,21 @@ export function UpgradeModal() {
   const setShowUpgradeModal = usePlayerStore((s) => s.setShowUpgradeModal);
   const showPreviewActions = usePlayerStore((s) => s.showPreviewActions);
   const tryNextSong = usePlayerStore((s) => s.tryNextSong);
+  const minimizeNowPlaying = usePlayerStore((s) => s.minimizeNowPlaying);
   const tier = useSubscriptionStore((s) => s.effectiveTier());
   const isVisitor = tier === "visitor";
   const router = useRouter();
 
   const handleSubscribe = () => {
+    // Close the modal and the Now Playing overlay so the destination page is
+    // actually visible (the overlay is a fixed z-50 layer above the router view).
+    setShowUpgradeModal(false);
+    minimizeNowPlaying();
     if (isNativeApp()) {
       if (isVisitor) {
-        // Account creation is allowed in-app: navigate to the register form
-        // directly instead of the external-browser path (which requires native
-        // plugins and dead-ends the signup if they fail).
-        router.push("/auth/register");
+        // /subscribe on native shows the free-account section plus the
+        // pricing-free premium handoff (reader-app compliant).
+        router.push("/subscribe");
       } else {
         // Paid upgrade must go external (reader-app compliance).
         openExternalLinkAccount("https://www.hymnz.com/subscribe");
@@ -30,7 +34,6 @@ export function UpgradeModal() {
     } else {
       window.location.href = "/subscribe";
     }
-    setShowUpgradeModal(false);
   };
 
   const handleDismiss = () => {

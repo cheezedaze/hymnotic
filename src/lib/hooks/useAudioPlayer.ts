@@ -29,6 +29,7 @@ export function useAudioPlayer() {
   const consecutiveErrorsRef = useRef(0);
   const listenersRef = useRef<{
     onLoaded: () => void;
+    onDurationChange: () => void;
     onTimeUpdate: () => void;
     onEnded: () => void;
     onError: () => void;
@@ -51,6 +52,10 @@ export function useAudioPlayer() {
       audio.removeEventListener(
         "loadedmetadata",
         listenersRef.current.onLoaded
+      );
+      audio.removeEventListener(
+        "durationchange",
+        listenersRef.current.onDurationChange
       );
       audio.removeEventListener(
         "timeupdate",
@@ -143,16 +148,24 @@ export function useAudioPlayer() {
       audio.src = currentTrack.audioUrl;
       audio.load();
 
+      // iOS reports duration=Infinity for the byte-capped preview stream, and
+      // many tracks have duration 0 in the DB — fall back through the track's
+      // known duration to the preview checkpoint (what will actually play) so
+      // the UI always shows a real length instead of 0:00 / Infinity:NaN.
+      const resolveDuration = () => {
+        if (Number.isFinite(audio.duration) && audio.duration > 0) {
+          return audio.duration;
+        }
+        if (currentTrack.duration && currentTrack.duration > 0) {
+          return currentTrack.duration;
+        }
+        return usePlayerStore.getState().previewCheckpoint ?? 0;
+      };
+
       const onLoaded = () => {
         // Successful load — track is playable, so reset the error skip guard.
         consecutiveErrorsRef.current = 0;
-        // iOS reports duration=Infinity for the byte-capped preview stream;
-        // fall back to the track's known duration so the UI shows a real length.
-        const loadedDuration =
-          Number.isFinite(audio.duration) && audio.duration > 0
-            ? audio.duration
-            : currentTrack.duration;
-        usePlayerStore.getState().setDuration(loadedDuration);
+        usePlayerStore.getState().setDuration(resolveDuration());
         // Auto-play once the audio is actually ready
         if (usePlayerStore.getState().isPlaying) {
           audio.play().catch(() => {});
@@ -171,6 +184,13 @@ export function useAudioPlayer() {
           !fadingRef.current
         ) {
           handlePreviewEnd();
+        }
+      };
+      const onDurationChange = () => {
+        // iOS often resolves a finite duration only after buffering more data;
+        // upgrade the display when it does.
+        if (Number.isFinite(audio.duration) && audio.duration > 0) {
+          usePlayerStore.getState().setDuration(audio.duration);
         }
       };
       const onEnded = () => {
@@ -192,12 +212,19 @@ export function useAudioPlayer() {
       };
 
       audio.addEventListener("loadedmetadata", onLoaded);
+      audio.addEventListener("durationchange", onDurationChange);
       audio.addEventListener("timeupdate", onTimeUpdate);
       audio.addEventListener("ended", onEnded);
       audio.addEventListener("error", onError);
 
       // Store references so we can remove them later
-      listenersRef.current = { onLoaded, onTimeUpdate, onEnded, onError };
+      listenersRef.current = {
+        onLoaded,
+        onDurationChange,
+        onTimeUpdate,
+        onEnded,
+        onError,
+      };
 
       // Increment play count (skip for visitors — avoids 401 console noise)
       if (useSubscriptionStore.getState().effectiveTier() !== "visitor") {
