@@ -146,7 +146,13 @@ export function useAudioPlayer() {
       const onLoaded = () => {
         // Successful load — track is playable, so reset the error skip guard.
         consecutiveErrorsRef.current = 0;
-        usePlayerStore.getState().setDuration(audio.duration);
+        // iOS reports duration=Infinity for the byte-capped preview stream;
+        // fall back to the track's known duration so the UI shows a real length.
+        const loadedDuration =
+          Number.isFinite(audio.duration) && audio.duration > 0
+            ? audio.duration
+            : currentTrack.duration;
+        usePlayerStore.getState().setDuration(loadedDuration);
         // Auto-play once the audio is actually ready
         if (usePlayerStore.getState().isPlaying) {
           audio.play().catch(() => {});

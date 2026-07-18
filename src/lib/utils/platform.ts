@@ -43,10 +43,16 @@ export function isAndroid(): boolean {
  */
 export async function openExternalBrowser(url: string): Promise<void> {
   if (isNativeApp()) {
-    // Capacitor's Browser plugin opens a Custom Tab (Android) / SFSafariView
-    // (iOS) — the Cordova-only `window.open(url, "_system")` is a no-op here.
-    const { Browser } = await import("@capacitor/browser");
-    await Browser.open({ url });
+    try {
+      // Capacitor's Browser plugin opens a Custom Tab (Android) / SFSafariView
+      // (iOS) — the Cordova-only `window.open(url, "_system")` is a no-op here.
+      const { Browser } = await import("@capacitor/browser");
+      await Browser.open({ url });
+    } catch {
+      // Terminal fallback: if the plugin isn't registered in this native build,
+      // still open the URL rather than silently doing nothing.
+      window.open(url, "_blank");
+    }
   } else {
     window.open(url, "_blank");
   }

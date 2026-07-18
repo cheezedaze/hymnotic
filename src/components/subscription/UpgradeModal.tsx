@@ -2,6 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Music, ExternalLink, SkipForward } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { usePlayerStore } from "@/lib/store/playerStore";
 import { useSubscriptionStore } from "@/lib/store/subscriptionStore";
 import { isNativeApp, openExternalLinkAccount } from "@/lib/utils/platform";
@@ -13,10 +14,19 @@ export function UpgradeModal() {
   const tryNextSong = usePlayerStore((s) => s.tryNextSong);
   const tier = useSubscriptionStore((s) => s.effectiveTier());
   const isVisitor = tier === "visitor";
+  const router = useRouter();
 
   const handleSubscribe = () => {
     if (isNativeApp()) {
-      openExternalLinkAccount("https://www.hymnz.com/subscribe");
+      if (isVisitor) {
+        // Account creation is allowed in-app: navigate to the register form
+        // directly instead of the external-browser path (which requires native
+        // plugins and dead-ends the signup if they fail).
+        router.push("/auth/register");
+      } else {
+        // Paid upgrade must go external (reader-app compliance).
+        openExternalLinkAccount("https://www.hymnz.com/subscribe");
+      }
     } else {
       window.location.href = "/subscribe";
     }
@@ -96,10 +106,8 @@ export function UpgradeModal() {
                   onClick={handleSubscribe}
                   className="w-full py-3.5 bg-accent-50 hover:bg-accent/60 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 glow-accent"
                 >
-                  <ExternalLink size={16} />
-                  {isVisitor
-                    ? "Sign Up on hymnz.com"
-                    : "Learn More on hymnz.com"}
+                  {!isVisitor && <ExternalLink size={16} />}
+                  {isVisitor ? "Create Free Account" : "Learn More on hymnz.com"}
                 </button>
               </>
             ) : (
