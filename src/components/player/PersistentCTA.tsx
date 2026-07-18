@@ -23,7 +23,10 @@ export function PersistentCTA() {
     // On desktop, the DesktopVisitorBanner handles this — only show on mobile
     const handleCreateAccount = () => {
       minimizeNowPlaying();
-      router.push("/subscribe");
+      // On native, /subscribe is a premium-only handoff screen (no free-account
+      // path), so send free-account signups to the register form. Web shows both
+      // the Free and Premium plans, which is the point of routing there.
+      router.push(isNativeApp() ? "/auth/register" : "/subscribe");
     };
 
     return (
