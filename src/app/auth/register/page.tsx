@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { User, Mail, Lock, CheckCircle, Loader2 } from "lucide-react";
 import { getSafeNextPath } from "@/lib/utils/safe-redirect";
+import { getPlanFromNext, getPostAuthUrl } from "@/lib/utils/checkout-intent";
 import { nativeSignIn } from "@/lib/auth/native-signin";
 import { isAndroid } from "@/lib/utils/platform";
 import { TurnstileWidget } from "@/components/auth/TurnstileWidget";
@@ -41,6 +42,8 @@ export default function RegisterPage() {
 function RegisterPageInner() {
   const searchParams = useSearchParams();
   const next = getSafeNextPath(searchParams.get("next"));
+  const checkoutPlan = getPlanFromNext(next);
+  const postAuthUrl = getPostAuthUrl(next);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -120,9 +123,9 @@ function RegisterPageInner() {
       });
 
       if (result?.error) {
-        window.location.href = `/auth/signin?next=${encodeURIComponent(next)}`;
+        window.location.href = `/auth/signin?next=${encodeURIComponent(postAuthUrl)}`;
       } else {
-        window.location.href = next;
+        window.location.href = postAuthUrl;
       }
     } catch {
       setError("Something went wrong. Please try again.");
@@ -143,10 +146,12 @@ function RegisterPageInner() {
             className="mb-3 w-20 h-20"
           />
           <h1 className="text-display text-2xl font-bold text-text-primary">
-            Create Account
+            {checkoutPlan ? "Almost There" : "Create Account"}
           </h1>
           <p className="text-text-muted text-sm mt-1">
-            Start listening for free
+            {checkoutPlan
+              ? "Create your account to continue to checkout"
+              : "Start listening for free"}
           </p>
         </div>
 
@@ -164,7 +169,7 @@ function RegisterPageInner() {
                 try {
                   const r = await nativeSignIn("apple");
                   if (r.ok) {
-                    window.location.href = next;
+                    window.location.href = postAuthUrl;
                     return;
                   }
                 } catch {
@@ -174,7 +179,7 @@ function RegisterPageInner() {
                 setAppleLoading(false);
                 return;
               }
-              signIn("apple", { callbackUrl: next });
+              signIn("apple", { callbackUrl: postAuthUrl });
             }}
             className="w-full py-3 bg-white hover:bg-white/90 text-black font-medium rounded-xl transition-colors flex items-center justify-center gap-3 disabled:opacity-50"
           >
@@ -197,7 +202,7 @@ function RegisterPageInner() {
                 try {
                   const r = await nativeSignIn("google");
                   if (r.ok) {
-                    window.location.href = next;
+                    window.location.href = postAuthUrl;
                     return;
                   }
                 } catch {
@@ -207,7 +212,7 @@ function RegisterPageInner() {
                 setGoogleLoading(false);
                 return;
               }
-              signIn("google", { callbackUrl: next });
+              signIn("google", { callbackUrl: postAuthUrl });
             }}
             className="w-full py-3 bg-white/10 hover:bg-white/15 border border-white/15 text-text-primary font-medium rounded-xl transition-colors flex items-center justify-center gap-3 disabled:opacity-50"
           >
@@ -370,7 +375,7 @@ function RegisterPageInner() {
               <p className="text-red-400 text-sm">{error}</p>
               {emailTaken && (
                 <Link
-                  href={`/auth/signin?next=${encodeURIComponent(next)}`}
+                  href={`/auth/signin?next=${encodeURIComponent(postAuthUrl)}`}
                   className="inline-block text-sm text-accent hover:underline"
                 >
                   Sign in instead
@@ -402,7 +407,7 @@ function RegisterPageInner() {
                 Creating account...
               </>
             ) : (
-              "Create Free Account"
+              checkoutPlan ? "Create Account & Continue" : "Create Free Account"
             )}
           </button>
         </form>
@@ -422,7 +427,7 @@ function RegisterPageInner() {
         <p className="text-center text-text-muted text-sm mt-4">
           Already have an account?{" "}
           <Link
-            href={next !== "/" ? `/auth/signin?next=${encodeURIComponent(next)}` : "/auth/signin"}
+            href={postAuthUrl !== "/" ? `/auth/signin?next=${encodeURIComponent(postAuthUrl)}` : "/auth/signin"}
             className="text-accent hover:underline"
           >
             Sign In
