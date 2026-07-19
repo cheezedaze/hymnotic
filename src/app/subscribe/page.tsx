@@ -4,7 +4,7 @@ import { Suspense, useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Check, Loader2, Crown, ExternalLink, Music } from "lucide-react";
+import { Check, Loader2, Crown, ExternalLink, Music, CheckCircle } from "lucide-react";
 import {
   isNativeApp,
   openExternalLinkAccountWithHandoff,
@@ -27,6 +27,7 @@ function SubscribePageInner() {
   const preselectedPlan: "monthly" | "yearly" | null =
     rawPlan === "monthly" || rawPlan === "yearly" ? rawPlan : null;
   const autoCheckout = searchParams.get("checkout") === "1";
+  const welcome = searchParams.get("welcome") === "1";
 
   useEffect(() => {
     fetch("/api/user/subscription")
@@ -159,6 +160,15 @@ function SubscribePageInner() {
             </div>
           )}
 
+          {welcome && tier !== "visitor" && (
+            <div className="glass rounded-xl px-4 py-3 mb-6 flex items-center justify-center gap-2">
+              <CheckCircle size={16} className="text-accent shrink-0" />
+              <span className="text-text-secondary text-sm">
+                Account created &mdash; one more step
+              </span>
+            </div>
+          )}
+
           <div className="flex items-center justify-center gap-2 mb-2">
             <Crown size={18} className="text-gold" />
             <h1 className="text-display text-xl font-bold text-text-primary">
@@ -180,15 +190,26 @@ function SubscribePageInner() {
             </ul>
           </div>
 
-          <button
-            onClick={() => openExternalLinkAccountWithHandoff("/subscribe")}
-            className="w-full py-3.5 bg-accent-50 hover:bg-accent/60 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 glow-accent"
-          >
-            <ExternalLink size={16} />
-            Continue to subscribe
-          </button>
+          {tier === "visitor" ? (
+            <Link
+              href={`/auth/register?next=${encodeURIComponent("/subscribe?welcome=1")}`}
+              className="block w-full py-3.5 bg-accent-50 hover:bg-accent/60 text-white font-semibold rounded-xl transition-colors text-center glow-accent"
+            >
+              Continue to subscribe
+            </Link>
+          ) : (
+            <button
+              onClick={() => openExternalLinkAccountWithHandoff("/subscribe")}
+              className="w-full py-3.5 bg-accent-50 hover:bg-accent/60 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 glow-accent"
+            >
+              <ExternalLink size={16} />
+              Continue to subscribe
+            </button>
+          )}
           <p className="text-text-dim text-xs mt-3">
-            Your subscription will sync automatically to this app.
+            {tier === "visitor"
+              ? "You'll create a free account first, then finish on hymnz.com."
+              : "Your subscription will sync automatically to this app."}
           </p>
           <Link
             href="/"
