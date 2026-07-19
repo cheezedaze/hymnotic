@@ -259,7 +259,7 @@ function SubscribePageInner() {
         {/* Tier cards */}
         <div className="grid md:grid-cols-2 gap-6 mb-6">
           {/* Free Tier */}
-          <div className="glass-heavy rounded-2xl p-6 border border-white/10 flex flex-col">
+          <div className="glass-heavy rounded-2xl p-6 border border-white/10 flex flex-col order-2 md:order-1">
             <div className="flex items-center gap-2 mb-1">
               <Music size={16} className="text-text-secondary" />
               <h2 className="text-sm font-semibold text-text-primary uppercase tracking-wide">
@@ -297,7 +297,7 @@ function SubscribePageInner() {
           </div>
 
           {/* Premium Tier */}
-          <div className="glass-heavy rounded-2xl p-6 border border-accent/30 flex flex-col relative">
+          <div className="glass-heavy rounded-2xl p-6 border border-accent/30 flex flex-col relative order-1 md:order-2">
             <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-accent text-midnight text-xs font-bold px-3 py-0.5 rounded-full whitespace-nowrap">
               Most Popular
             </div>
