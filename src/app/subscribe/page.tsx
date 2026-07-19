@@ -22,6 +22,7 @@ function SubscribePageInner() {
   const [loading, setLoading] = useState<"monthly" | "yearly" | null>(null);
   const [error, setError] = useState("");
   const [tier, setTier] = useState<"visitor" | "free" | "paid">("visitor");
+  const [tierResolved, setTierResolved] = useState(false);
   const searchParams = useSearchParams();
   const rawPlan = searchParams.get("plan");
   const preselectedPlan: "monthly" | "yearly" | null =
@@ -35,7 +36,8 @@ function SubscribePageInner() {
       .then((data) => {
         if (data?.tier) setTier(data.tier);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setTierResolved(true));
   }, []);
 
   // Any checkout start (manual tap or auto-fire) consumes the auto-intent,
@@ -190,7 +192,14 @@ function SubscribePageInner() {
             </ul>
           </div>
 
-          {tier === "visitor" ? (
+          {!tierResolved ? (
+            <button
+              disabled
+              className="w-full py-3.5 bg-accent-50 text-white font-semibold rounded-xl flex items-center justify-center gap-2 glow-accent opacity-50"
+            >
+              Continue to subscribe
+            </button>
+          ) : tier === "visitor" ? (
             <Link
               href={`/auth/register?next=${encodeURIComponent("/subscribe?welcome=1")}`}
               className="block w-full py-3.5 bg-accent-50 hover:bg-accent/60 text-white font-semibold rounded-xl transition-colors text-center glow-accent"
@@ -207,7 +216,7 @@ function SubscribePageInner() {
             </button>
           )}
           <p className="text-text-dim text-xs mt-3">
-            {tier === "visitor"
+            {tierResolved && tier === "visitor"
               ? "You'll create a free account first, then finish on hymnz.com."
               : "Your subscription will sync automatically to this app."}
           </p>
