@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useEffect } from "react";
+import { Suspense, useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -26,6 +26,7 @@ function SubscribePageInner() {
   const rawPlan = searchParams.get("plan");
   const preselectedPlan: "monthly" | "yearly" | null =
     rawPlan === "monthly" || rawPlan === "yearly" ? rawPlan : null;
+  const autoCheckout = searchParams.get("checkout") === "1";
 
   useEffect(() => {
     fetch("/api/user/subscription")
@@ -68,6 +69,19 @@ function SubscribePageInner() {
       setLoading(null);
     }
   };
+
+  // Auto-resume checkout when arriving from signup/signin with a chosen plan
+  // (?plan=...&checkout=1). Fires once; on failure the normal highlighted
+  // plan button + error message remain as the manual fallback.
+  const autoFired = useRef(false);
+  useEffect(() => {
+    if (autoFired.current) return;
+    if (!autoCheckout || !preselectedPlan) return;
+    if (isNativeApp() || tier !== "free") return;
+    autoFired.current = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    handleSubscribe(preselectedPlan);
+  }, [tier, autoCheckout, preselectedPlan]);
 
   const freeFeatures = [
     "7 free full-length hymns",
