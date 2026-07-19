@@ -135,7 +135,7 @@ function SubscribePageInner() {
           />
 
           {/* Free tier — visitors only (account creation is allowed in-app) */}
-          {tier === "visitor" && (
+          {tierResolved && tier === "visitor" && (
             <div className="glass-heavy rounded-2xl p-5 mb-6 text-left">
               <div className="flex items-center gap-2 mb-3">
                 <Music size={16} className="text-accent" />
