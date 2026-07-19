@@ -37,7 +37,12 @@ function SubscribePageInner() {
       .catch(() => {});
   }, []);
 
+  // Any checkout start (manual tap or auto-fire) consumes the auto-intent,
+  // so the auto-resume effect below can never start a second checkout.
+  const autoFired = useRef(false);
+
   const handleSubscribe = async (plan: "monthly" | "yearly") => {
+    autoFired.current = true;
     setError("");
     setLoading(plan);
 
@@ -72,13 +77,16 @@ function SubscribePageInner() {
 
   // Auto-resume checkout when arriving from signup/signin with a chosen plan
   // (?plan=...&checkout=1). Fires once; on failure the normal highlighted
-  // plan button + error message remain as the manual fallback.
-  const autoFired = useRef(false);
+  // plan button + error message remain as the manual fallback. Strips
+  // checkout=1 from the history entry (plain replaceState, not router.replace,
+  // so Next's searchParams — and the button highlight — stay stable for this
+  // render) so backing out of Stripe can't bounce the user straight back.
   useEffect(() => {
     if (autoFired.current) return;
     if (!autoCheckout || !preselectedPlan) return;
     if (isNativeApp() || tier !== "free") return;
     autoFired.current = true;
+    window.history.replaceState(null, "", `/subscribe?plan=${preselectedPlan}`);
     // eslint-disable-next-line react-hooks/set-state-in-effect
     handleSubscribe(preselectedPlan);
   }, [tier, autoCheckout, preselectedPlan]);
