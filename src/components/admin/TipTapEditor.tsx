@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
@@ -12,10 +13,13 @@ import {
   ListOrdered,
   Link as LinkIcon,
   ImageIcon,
+  Loader2,
+  Upload,
   Undo,
   Redo,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { uploadViaPresignedUrl } from "@/lib/s3/upload-client";
 
 interface TipTapEditorProps {
   initialContent?: string;
@@ -23,6 +27,11 @@ interface TipTapEditorProps {
 }
 
 export function TipTapEditor({ initialContent = "", onUpdate }: TipTapEditorProps) {
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const [showImageMenu, setShowImageMenu] = useState(false);
+
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
@@ -58,10 +67,33 @@ export function TipTapEditor({ initialContent = "", onUpdate }: TipTapEditorProp
     }
   };
 
-  const addImage = () => {
+  const addImageByUrl = () => {
+    setShowImageMenu(false);
     const url = window.prompt("Enter image URL:");
     if (url) {
       editor.chain().focus().setImage({ src: url }).run();
+    }
+  };
+
+  const handleImageFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file later
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setImageError("Please choose an image file");
+      return;
+    }
+
+    setImageError(null);
+    setUploadingImage(true);
+    try {
+      const { cdnUrl } = await uploadViaPresignedUrl(file, "images/misc");
+      editor.chain().focus().setImage({ src: cdnUrl }).run();
+    } catch (err) {
+      setImageError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploadingImage(false);
     }
   };
 
@@ -143,9 +175,55 @@ export function TipTapEditor({ initialContent = "", onUpdate }: TipTapEditorProp
         >
           <LinkIcon size={14} />
         </ToolbarButton>
-        <ToolbarButton onClick={addImage} title="Add Image">
-          <ImageIcon size={14} />
-        </ToolbarButton>
+        <div className="relative">
+          <ToolbarButton
+            onClick={() => !uploadingImage && setShowImageMenu((v) => !v)}
+            isActive={showImageMenu}
+            title="Add Image"
+          >
+            {uploadingImage ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <ImageIcon size={14} />
+            )}
+          </ToolbarButton>
+          {showImageMenu && !uploadingImage && (
+            <>
+              <div
+                className="fixed inset-0 z-10"
+                onClick={() => setShowImageMenu(false)}
+              />
+              <div className="absolute left-0 top-full mt-1 z-20 w-40 rounded-lg border border-white/10 bg-midnight shadow-lg overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowImageMenu(false);
+                    imageInputRef.current?.click();
+                  }}
+                  className="flex items-center gap-2 w-full px-3 py-2 text-xs text-text-secondary hover:text-accent hover:bg-white/5 transition-colors"
+                >
+                  <Upload size={13} />
+                  Upload image
+                </button>
+                <button
+                  type="button"
+                  onClick={addImageByUrl}
+                  className="flex items-center gap-2 w-full px-3 py-2 text-xs text-text-secondary hover:text-accent hover:bg-white/5 transition-colors"
+                >
+                  <LinkIcon size={13} />
+                  Paste URL
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+        <input
+          ref={imageInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleImageFile}
+          className="hidden"
+        />
 
         <div className="flex-1" />
 
@@ -165,6 +243,12 @@ export function TipTapEditor({ initialContent = "", onUpdate }: TipTapEditorProp
 
       {/* Editor */}
       <EditorContent editor={editor} />
+
+      {imageError && (
+        <p className="px-4 py-2 text-xs text-red-400 border-t border-white/10">
+          {imageError}
+        </p>
+      )}
     </div>
   );
 }
