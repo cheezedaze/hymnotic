@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { ConfirmForm } from "./ConfirmForm";
 
 type Search = { token?: string; status?: string };
 
@@ -68,21 +69,13 @@ export default async function ConfirmNewsletterPage({
           ) : token ? (
             <>
               <h2 className="text-lg font-semibold text-text-primary mb-2">
-                Confirm your subscription
+                Confirming your subscription
               </h2>
               <p className="text-text-secondary text-sm leading-relaxed mb-6">
-                Click below to start receiving updates about new music,
-                collections, and HYMNZ news.
+                One moment — we&rsquo;re finishing your subscription. If nothing
+                happens, tap below.
               </p>
-              <form action="/api/newsletter/confirm" method="POST">
-                <input type="hidden" name="token" value={token} />
-                <button
-                  type="submit"
-                  className="w-full py-3 bg-accent/20 hover:bg-accent/30 border border-accent/30 text-accent font-semibold rounded-xl transition-colors"
-                >
-                  Confirm Subscription
-                </button>
-              </form>
+              <ConfirmForm token={token} />
             </>
           ) : (
             <>

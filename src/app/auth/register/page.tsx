@@ -366,7 +366,8 @@ function RegisterPageInner() {
               htmlFor="newsletter"
               className="text-sm text-text-secondary leading-snug cursor-pointer"
             >
-              Send me updates about new music, collections, and HYMNZ news
+              Be first to hear new hymns — email me when new collections and
+              releases land. No spam, just the music.
             </label>
           </div>
 
