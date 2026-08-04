@@ -10,12 +10,23 @@ import {
   Text,
 } from "@react-email/components";
 
-export const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://hymnz.com";
+const publicOrigin = "https://www.hymnz.com";
 
-// Email images must load from a publicly reachable host — never the dev server
-// (`baseUrl` is localhost in development). Logo + other brand assets live here.
-export const emailAssetUrl =
-  process.env.EMAIL_ASSET_URL || "https://www.hymnz.com";
+// Every link here is opened from someone else's inbox, so a localhost value is
+// always wrong — NEXT_PUBLIC_APP_URL points at the dev server in development,
+// and a broadcast rendered locally would otherwise ship dead links to real
+// recipients (this is exactly how the first newsletter went out with a
+// localhost footer). Fall back to the public origin instead of trusting it.
+const configuredAppUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+const isLocalUrl = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/i.test(
+  configuredAppUrl
+);
+export const baseUrl =
+  !configuredAppUrl || isLocalUrl ? publicOrigin : configuredAppUrl;
+
+// Email images must load from a publicly reachable host — never the dev server.
+// Logo + other brand assets live here.
+export const emailAssetUrl = process.env.EMAIL_ASSET_URL || publicOrigin;
 
 // HYMNZ brand tokens (mirror of @theme in globals.css)
 export const tokens = {

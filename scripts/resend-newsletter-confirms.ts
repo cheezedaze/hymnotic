@@ -18,9 +18,9 @@ import { Resend } from "resend";
 const SEND = process.argv.includes("--send");
 const APP_URL = process.env.APP_URL || "https://www.hymnz.com";
 
-// The email shell reads NEXT_PUBLIC_APP_URL at module load for its footer link,
-// and .env.local points at localhost. Override BEFORE importing the email
-// modules (hence the dynamic imports below) or the footer ships a dead link.
+// HymnzShell now refuses localhost on its own, but it reads NEXT_PUBLIC_APP_URL
+// at module load — so setting it here (before the dynamic imports below) is what
+// keeps the footer pointed at the same host as the confirm links.
 process.env.NEXT_PUBLIC_APP_URL = APP_URL;
 
 // Match the sender these recipients got their original confirm email from.
