@@ -2,9 +2,11 @@
 
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Copy, Check, MessageCircle } from "lucide-react";
+import { X, Copy, Check, MessageCircle, Share2 } from "lucide-react";
 import { useShareStore } from "@/lib/store/shareStore";
-import { useShare } from "@/lib/hooks/useShare";
+import { buildSharePayload } from "@/lib/share/shareData";
+import { canUseSystemShare, shareWithSystem } from "@/lib/share/systemShare";
+import { TrackShareCard } from "./TrackShareCard";
 
 function TwitterIcon({ size = 18 }: { size?: number }) {
   return (
@@ -34,20 +36,32 @@ export function ShareSheet() {
   const isOpen = useShareStore((s) => s.isOpen);
   const shareData = useShareStore((s) => s.shareData);
   const closeShare = useShareStore((s) => s.closeShare);
-  const { buildShareUrl, buildShareText } = useShare();
 
   const [copied, setCopied] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [showFallbacks, setShowFallbacks] = useState(
+    () => !canUseSystemShare()
+  );
+  const [shareDataId, setShareDataId] = useState(shareData?.id);
 
-  const url = shareData ? buildShareUrl(shareData) : "";
-  const text = shareData ? buildShareText(shareData) : "";
+  const payload = shareData ? buildSharePayload(shareData) : null;
+
+  if (shareDataId !== shareData?.id) {
+    setShareDataId(shareData?.id);
+    setCopied(false);
+    setSharing(false);
+    setShowFallbacks(!canUseSystemShare());
+  }
 
   const handleCopy = useCallback(async () => {
+    if (!payload) return;
+
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(payload.url);
     } catch {
       // Fallback for older browsers
       const input = document.createElement("input");
-      input.value = url;
+      input.value = payload.url;
       document.body.appendChild(input);
       input.select();
       document.execCommand("copy");
@@ -55,30 +69,45 @@ export function ShareSheet() {
     }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  }, [url]);
+  }, [payload]);
 
-  const socialLinks = [
+  const handleShare = useCallback(async () => {
+    if (!payload || sharing) return;
+
+    setSharing(true);
+    const result = await shareWithSystem(payload);
+
+    if (result === "shared") {
+      closeShare();
+    } else if (result === "failed" || result === "unavailable") {
+      setShowFallbacks(true);
+    }
+
+    setSharing(false);
+  }, [closeShare, payload, sharing]);
+
+  const socialLinks = payload ? [
     {
       name: "X",
       icon: <TwitterIcon size={18} />,
-      href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`,
+      href: `https://twitter.com/intent/tweet?text=${encodeURIComponent(payload.text)}&url=${encodeURIComponent(payload.url)}`,
     },
     {
       name: "Facebook",
       icon: <FacebookIcon size={18} />,
-      href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
+      href: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(payload.url)}`,
     },
     {
       name: "WhatsApp",
       icon: <WhatsAppIcon size={18} />,
-      href: `https://wa.me/?text=${encodeURIComponent(text + " " + url)}`,
+      href: `https://wa.me/?text=${encodeURIComponent(payload.text + " " + payload.url)}`,
     },
     {
       name: "Message",
       icon: <MessageCircle size={18} />,
-      href: `sms:?body=${encodeURIComponent(text + " " + url)}`,
+      href: `sms:?body=${encodeURIComponent(payload.text + " " + payload.url)}`,
     },
-  ];
+  ] : [];
 
   return (
     <AnimatePresence>
@@ -117,28 +146,20 @@ export function ShareSheet() {
               <X size={18} />
             </button>
 
-            {/* Track/Collection preview */}
-            <div className="flex items-center gap-3 mb-5 pr-8">
-              {shareData.artworkUrl ? (
-                <img
-                  src={shareData.artworkUrl}
-                  alt={shareData.title}
-                  className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
-                />
-              ) : (
-                <div className="w-12 h-12 rounded-lg bg-accent/10 border border-accent/20 flex-shrink-0" />
-              )}
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-text-primary truncate">
-                  {shareData.title}
-                </p>
-                {shareData.artist && (
-                  <p className="text-xs text-text-muted truncate">
-                    {shareData.artist}
-                  </p>
-                )}
-              </div>
+            <div className="mb-5 pr-8">
+              <TrackShareCard data={shareData} />
             </div>
+
+            {!showFallbacks && (
+              <button
+                onClick={handleShare}
+                disabled={sharing}
+                className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3 font-medium text-white transition-opacity disabled:opacity-60"
+              >
+                <Share2 size={16} />
+                {sharing ? "Sharing…" : "Share…"}
+              </button>
+            )}
 
             {/* Copy Link */}
             <button
@@ -153,28 +174,29 @@ export function ShareSheet() {
               ) : (
                 <>
                   <Copy size={16} />
-                  Copy Link
+                  Copy link
                 </>
               )}
             </button>
 
-            {/* Social share buttons */}
-            <div className="flex items-center justify-center gap-3">
-              {socialLinks.map((link) => (
-                <a
-                  key={link.name}
-                  href={link.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex flex-col items-center gap-1.5 p-3 rounded-xl hover:bg-white/5 transition-colors text-text-secondary hover:text-text-primary"
-                >
-                  {link.icon}
-                  <span className="text-[10px] text-text-muted">
-                    {link.name}
-                  </span>
-                </a>
-              ))}
-            </div>
+            {showFallbacks && (
+              <div className="flex items-center justify-center gap-3">
+                {socialLinks.map((link) => (
+                  <a
+                    key={link.name}
+                    href={link.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex flex-col items-center gap-1.5 p-3 rounded-xl hover:bg-white/5 transition-colors text-text-secondary hover:text-text-primary"
+                  >
+                    {link.icon}
+                    <span className="text-[10px] text-text-muted">
+                      {link.name}
+                    </span>
+                  </a>
+                ))}
+              </div>
+            )}
           </motion.div>
         </motion.div>
       )}
