@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Play } from "lucide-react";
 
@@ -23,22 +22,12 @@ export function TrackLanding({
 }: TrackLandingProps) {
   const router = useRouter();
 
-  // Auto-redirect to collection with autoplay after a brief moment
-  useEffect(() => {
-    if (collectionId) {
-      const timeout = setTimeout(() => {
-        router.replace(`/collection/${collectionId}?play=${trackId}`);
-      }, 100);
-      return () => clearTimeout(timeout);
-    }
-  }, [collectionId, trackId, router]);
-
   const handleListen = () => {
     if (collectionId) {
       router.push(`/collection/${collectionId}?play=${trackId}`);
-    } else {
-      router.push("/");
+      return;
     }
+    router.push("/");
   };
 
   return (
@@ -70,7 +59,7 @@ export function TrackLanding({
           className="inline-flex items-center gap-2 py-3 px-8 bg-accent-50 hover:bg-accent/60 text-white font-semibold rounded-xl transition-colors glow-accent"
         >
           <Play size={18} fill="white" />
-          Listen on HYMNZ
+          Play on HYMNZ
         </button>
       </div>
     </div>
