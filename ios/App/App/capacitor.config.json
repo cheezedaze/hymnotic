@@ -1,0 +1,28 @@
+{
+	"appId": "com.hymnz.app",
+	"appName": "HYMNZ",
+	"webDir": "android-webdir",
+	"server": {
+		"url": "https://www.hymnz.com",
+		"allowNavigation": [
+			"hymnz.com",
+			"*.hymnz.com",
+			"*.cloudfront.net",
+			"hymnotic-media.s3.us-west-2.amazonaws.com"
+		]
+	},
+	"ios": {
+		"scheme": "https",
+		"allowsLinkPreview": false
+	},
+	"android": {
+		"allowMixedContent": false
+	},
+	"packageClassList": [
+		"FirebaseMessagingPlugin",
+		"AppPlugin",
+		"CAPBrowserPlugin",
+		"SharePlugin",
+		"SocialLoginPlugin"
+	]
+}
