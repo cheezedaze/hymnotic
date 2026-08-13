@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createHash } from "node:crypto";
 import TrackOpenGraphImage, {
   contentType,
   size,
@@ -117,5 +118,30 @@ describe("track Open Graph image", () => {
 
     expect(response.headers.get("content-type")).toContain("image/png");
     expect((await response.arrayBuffer()).byteLength).toBeGreaterThan(1000);
+  });
+
+  it("renders no title content beyond two lines", async () => {
+    getTrackById.mockResolvedValue({
+      ...activeTrack,
+      title:
+        "A Very Long Track Title That Keeps Going Across Three Separate Lines",
+    });
+    const longTitleResponse = await TrackOpenGraphImage({
+      params: Promise.resolve({ id: "carry-on" }),
+    });
+    const longTitlePng = Buffer.from(await longTitleResponse.arrayBuffer());
+
+    getTrackById.mockResolvedValue({
+      ...activeTrack,
+      title: "A Very Long Track Title That Keeps Going",
+    });
+    const twoLineResponse = await TrackOpenGraphImage({
+      params: Promise.resolve({ id: "carry-on" }),
+    });
+    const twoLinePng = Buffer.from(await twoLineResponse.arrayBuffer());
+
+    expect(createHash("sha256").update(longTitlePng).digest("hex")).toBe(
+      createHash("sha256").update(twoLinePng).digest("hex")
+    );
   });
 });

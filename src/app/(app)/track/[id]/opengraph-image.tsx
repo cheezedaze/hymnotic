@@ -141,7 +141,7 @@ export default async function TrackOpenGraphImage({
             <div
               style={{
                 display: "flex",
-                maxHeight: 140,
+                maxHeight: 133.4,
                 fontSize: 58,
                 lineHeight: 1.15,
                 fontWeight: 700,
