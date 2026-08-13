@@ -1,7 +1,7 @@
 # Track Deep Linking and Branded Sharing — Design
 
 **Date:** 2026-08-13
-**Status:** Approved in chat; pending written-spec review
+**Status:** Approved by owner for implementation planning
 
 ## Problem
 
