@@ -75,6 +75,9 @@ scripts/bot-signup-candidates.csv
 # Claude Code worktrees (multi-GB duplicate checkouts — never commit)
 .claude/worktrees/
 
+# Codex feature worktrees
+.worktrees/
+
 # Local strategy/brainstorm scratch — never commit to this PUBLIC repo
 brainstorms/
 claude-assessment.txt
