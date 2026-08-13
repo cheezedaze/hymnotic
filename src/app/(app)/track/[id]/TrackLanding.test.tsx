@@ -34,6 +34,21 @@ describe("TrackLanding", () => {
     expect(replace).not.toHaveBeenCalled();
   });
 
+  it("shows HYMNZ branding when artwork is unavailable", () => {
+    render(
+      <TrackLanding
+        trackId="carry-on"
+        title="Carry On"
+        artist="HYMNZ"
+        artworkUrl={null}
+        collectionId="all-tracks"
+        collectionTitle="All Tracks"
+      />
+    );
+
+    expect(screen.getByRole("img", { name: "HYMNZ" })).toBeTruthy();
+  });
+
   it("starts the exact track only after Play is tapped", () => {
     render(
       <TrackLanding

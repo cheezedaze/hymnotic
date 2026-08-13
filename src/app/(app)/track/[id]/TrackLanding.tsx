@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Play } from "lucide-react";
 
 interface TrackLandingProps {
@@ -41,7 +42,15 @@ export function TrackLanding({
             className="w-48 h-48 sm:w-56 sm:h-56 rounded-2xl object-cover mx-auto mb-6 shadow-2xl"
           />
         ) : (
-          <div className="w-48 h-48 sm:w-56 sm:h-56 rounded-2xl bg-accent/10 border border-accent/20 mx-auto mb-6" />
+          <div className="w-48 h-48 sm:w-56 sm:h-56 rounded-2xl bg-accent/10 border border-accent/20 mx-auto mb-6 flex items-center justify-center">
+            <Image
+              src="/images/hymnz-logo1.png"
+              alt="HYMNZ"
+              width={141}
+              height={121}
+              className="h-24 w-auto opacity-80"
+            />
+          </div>
         )}
 
         {/* Track info */}

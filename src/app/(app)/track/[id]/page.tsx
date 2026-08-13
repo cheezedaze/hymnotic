@@ -83,7 +83,7 @@ export default async function TrackPage({ params }: TrackPageProps) {
       title={track.title}
       artist={track.artist || "HYMNZ"}
       artworkUrl={artworkUrl}
-      collectionId={track.collectionId}
+      collectionId={collection?.id ?? null}
       collectionTitle={collection?.title || null}
     />
   );

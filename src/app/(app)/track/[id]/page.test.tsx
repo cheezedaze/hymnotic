@@ -105,6 +105,25 @@ describe("track page", () => {
     ).rejects.toThrow("NOT_FOUND");
   });
 
+  it("treats a missing collection record as unusable", async () => {
+    getTrackById.mockResolvedValue({
+      ...activeTrack,
+      collectionId: "missing-collection",
+      artworkKey: null,
+    });
+    getCollectionById.mockResolvedValue(null);
+
+    const page = await TrackPage({
+      params: Promise.resolve({ id: "carry-on" }),
+    });
+
+    expect(page.props).toMatchObject({
+      artworkUrl: null,
+      collectionId: null,
+      collectionTitle: null,
+    });
+  });
+
   it("returns not-found metadata for inactive tracks", async () => {
     getTrackById.mockResolvedValue({ ...activeTrack, isActive: false });
 
