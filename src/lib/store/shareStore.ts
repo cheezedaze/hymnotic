@@ -1,12 +1,7 @@
 import { create } from "zustand";
+import type { ShareData } from "@/lib/share/shareData";
 
-export interface ShareData {
-  type: "track" | "collection";
-  id: string;
-  title: string;
-  artist?: string;
-  artworkUrl?: string | null;
-}
+export type { ShareData } from "@/lib/share/shareData";
 
 interface ShareState {
   isOpen: boolean;
