@@ -16,7 +16,10 @@ export function canUseSystemShare(): boolean {
 }
 
 function isCancellation(error: unknown): boolean {
-  return error instanceof DOMException && error.name === "AbortError";
+  return (
+    (error instanceof DOMException && error.name === "AbortError") ||
+    (error instanceof Error && error.message === "Share canceled")
+  );
 }
 
 export async function shareWithSystem(

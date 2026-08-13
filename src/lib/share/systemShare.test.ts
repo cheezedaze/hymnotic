@@ -36,6 +36,12 @@ describe("system sharing", () => {
     });
   });
 
+  it("normalizes a native share cancellation", async () => {
+    vi.mocked(Capacitor.isNativePlatform).mockReturnValue(true);
+    vi.mocked(Share.share).mockRejectedValue(new Error("Share canceled"));
+    expect(await shareWithSystem(payload)).toBe("cancelled");
+  });
+
   it("uses Web Share in a capable browser", async () => {
     const share = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(globalThis, "navigator", {
