@@ -12,12 +12,16 @@ PODS:
     - PromisesObjC (~> 2.4)
   - Capacitor (8.1.0):
     - CapacitorCordova
+  - CapacitorApp (8.1.1):
+    - Capacitor
   - CapacitorBrowser (8.0.3):
     - Capacitor
   - CapacitorCordova (8.1.0)
   - CapacitorFirebaseMessaging (8.2.0):
     - Capacitor
     - FirebaseMessaging (~> 12.7.0)
+  - CapacitorShare (8.0.1):
+    - Capacitor
   - CapgoCapacitorSocialLogin (8.3.20):
     - Alamofire (~> 5.10.2)
     - Capacitor
@@ -97,9 +101,11 @@ PODS:
 
 DEPENDENCIES:
   - "Capacitor (from `../../node_modules/@capacitor/ios`)"
+  - "CapacitorApp (from `../../node_modules/@capacitor/app`)"
   - "CapacitorBrowser (from `../../node_modules/@capacitor/browser`)"
   - "CapacitorCordova (from `../../node_modules/@capacitor/ios`)"
   - "CapacitorFirebaseMessaging (from `../../node_modules/@capacitor-firebase/messaging`)"
+  - "CapacitorShare (from `../../node_modules/@capacitor/share`)"
   - "CapgoCapacitorSocialLogin (from `../../node_modules/@capgo/capacitor-social-login`)"
 
 SPEC REPOS:
@@ -126,12 +132,16 @@ SPEC REPOS:
 EXTERNAL SOURCES:
   Capacitor:
     :path: "../../node_modules/@capacitor/ios"
+  CapacitorApp:
+    :path: "../../node_modules/@capacitor/app"
   CapacitorBrowser:
     :path: "../../node_modules/@capacitor/browser"
   CapacitorCordova:
     :path: "../../node_modules/@capacitor/ios"
   CapacitorFirebaseMessaging:
     :path: "../../node_modules/@capacitor-firebase/messaging"
+  CapacitorShare:
+    :path: "../../node_modules/@capacitor/share"
   CapgoCapacitorSocialLogin:
     :path: "../../node_modules/@capgo/capacitor-social-login"
 
@@ -140,9 +150,11 @@ SPEC CHECKSUMS:
   AppAuth: 1c1a8afa7e12f2ec3a294d9882dfa5ab7d3cb063
   AppCheckCore: cc8fd0a3a230ddd401f326489c99990b013f0c4f
   Capacitor: 47b825120c6b8b6d6f9f053e9350a8960d436710
+  CapacitorApp: 305bd13c44f6f9d164e2ee66a4faa956ed8c0e06
   CapacitorBrowser: c987c73d09d8bd3b5ec13f06338b1e14d5d2be69
   CapacitorCordova: e8b76fd95fc1e157775abc484c59cc0de464095d
   CapacitorFirebaseMessaging: 09f9402613a755af4ef37c6ce2fd7b4c02250246
+  CapacitorShare: 0c58305114538568059bfc07111f22dcb9cb2a82
   CapgoCapacitorSocialLogin: 3b51f02c83896f727635c2cd32dbea857ab7b0c1
   FBAEMKit: 2a6b529993713c185b02bc36f8c91129bf78dfb0
   FBSDKCoreKit: 65d7f7a7d6fcc3aa6eb6e093ec737a4184fc6049
@@ -160,6 +172,6 @@ SPEC CHECKSUMS:
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
 
-PODFILE CHECKSUM: 3802c7d8998261ae27a3449d7b9dd69b023cbbd9
+PODFILE CHECKSUM: a7a6a3c781d02b08ba3f3a15112ce9c654a70161
 
 COCOAPODS: 1.16.2

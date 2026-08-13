@@ -4,6 +4,7 @@ import "./globals.css";
 import { AppShell } from "@/components/layout/AppShell";
 import { ServiceWorkerRegistration } from "@/components/layout/ServiceWorkerRegistration";
 import { NativeBootstrap } from "@/components/layout/NativeBootstrap";
+import { NativeDeepLinkHandler } from "@/components/layout/NativeDeepLinkHandler";
 import { Analytics } from "@vercel/analytics/next";
 
 
@@ -55,6 +56,7 @@ export default function RootLayout({
       <body className={`${playfair.variable} ${inter.variable} antialiased`}>
         <ServiceWorkerRegistration />
         <NativeBootstrap />
+        <NativeDeepLinkHandler />
         <AppShell>{children}</AppShell>
         <Analytics />
       </body>
