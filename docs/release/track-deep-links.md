@@ -21,14 +21,19 @@ After deploying the web application, run:
 curl --fail --silent --show-error --dump-header /tmp/hymnz-aasa.headers --output /tmp/hymnz-aasa.json https://www.hymnz.com/.well-known/apple-app-site-association
 curl --fail --silent --show-error --dump-header /tmp/hymnz-assetlinks.headers --output /tmp/hymnz-assetlinks.json https://www.hymnz.com/.well-known/assetlinks.json
 curl --fail --silent --show-error --output /tmp/hymnz-track.html https://www.hymnz.com/track/sands-01
-rg -n "HTTP/|content-type|location" /tmp/hymnz-aasa.headers /tmp/hymnz-assetlinks.headers
+curl --fail --silent --show-error --dump-header /tmp/hymnz-og.headers --output /tmp/hymnz-og.png https://www.hymnz.com/track/sands-01/opengraph-image
+rg -ni "HTTP/|content-type|location" /tmp/hymnz-aasa.headers /tmp/hymnz-assetlinks.headers
 rg -n "og:url|og:image|twitter:image" /tmp/hymnz-track.html
+rg -ni "HTTP/.* 200|content-type: image/png" /tmp/hymnz-og.headers
+node -e "const fs=require('node:fs');const p=fs.readFileSync('/tmp/hymnz-og.png');if(!p.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))||p.readUInt32BE(16)!==1200||p.readUInt32BE(20)!==630)process.exit(1)"
+open /tmp/hymnz-og.png
 ```
 
 - [ ] Both association endpoints return HTTP 200 with `Content-Type: application/json` and no `Location` header.
 - [ ] The Apple association file contains the production app identifier and the Android association file contains `com.hymnz.app` plus the expected production signing fingerprints.
 - [ ] The track page contains the canonical `https://www.hymnz.com/track/sands-01` Open Graph URL and the branded image URL in both `og:image` and `twitter:image` metadata.
-- [ ] An unauthenticated request to the deployed Open Graph image URL returns the branded artwork/title/artist/HYMNZ image successfully.
+- [ ] The unauthenticated Open Graph image request returns HTTP 200 and `Content-Type: image/png`; the PNG signature and 1200×630 dimension check exits successfully.
+- [ ] Visual inspection of the downloaded image for `sands-01`, a known production track with remote artwork, shows its artwork, title, artist, and HYMNZ branding.
 
 ## Android verification
 

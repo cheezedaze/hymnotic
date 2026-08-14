@@ -38,6 +38,52 @@ describe("ShareSheet", () => {
     expect(shareWithSystem).not.toHaveBeenCalled();
   });
 
+  it("exposes dialog semantics and focuses its named close button", async () => {
+    render(<ShareSheet />);
+
+    const dialog = screen.getByRole("dialog", { name: "Share Carry On" });
+    const close = screen.getByRole("button", { name: "Close share sheet" });
+
+    expect(dialog.getAttribute("aria-modal")).toBe("true");
+    await waitFor(() => expect(document.activeElement).toBe(close));
+  });
+
+  it("closes on Escape and restores focus to the opener", async () => {
+    const opener = document.createElement("button");
+    opener.textContent = "Open share sheet";
+    document.body.appendChild(opener);
+    opener.focus();
+
+    render(<ShareSheet />);
+    const dialog = screen.getByRole("dialog", { name: "Share Carry On" });
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "Close share sheet" })
+      )
+    );
+
+    fireEvent.keyDown(dialog, { key: "Escape" });
+
+    await waitFor(() => expect(useShareStore.getState().isOpen).toBe(false));
+    expect(document.activeElement).toBe(opener);
+    opener.remove();
+  });
+
+  it("contains forward and backward Tab focus within the dialog", async () => {
+    render(<ShareSheet />);
+    const dialog = screen.getByRole("dialog", { name: "Share Carry On" });
+    const close = screen.getByRole("button", { name: "Close share sheet" });
+    const copy = screen.getByRole("button", { name: "Copy link" });
+
+    await waitFor(() => expect(document.activeElement).toBe(close));
+    copy.focus();
+    fireEvent.keyDown(dialog, { key: "Tab" });
+    expect(document.activeElement).toBe(close);
+
+    fireEvent.keyDown(dialog, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(copy);
+  });
+
   it("shares only after the explicit Share tap", async () => {
     vi.mocked(shareWithSystem).mockResolvedValue("shared");
     render(<ShareSheet />);

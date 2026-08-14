@@ -24,6 +24,12 @@ export function parseNativeTrackLink(value: string): string | null {
     ) {
       return null;
     }
+
+    const encodedSegment = url.pathname.slice("/track/".length);
+    const decodedSegment = decodeURIComponent(encodedSegment);
+    if (/[\u0000-\u001f\u007f]/.test(decodedSegment)) {
+      return null;
+    }
     return url.pathname;
   } catch {
     return null;

@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import {
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  type KeyboardEvent,
+} from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Copy, Check, MessageCircle, Share2 } from "lucide-react";
 import { useShareStore } from "@/lib/store/shareStore";
@@ -43,6 +49,7 @@ export function ShareSheet() {
     () => !canUseSystemShare()
   );
   const [shareDataId, setShareDataId] = useState(shareData?.id);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   const payload = shareData ? buildSharePayload(shareData) : null;
 
@@ -52,6 +59,47 @@ export function ShareSheet() {
     setSharing(false);
     setShowFallbacks(!canUseSystemShare());
   }
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const previouslyFocused =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    closeButtonRef.current?.focus();
+
+    return () => previouslyFocused?.focus();
+  }, [isOpen]);
+
+  const handleDialogKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeShare();
+        return;
+      }
+      if (event.key !== "Tab") return;
+
+      const focusable = Array.from(
+        event.currentTarget.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      );
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      if (!first || !last) return;
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    },
+    [closeShare]
+  );
 
   const handleCopy = useCallback(async () => {
     if (!payload) return;
@@ -135,11 +183,21 @@ export function ShareSheet() {
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 28, stiffness: 300 }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="share-sheet-title"
+            onKeyDown={handleDialogKeyDown}
             className="relative rounded-t-3xl sm:rounded-3xl p-6 w-full sm:max-w-sm border border-white/10 pb-8"
             style={{ background: "rgba(20, 26, 36, 1)" }}
           >
+            <h2 id="share-sheet-title" className="sr-only">
+              Share {shareData.title}
+            </h2>
+
             {/* Close button */}
             <button
+              ref={closeButtonRef}
+              aria-label="Close share sheet"
               onClick={closeShare}
               className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center text-text-muted hover:text-text-primary transition-colors"
             >

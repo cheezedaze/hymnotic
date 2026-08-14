@@ -21,6 +21,11 @@ describe("parseNativeTrackLink", () => {
     "https://www.hymnz.com/track/",
     "https://www.hymnz.com/track/carry-on/more",
     "https://www.hymnz.com/collection/all-tracks",
+    "https://www.hymnz.com/track/bad%escape",
+    "https://www.hymnz.com/track/%E0%A4%A",
+    "https://www.hymnz.com/track/control%00character",
+    "https://www.hymnz.com/track/control%0Acharacter",
+    "https://www.hymnz.com/track/control%7Fcharacter",
   ])("rejects %s", (input) => {
     expect(parseNativeTrackLink(input)).toBeNull();
   });

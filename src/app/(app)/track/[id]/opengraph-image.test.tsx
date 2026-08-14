@@ -4,6 +4,8 @@ import TrackOpenGraphImage, {
   contentType,
   size,
 } from "./opengraph-image";
+import { GET } from "./opengraph-image/route";
+import { buildTrackShareImageUrl } from "@/lib/share/shareData";
 
 const { getTrackById, getCollectionById, getMediaUrl } = vi.hoisted(() => ({
   getTrackById: vi.fn(),
@@ -89,6 +91,25 @@ describe("track Open Graph image", () => {
     expect(png.byteLength).toBeGreaterThan(1000);
   });
 
+  it("serves the advertised stable route as a 1200x630 PNG", async () => {
+    const advertisedUrl = new URL(buildTrackShareImageUrl("carry-on"));
+    expect(advertisedUrl.pathname).toBe(
+      "/track/carry-on/opengraph-image"
+    );
+
+    const response = await GET(new Request(advertisedUrl), {
+      params: Promise.resolve({ id: "carry-on" }),
+    });
+    const png = Buffer.from(await response.arrayBuffer());
+
+    expect(response.headers.get("content-type")).toContain("image/png");
+    expect(png.subarray(0, 8)).toEqual(
+      Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])
+    );
+    expect(png.readUInt32BE(16)).toBe(1200);
+    expect(png.readUInt32BE(20)).toBe(630);
+  });
+
   it.each([
     ["missing", null],
     ["inactive", { ...activeTrack, isActive: false }],
@@ -118,6 +139,86 @@ describe("track Open Graph image", () => {
 
     expect(response.headers.get("content-type")).toContain("image/png");
     expect((await response.arrayBuffer()).byteLength).toBeGreaterThan(1000);
+  });
+
+  it.each([
+    ["HTML", "text/html", Buffer.from("<html>not artwork</html>")],
+    ["corrupt image", "image/jpeg", Buffer.from("not a jpeg")],
+  ])("renders the branded fallback for a 200 %s response", async (
+    _bodyType,
+    mimeType,
+    body
+  ) => {
+    const fallbackResponse = await TrackOpenGraphImage({
+      params: Promise.resolve({ id: "carry-on" }),
+    });
+    const fallbackPng = Buffer.from(await fallbackResponse.arrayBuffer());
+
+    getTrackById.mockResolvedValue({
+      ...activeTrack,
+      artworkKey: "images/artwork/carry-on.jpg",
+    });
+    getMediaUrl.mockReturnValue(
+      "https://media.hymnz.test/images/artwork/carry-on.jpg"
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(body, {
+          status: 200,
+          headers: { "content-type": mimeType },
+        })
+      )
+    );
+
+    const response = await TrackOpenGraphImage({
+      params: Promise.resolve({ id: "carry-on" }),
+    });
+    const png = Buffer.from(await response.arrayBuffer());
+
+    expect(createHash("sha256").update(png).digest("hex")).toBe(
+      createHash("sha256").update(fallbackPng).digest("hex")
+    );
+  });
+
+  it("rejects remote artwork larger than the configured limit", async () => {
+    const fallbackResponse = await TrackOpenGraphImage({
+      params: Promise.resolve({ id: "carry-on" }),
+    });
+    const fallbackPng = Buffer.from(await fallbackResponse.arrayBuffer());
+
+    getTrackById.mockResolvedValue({
+      ...activeTrack,
+      artworkKey: "images/artwork/carry-on.jpg",
+    });
+    getMediaUrl.mockReturnValue(
+      "https://media.hymnz.test/images/artwork/carry-on.jpg"
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(Buffer.from("not read"), {
+          status: 200,
+          headers: {
+            "content-type": "image/jpeg",
+            "content-length": "6000000",
+          },
+        })
+      )
+    );
+
+    const response = await TrackOpenGraphImage({
+      params: Promise.resolve({ id: "carry-on" }),
+    });
+    const png = Buffer.from(await response.arrayBuffer());
+
+    expect(createHash("sha256").update(png).digest("hex")).toBe(
+      createHash("sha256").update(fallbackPng).digest("hex")
+    );
+    expect(fetch).toHaveBeenCalledWith(
+      "https://media.hymnz.test/images/artwork/carry-on.jpg",
+      expect.objectContaining({ signal: expect.any(AbortSignal) })
+    );
   });
 
   it("renders no title content beyond two lines", async () => {
