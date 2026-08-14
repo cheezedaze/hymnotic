@@ -24,7 +24,8 @@ curl --fail --silent --show-error --output /tmp/hymnz-track.html https://www.hym
 curl --fail --silent --show-error --dump-header /tmp/hymnz-og.headers --output /tmp/hymnz-og.png https://www.hymnz.com/track/sands-01/opengraph-image
 rg -ni "HTTP/|content-type|location" /tmp/hymnz-aasa.headers /tmp/hymnz-assetlinks.headers
 rg -n "og:url|og:image|twitter:image" /tmp/hymnz-track.html
-rg -ni "HTTP/.* 200|content-type: image/png" /tmp/hymnz-og.headers
+rg -qi '^HTTP/(1\.[01]|2|3)[ \t]+200([ \t]+[^\r\n]+)?\r?$' /tmp/hymnz-og.headers
+rg -qi '^content-type:[ \t]*image/png[ \t]*\r?$' /tmp/hymnz-og.headers
 node -e "const fs=require('node:fs');const p=fs.readFileSync('/tmp/hymnz-og.png');if(!p.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))||p.readUInt32BE(16)!==1200||p.readUInt32BE(20)!==630)process.exit(1)"
 open /tmp/hymnz-og.png
 ```
