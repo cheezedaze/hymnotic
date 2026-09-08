@@ -12,6 +12,7 @@ export interface NativePlaybackTrack {
   audioUrl: string;
   artworkUrl?: string;
   duration: number;
+  previewLimit?: number;
 }
 
 export interface NativePlaybackState {
@@ -21,7 +22,16 @@ export interface NativePlaybackState {
   position: number;
   duration: number;
   isPlaying: boolean;
-  reason: "loaded" | "play" | "pause" | "next" | "previous" | "ended" | "time" | "error";
+  reason:
+    | "loaded"
+    | "play"
+    | "pause"
+    | "next"
+    | "previous"
+    | "ended"
+    | "previewEnded"
+    | "time"
+    | "error";
 }
 
 interface NativeIOSPlaybackPlugin {
@@ -77,6 +87,7 @@ export function nativePlaybackTracks(tracks: ApiTrack[]): NativePlaybackTrack[] 
           Number.isFinite(track.duration) && track.duration > 0
             ? track.duration
             : track.previewDuration ?? 0,
+        previewLimit: track.isLocked ? track.previewDuration : undefined,
       },
     ];
   });

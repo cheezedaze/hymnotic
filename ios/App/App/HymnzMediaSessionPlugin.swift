@@ -11,6 +11,7 @@ private struct HymnzPlaybackTrack: Equatable {
     let audioURL: URL
     let artworkURL: URL?
     let duration: Double
+    let previewLimit: Double?
 
     init?(_ object: JSObject) {
         guard let id = object["id"] as? String,
@@ -26,6 +27,8 @@ private struct HymnzPlaybackTrack: Equatable {
         self.audioURL = audioURL
         self.artworkURL = (object["artworkUrl"] as? String).flatMap(URL.init(string:))
         self.duration = (object["duration"] as? NSNumber)?.doubleValue ?? 0
+        let limit = (object["previewLimit"] as? NSNumber)?.doubleValue
+        self.previewLimit = limit.flatMap { $0 > 0 ? $0 : nil }
     }
 }
 
@@ -179,6 +182,20 @@ public final class HymnzMediaSessionPlugin: CAPPlugin, CAPBridgedPlugin {
             queue: .main
         ) { [weak self] _ in
             guard let self, self.currentTrack != nil else { return }
+            if let limit = self.currentTrack?.previewLimit,
+               self.wantsPlayback,
+               self.playbackPosition() >= limit {
+                self.wantsPlayback = false
+                self.player.pause()
+                self.player.seek(
+                    to: CMTime(seconds: limit, preferredTimescale: 600),
+                    toleranceBefore: .zero,
+                    toleranceAfter: .zero
+                )
+                self.publishNowPlaying()
+                self.emitState(reason: "previewEnded")
+                return
+            }
             self.publishNowPlaying()
             self.emitState(reason: "time", retain: false)
         }

@@ -40,6 +40,13 @@ export function useNativeIOSAudioPlayer() {
           ? nativeState.duration
           : track?.duration ?? store.duration,
       isPlaying: nativeState.isPlaying,
+      ...(nativeState.reason === "previewEnded"
+        ? {
+            isPreviewEnded: true,
+            showUpgradeModal: true,
+            showPreviewActions: true,
+          }
+        : {}),
     });
   }, []);
 
@@ -79,14 +86,23 @@ export function useNativeIOSAudioPlayer() {
     // the same iOS Now Playing session. Native playback is the sole iOS owner.
     stopAudio();
 
-    const tracks = nativePlaybackTracks(queue);
+    const store = usePlayerStore.getState();
+    const tracks = nativePlaybackTracks(queue).map((track) =>
+      track.id === currentTrack.id && store.isPreviewMode
+        ? {
+            ...track,
+            previewLimit:
+              store.previewCheckpoint ?? store.previewDuration ?? undefined,
+          }
+        : track
+    );
     const nativeIndex = tracks.findIndex((track) => track.id === currentTrack.id);
     if (nativeIndex === -1) return;
 
     void NativeIOSPlayback.loadQueue({
       tracks,
       queueIndex: nativeIndex,
-      position: usePlayerStore.getState().currentTime,
+      position: store.currentTime,
       isPlaying,
       repeat,
     })

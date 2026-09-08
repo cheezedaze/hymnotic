@@ -59,6 +59,7 @@ describe("native iOS playback queue", () => {
           "https://preview.example/api/tracks/come-come-ye-saints/audio",
         artworkUrl: "https://cdn.example/track.jpg",
         duration: 272,
+        previewLimit: undefined,
       },
     ]);
   });
@@ -95,6 +96,18 @@ describe("native iOS playback queue", () => {
     expect(
       nativePlaybackTracks([track({ duration: 0, previewDuration: 30 })])[0]
         .duration
+    ).toBe(30);
+  });
+
+  it("passes the server-authorized preview checkpoint to native playback", () => {
+    vi.stubGlobal("window", {
+      location: { href: "https://www.hymnz.com/" },
+    });
+
+    expect(
+      nativePlaybackTracks([
+        track({ isLocked: true, previewDuration: 30 }),
+      ])[0].previewLimit
     ).toBe(30);
   });
 });
