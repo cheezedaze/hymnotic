@@ -1,6 +1,7 @@
 import { getAudioElement } from "./audioContext";
 
-export const FALLBACK_ARTWORK_URL = "/images/album-all-tracks.jpg";
+export const FALLBACK_ARTWORK_URL =
+  "https://www.hymnz.com/images/album-all-tracks.jpg";
 
 export function artworkCandidates(
   trackArtworkUrl: string | null | undefined,

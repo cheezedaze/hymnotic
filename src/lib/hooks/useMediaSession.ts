@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import {
   Capacitor,
   type PluginListenerHandle,
@@ -16,10 +16,22 @@ import {
 } from "@/lib/audio/mediaSession";
 
 interface IOSMediaSessionPlugin {
-  configure(): Promise<void>;
+  configure(options: {
+    trackId: string;
+    title: string;
+    artist: string;
+    artworkUrl?: string;
+    duration: number;
+    elapsedTime: number;
+    isPlaying: boolean;
+    queueCount: number;
+    queueIndex: number;
+  }): Promise<void>;
   addListener(
-    eventName: "remoteTrackCommand",
-    listener: (event: { command: "next" | "previous" }) => void
+    eventName: "remoteCommand",
+    listener: (event: {
+      command: "play" | "pause" | "next" | "previous";
+    }) => void
   ): Promise<PluginListenerHandle>;
 }
 
@@ -34,18 +46,41 @@ function hasNativeIOSMediaSession() {
   );
 }
 
-function configureNativeIOSMediaSession() {
-  void IOSMediaSession.configure().catch(() => {});
+function configureNativeIOSMediaSession(artworkUrl?: string) {
+  const store = usePlayerStore.getState();
+  const track = store.currentTrack;
+  if (!track) return;
+
+  const audio = getAudioElement();
+  const duration =
+    audio && Number.isFinite(audio.duration) && audio.duration > 0
+      ? audio.duration
+      : track.duration;
+
+  void IOSMediaSession.configure({
+    trackId: track.id,
+    title: track.title,
+    artist: track.artist,
+    artworkUrl,
+    duration,
+    elapsedTime: audio?.currentTime ?? store.currentTime,
+    isPlaying: audio ? !audio.paused : store.isPlaying,
+    queueCount: Math.max(1, store.queue.length),
+    queueIndex: Math.max(0, store.currentIndex),
+  }).catch(() => {});
 }
 
 export function useMediaSession() {
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
+  const resolvedArtworkUrl = useRef<string | undefined>(undefined);
 
   useEffect(() => {
-    if (!("mediaSession" in navigator) || !currentTrack) return;
+    if (!currentTrack) return;
+    if (!("mediaSession" in navigator) && !hasNativeIOSMediaSession()) return;
 
     let cancelled = false;
+    resolvedArtworkUrl.current = undefined;
 
     void resolveArtworkUrl(
       artworkCandidates(
@@ -55,17 +90,20 @@ export function useMediaSession() {
     ).then((artworkUrl) => {
       if (cancelled) return;
 
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: currentTrack.title,
-        artist: currentTrack.artist,
-        album: "",
-        // Do not claim a MIME type or size. Production contains mixed legacy
-        // PNG/JPEG artwork, and incorrect metadata can make iOS cache a blank.
-        artwork: [{ src: artworkUrl }],
-      });
+      const absoluteArtworkUrl = new URL(artworkUrl, window.location.href).href;
+      resolvedArtworkUrl.current = absoluteArtworkUrl;
 
       if (hasNativeIOSMediaSession()) {
-        configureNativeIOSMediaSession();
+        configureNativeIOSMediaSession(absoluteArtworkUrl);
+      } else {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: currentTrack.title,
+          artist: currentTrack.artist,
+          album: "",
+          // Do not claim a MIME type or size. Production contains mixed legacy
+          // PNG/JPEG artwork, and incorrect metadata can make iOS cache a blank.
+          artwork: [{ src: absoluteArtworkUrl }],
+        });
       }
     });
 
@@ -75,7 +113,7 @@ export function useMediaSession() {
   }, [currentTrack]);
 
   useEffect(() => {
-    if (!("mediaSession" in navigator)) return;
+    if (!("mediaSession" in navigator) || hasNativeIOSMediaSession()) return;
 
     navigator.mediaSession.setActionHandler("play", () => {
       const store = usePlayerStore.getState();
@@ -85,24 +123,18 @@ export function useMediaSession() {
       pauseAudioFromRemoteControl(usePlayerStore.getState().pause);
     });
 
-    // The native iOS bridge owns these two commands so it can disable WebKit's
-    // ±10-second buttons and expose real previous/next track controls.
-    if (!hasNativeIOSMediaSession()) {
-      navigator.mediaSession.setActionHandler("previoustrack", () => {
-        usePlayerStore.getState().previous();
-      });
-      navigator.mediaSession.setActionHandler("nexttrack", () => {
-        usePlayerStore.getState().next();
-      });
-    }
+    navigator.mediaSession.setActionHandler("previoustrack", () => {
+      usePlayerStore.getState().previous();
+    });
+    navigator.mediaSession.setActionHandler("nexttrack", () => {
+      usePlayerStore.getState().next();
+    });
 
     return () => {
       navigator.mediaSession.setActionHandler("play", null);
       navigator.mediaSession.setActionHandler("pause", null);
-      if (!hasNativeIOSMediaSession()) {
-        navigator.mediaSession.setActionHandler("previoustrack", null);
-        navigator.mediaSession.setActionHandler("nexttrack", null);
-      }
+      navigator.mediaSession.setActionHandler("previoustrack", null);
+      navigator.mediaSession.setActionHandler("nexttrack", null);
     };
   }, []);
 
@@ -113,9 +145,15 @@ export function useMediaSession() {
     let cancelled = false;
 
     void IOSMediaSession.addListener(
-      "remoteTrackCommand",
+      "remoteCommand",
       ({ command }) => {
         const store = usePlayerStore.getState();
+        if (command === "play") {
+          resumeAudioFromRemoteControl(store.play, store.pause);
+        }
+        if (command === "pause") {
+          pauseAudioFromRemoteControl(store.pause);
+        }
         if (command === "next") store.next();
         if (command === "previous") store.previous();
       }
@@ -135,23 +173,32 @@ export function useMediaSession() {
     };
   }, []);
 
-  // Reassert the native command layout once WebKit actually starts the media;
-  // that transition can otherwise restore its default seek buttons.
+  // Native iOS owns Now Playing metadata and commands. Sync only at playback
+  // transitions; iOS extrapolates elapsed time from the supplied playback rate.
   useEffect(() => {
     if (!hasNativeIOSMediaSession() || !currentTrack) return;
 
     const audio = getAudioElement();
-    audio?.addEventListener("playing", configureNativeIOSMediaSession);
-    configureNativeIOSMediaSession();
+    const sync = () =>
+      configureNativeIOSMediaSession(resolvedArtworkUrl.current);
+
+    audio?.addEventListener("playing", sync);
+    audio?.addEventListener("pause", sync);
+    audio?.addEventListener("seeked", sync);
+    audio?.addEventListener("loadedmetadata", sync);
+    sync();
 
     return () => {
-      audio?.removeEventListener("playing", configureNativeIOSMediaSession);
+      audio?.removeEventListener("playing", sync);
+      audio?.removeEventListener("pause", sync);
+      audio?.removeEventListener("seeked", sync);
+      audio?.removeEventListener("loadedmetadata", sync);
     };
-  }, [currentTrack]);
+  }, [currentTrack, isPlaying]);
 
   // Keep playback state in sync
   useEffect(() => {
-    if (!("mediaSession" in navigator)) return;
+    if (!("mediaSession" in navigator) || hasNativeIOSMediaSession()) return;
     navigator.mediaSession.playbackState = isPlaying ? "playing" : "paused";
   }, [isPlaying]);
 }
