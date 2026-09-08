@@ -45,6 +45,7 @@ public final class HymnzMediaSessionPlugin: CAPPlugin, CAPBridgedPlugin {
     ]
 
     private let player = AVPlayer()
+    private lazy var nowPlayingSession = MPNowPlayingSession(players: [player])
     private var tracks: [HymnzPlaybackTrack] = []
     private var queueIndex = 0
     private var repeatMode = "off"
@@ -176,6 +177,7 @@ public final class HymnzMediaSessionPlugin: CAPPlugin, CAPBridgedPlugin {
         }
         isConfigured = true
         player.automaticallyWaitsToMinimizeStalling = true
+        nowPlayingSession.automaticallyPublishesNowPlayingInfo = false
 
         periodicObserver = player.addPeriodicTimeObserver(
             forInterval: CMTime(seconds: 0.5, preferredTimescale: 600),
@@ -290,6 +292,13 @@ public final class HymnzMediaSessionPlugin: CAPPlugin, CAPBridgedPlugin {
             try session.setActive(true)
             wantsPlayback = true
             player.play()
+            nowPlayingSession.becomeActiveIfPossible { [weak self] isActive in
+                guard isActive else { return }
+                DispatchQueue.main.async {
+                    self?.installRemoteCommands()
+                    self?.publishNowPlaying()
+                }
+            }
             publishNowPlaying()
             emitState(reason: reason)
         } catch {
@@ -371,7 +380,7 @@ public final class HymnzMediaSessionPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     private func installRemoteCommands() {
-        let commands = MPRemoteCommandCenter.shared()
+        let commands = nowPlayingSession.remoteCommandCenter
 
         commands.skipBackwardCommand.removeTarget(nil)
         commands.skipBackwardCommand.isEnabled = false
@@ -382,7 +391,16 @@ public final class HymnzMediaSessionPlugin: CAPPlugin, CAPBridgedPlugin {
         commands.seekForwardCommand.removeTarget(nil)
         commands.seekForwardCommand.isEnabled = false
         commands.togglePlayPauseCommand.removeTarget(nil)
-        commands.togglePlayPauseCommand.isEnabled = false
+        commands.togglePlayPauseCommand.isEnabled = true
+        commands.togglePlayPauseCommand.addTarget { [weak self] _ in
+            guard let self, self.currentTrack != nil else { return .noSuchContent }
+            if self.player.rate > 0 || self.wantsPlayback {
+                self.pausePlayback(reason: "pause")
+            } else {
+                self.startPlayback(reason: "play")
+            }
+            return .success
+        }
 
         commands.playCommand.removeTarget(nil)
         commands.playCommand.isEnabled = true
@@ -456,7 +474,7 @@ public final class HymnzMediaSessionPlugin: CAPPlugin, CAPBridgedPlugin {
 
     private func publishNowPlaying() {
         guard let track = currentTrack else {
-            MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+            nowPlayingSession.nowPlayingInfoCenter.nowPlayingInfo = nil
             return
         }
 
@@ -481,7 +499,7 @@ public final class HymnzMediaSessionPlugin: CAPPlugin, CAPBridgedPlugin {
             info[MPMediaItemPropertyArtwork] = artwork
         }
 
-        let center = MPNowPlayingInfoCenter.default()
+        let center = nowPlayingSession.nowPlayingInfoCenter
         center.nowPlayingInfo = info
         center.playbackState = player.rate > 0 ? .playing : .paused
     }
