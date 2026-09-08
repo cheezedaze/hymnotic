@@ -73,7 +73,10 @@ export function nativePlaybackTracks(tracks: ApiTrack[]): NativePlaybackTrack[] 
           absoluteUrl(track.artworkUrl) ??
           absoluteUrl(track.collectionArtworkUrl) ??
           absoluteUrl("/images/album-all-tracks.jpg"),
-        duration: Number.isFinite(track.duration) ? track.duration : 0,
+        duration:
+          Number.isFinite(track.duration) && track.duration > 0
+            ? track.duration
+            : track.previewDuration ?? 0,
       },
     ];
   });
