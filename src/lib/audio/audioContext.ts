@@ -1,3 +1,8 @@
+import {
+  hasNativeIOSPlayback,
+  NativeIOSPlayback,
+} from "./nativeIOSPlayback";
+
 /**
  * Module-level singleton for the shared HTMLAudioElement.
  *
@@ -28,6 +33,10 @@ export function getAudioElement(): HTMLAudioElement | null {
  * Seek the shared audio element to a specific time (in seconds).
  */
 export function seekAudio(time: number) {
+  if (hasNativeIOSPlayback()) {
+    void NativeIOSPlayback.seek({ position: time }).catch(() => {});
+    return;
+  }
   if (audioElement) {
     audioElement.currentTime = time;
   }

@@ -9,6 +9,8 @@ import {
   fadeAudioVolume,
 } from "@/lib/audio/audioContext";
 import { playVoiceover, stopVoiceover } from "@/lib/audio/voiceoverContext";
+import { hasNativeIOSPlayback } from "@/lib/audio/nativeIOSPlayback";
+import { useNativeIOSAudioPlayer } from "@/lib/hooks/useNativeIOSAudioPlayer";
 
 const CDN_URL = process.env.NEXT_PUBLIC_CDN_URL || "";
 const VOICEOVER_URL = `${CDN_URL}/audio/system/hymnz-jingle.mp3`;
@@ -19,6 +21,8 @@ const VOICEOVER_URL = `${CDN_URL}/audio/system/hymnz-jingle.mp3`;
  * so that even if the component remounts, no orphaned audio plays.
  */
 export function useAudioPlayer() {
+  useNativeIOSAudioPlayer();
+  const nativeIOSPlayback = hasNativeIOSPlayback();
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const currentTrackIdRef = useRef<string | null>(null);
   const fadingRef = useRef(false);
@@ -118,6 +122,7 @@ export function useAudioPlayer() {
 
   // Handle track changes — keyed by track ID
   useEffect(() => {
+    if (nativeIOSPlayback) return;
     if (!currentTrack) {
       // No track: stop everything
       clearSimulation();
@@ -248,10 +253,11 @@ export function useAudioPlayer() {
     return () => {
       removeListeners();
     };
-  }, [currentTrack?.id, clearSimulation, removeListeners, handlePreviewEnd]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [currentTrack?.id, clearSimulation, removeListeners, handlePreviewEnd, nativeIOSPlayback]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Handle play/pause
   useEffect(() => {
+    if (nativeIOSPlayback) return;
     if (!currentTrack) return;
 
     const audio = getOrCreateAudioElement();
@@ -296,10 +302,11 @@ export function useAudioPlayer() {
     }
 
     return clearSimulation;
-  }, [isPlaying, currentTrack?.id, clearSimulation, handlePreviewEnd]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isPlaying, currentTrack?.id, clearSimulation, handlePreviewEnd, nativeIOSPlayback]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cleanup on unmount — pause audio so nothing plays after navigation
   useEffect(() => {
+    if (nativeIOSPlayback) return;
     return () => {
       clearSimulation();
       removeListeners();
@@ -307,5 +314,5 @@ export function useAudioPlayer() {
       const audio = getOrCreateAudioElement();
       audio.pause();
     };
-  }, [clearSimulation, removeListeners]);
+  }, [clearSimulation, removeListeners, nativeIOSPlayback]);
 }
