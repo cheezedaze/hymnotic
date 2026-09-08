@@ -86,4 +86,15 @@ describe("native iOS playback queue", () => {
 
     expect(nativePlaybackTracks([track({ audioUrl: null })])).toEqual([]);
   });
+
+  it("uses the preview length when legacy track duration is missing", () => {
+    vi.stubGlobal("window", {
+      location: { href: "https://www.hymnz.com/" },
+    });
+
+    expect(
+      nativePlaybackTracks([track({ duration: 0, previewDuration: 30 })])[0]
+        .duration
+    ).toBe(30);
+  });
 });
