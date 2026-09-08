@@ -1,6 +1,7 @@
 import UIKit
 import Capacitor
 import FirebaseCore
+import AVFAudio
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -8,6 +9,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+        // Declare long-form music playback without activating the session yet.
+        // WebKit activates it when the user starts audio.
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+        } catch {
+            print("Unable to configure the playback audio session")
+        }
+
         // Initialize Firebase (powers FCM push notifications). The
         // @capacitor-firebase/messaging plugin forwards the APNs token to
         // Firebase via method swizzling (enabled by default).
