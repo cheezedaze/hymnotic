@@ -55,7 +55,7 @@ export const tracks = pgTable(
     trackNumber: integer("track_number").notNull(),
     playCount: integer("play_count").default(0).notNull(),
     favoriteCount: integer("favorite_count").default(0).notNull(),
-    isActive: boolean("is_active").default(true).notNull(),
+    isActive: boolean("is_active").default(false).notNull(),
     hasVideo: boolean("has_video").default(false).notNull(),
     videoKey: text("video_key"), // S3 key: "video/tracks/sands-03.mp4"
     videoThumbnailKey: text("video_thumbnail_key"),
@@ -521,6 +521,25 @@ export const pushNotifications = pgTable("push_notifications", {
   failedCount: integer("failed_count").default(0).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+// A track's first release. Activation and announcement publication commit together;
+// the push is claimed durably before contacting Firebase to avoid repeat broadcasts.
+export const trackReleases = pgTable("track_releases", {
+  trackId: varchar("track_id", { length: 128 }).primaryKey()
+    .references(() => tracks.id, { onDelete: "cascade" }),
+  scheduledAt: timestamp("scheduled_at", { withTimezone: true }).notNull(),
+  announcementTitle: text("announcement_title"),
+  announcementBody: text("announcement_body"),
+  pushTitle: text("push_title"),
+  pushBody: text("push_body"),
+  status: varchar("status", { length: 24 }).$type<"scheduled" | "published" | "sending" | "completed" | "attention">().notNull().default("scheduled"),
+  error: text("error"),
+  sentCount: integer("sent_count").notNull().default(0),
+  failedCount: integer("failed_count").notNull().default(0),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [index("idx_track_releases_due").on(table.status, table.scheduledAt)]);
+
+export type TrackRelease = typeof trackReleases.$inferSelect;
 
 // =============================================================================
 // Type exports for use in API routes

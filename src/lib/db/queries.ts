@@ -1,5 +1,6 @@
 import { eq, asc, desc, sql, inArray, and, isNotNull, gte, lt } from "drizzle-orm";
 import { db } from "./index";
+import { assertTrackAudio, TrackReleaseError } from "@/lib/tracks/validation";
 import {
   collections,
   tracks,
@@ -19,6 +20,7 @@ import {
   bannerAds,
   devicePushTokens,
   pushNotifications,
+  trackReleases,
   type NewCollection,
   type NewTrack,
   type NewLyric,
@@ -170,7 +172,7 @@ export async function createTrack(data: {
   hasLyrics?: boolean;
   youtubeUrl?: string;
 }) {
-  const result = await db.insert(tracks).values(data).returning();
+  const result = await db.insert(tracks).values({ ...data, isActive: false }).returning();
   return result[0];
 }
 
@@ -194,12 +196,25 @@ export async function updateTrack(
     youtubeUrl: string | null;
   }>
 ) {
-  const result = await db
-    .update(tracks)
-    .set({ ...data, updatedAt: new Date() })
-    .where(eq(tracks.id, id))
-    .returning();
-  return result[0] ?? null;
+  return db.transaction(async (tx) => {
+    const [existing] = await tx.select().from(tracks).where(eq(tracks.id, id)).for("update");
+    if (!existing) return null;
+    const [release] = await tx.select().from(trackReleases).where(eq(trackReleases.trackId, id));
+    if (data.isActive === true && !existing.publishedAt) {
+      throw new TrackReleaseError("Use Release Track to activate this track for the first time.", 409);
+    }
+    if (data.isActive === true && release?.status === "scheduled") {
+      throw new TrackReleaseError("Use Release now to activate the scheduled release, or cancel its schedule first.", 409);
+    }
+    const audioKey = data.audioKey !== undefined ? data.audioKey : existing.audioKey;
+    if (((data.isActive ?? existing.isActive) || release?.status === "scheduled") &&
+        (data.audioKey !== undefined || (data.isActive === true && !existing.isActive))) {
+      await assertTrackAudio(audioKey);
+    }
+    const [updated] = await tx.update(tracks).set({ ...data, updatedAt: new Date() })
+      .where(eq(tracks.id, id)).returning();
+    return updated;
+  });
 }
 
 export async function deleteTrack(id: string) {
