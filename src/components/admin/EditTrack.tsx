@@ -1,20 +1,23 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import {
   ArrowLeft,
   Save,
   Plus,
   FileText,
 } from "lucide-react";
-import { AdminFileUpload } from "./AdminFileUpload";
+import { AdminFileUpload, type UploadStatus } from "./AdminFileUpload";
 import { AdminAudioPlayer } from "./AdminAudioPlayer";
 import { LyricsImporter } from "./LyricsImporter";
 import { LrcTimingEditor } from "./LrcTimingEditor";
 import type { UseAdminAudioPlayerReturn } from "@/lib/hooks/useAdminAudioPlayer";
-import { formatTime } from "@/lib/utils/formatTime";
+// Schedule inputs must initialize in the browser's time zone, not the server's.
+const TrackReleasePanel = dynamic(() => import("./TrackReleasePanel").then((mod) => mod.TrackReleasePanel), { ssr: false });
+import type { TrackRelease } from "@/lib/db/schema";
 
 interface LyricLine {
   id?: number;
@@ -45,15 +48,18 @@ interface EditTrackProps {
     playCount: number;
     favoriteCount: number;
     isActive: boolean;
+    publishedAt: Date | null;
     hasVideo: boolean;
     hasLyrics: boolean;
     youtubeUrl: string | null;
   };
+  release?: TrackRelease | null;
+  isNew?: boolean;
   lyrics: LyricLine[];
   collections: Array<{ id: string; title: string }>;
 }
 
-export function EditTrack({ track, lyrics: initialLyrics, collections }: EditTrackProps) {
+export function EditTrack({ track, lyrics: initialLyrics, collections, release = null, isNew = false }: EditTrackProps) {
   const router = useRouter();
 
   // Track form
@@ -62,7 +68,6 @@ export function EditTrack({ track, lyrics: initialLyrics, collections }: EditTra
     artist: track.artist,
     collectionId: track.collectionId,
     duration: track.duration,
-    trackNumber: track.trackNumber,
     artworkKey: track.artworkKey || "",
     audioKey: track.audioKey || "",
     audioFormat: track.audioFormat || "",
@@ -72,6 +77,22 @@ export function EditTrack({ track, lyrics: initialLyrics, collections }: EditTra
     hasVideo: track.hasVideo,
     youtubeUrl: track.youtubeUrl || "",
   });
+  const [savedForm, setSavedForm] = useState(JSON.stringify(form));
+  const [released, setReleased] = useState(!!track.publishedAt);
+  const [uploadStatuses, setUploadStatuses] = useState<Record<string, UploadStatus>>({});
+  const uploadInProgress = Object.values(uploadStatuses).includes("uploading");
+  const audioUploadFailed = uploadStatuses.audio === "error";
+  const releaseDisabledReason = uploadInProgress ? "Wait for uploads and audio conversion to finish."
+    : audioUploadFailed ? "The audio upload failed. Upload it again before releasing this track."
+    : !form.audioKey ? "Upload audio and save the track before releasing it."
+    : savedForm !== JSON.stringify(form) ? "Save your track changes before releasing or updating the schedule."
+    : "";
+  const onReleased = useCallback(() => {
+    setReleased(true);
+    setForm((prev) => ({ ...prev, isActive: true }));
+    setSavedForm((prev) => JSON.stringify({ ...JSON.parse(prev), isActive: true }));
+    router.refresh();
+  }, [router]);
   const [artworkPreview, setArtworkPreview] = useState(track.artworkUrl || "");
   const [audioUploaded, setAudioUploaded] = useState(!!track.audioUrl);
   const [videoUploaded, setVideoUploaded] = useState(!!track.videoUrl);
@@ -113,13 +134,17 @@ export function EditTrack({ track, lyrics: initialLyrics, collections }: EditTra
     e.preventDefault();
     setError("");
     setSuccess("");
+    if (uploadInProgress) { setError("Wait for uploads and conversion to finish before saving."); return; }
+    if (form.isActive && audioUploadFailed) { setError("Resolve the failed audio upload before activating the track."); return; }
     setSaving(true);
 
     try {
-      const res = await fetch(`/api/admin/tracks/${track.id}`, {
-        method: "PATCH",
+      const { isActive, ...metadata } = form;
+      const payload = !isNew && released && isActive !== JSON.parse(savedForm).isActive ? { ...metadata, isActive } : metadata;
+      const res = await fetch(isNew ? "/api/admin/tracks" : `/api/admin/tracks/${track.id}`, {
+        method: isNew ? "POST" : "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -128,7 +153,15 @@ export function EditTrack({ track, lyrics: initialLyrics, collections }: EditTra
         return;
       }
 
-      setSuccess("Track saved!");
+      const saved = await res.json();
+      setSavedForm(JSON.stringify({ ...form, isActive: saved.isActive }));
+      setForm((prev) => ({ ...prev, isActive: saved.isActive }));
+      setReleased(!!saved.publishedAt);
+      if (isNew) {
+        router.replace(`/admin/tracks/${saved.id}#release`);
+      } else {
+        setSuccess("Track saved!");
+      }
       router.refresh();
     } catch {
       setError("Something went wrong");
@@ -200,10 +233,10 @@ export function EditTrack({ track, lyrics: initialLyrics, collections }: EditTra
         </button>
         <div>
           <h1 className="text-display text-xl font-bold text-text-primary">
-            Edit Track
+            {isNew ? "New Track" : "Edit Track"}
           </h1>
           <p className="text-text-muted text-xs mt-0.5">
-            {track.id} · {track.playCount.toLocaleString()} plays
+            {isNew ? "Add the details below. New tracks stay inactive until released." : `${track.id} · ${track.playCount.toLocaleString()} plays`}
           </p>
         </div>
       </div>
@@ -246,51 +279,20 @@ export function EditTrack({ track, lyrics: initialLyrics, collections }: EditTra
               Collection *
             </label>
             <select
+              required
               value={form.collectionId}
               onChange={(e) =>
                 setForm({ ...form, collectionId: e.target.value })
               }
               className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-text-primary focus:outline-none focus:border-accent/50 transition-colors"
             >
+              <option value="" className="bg-midnight">Select a collection</option>
               {collections.map((c) => (
                 <option key={c.id} value={c.id} className="bg-midnight">
                   {c.title}
                 </option>
               ))}
             </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1.5">
-              Duration (seconds, auto-filled from audio) *
-            </label>
-            <input
-              type="number"
-              step="0.1"
-              value={form.duration}
-              onChange={(e) =>
-                setForm({ ...form, duration: parseFloat(e.target.value) || 0 })
-              }
-              className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-text-primary focus:outline-none focus:border-accent/50 transition-colors"
-            />
-            <p className="text-xs text-text-dim mt-1">
-              {formatTime(form.duration)}
-            </p>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-text-secondary mb-1.5">
-              Track Number
-            </label>
-            <input
-              type="number"
-              value={form.trackNumber}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  trackNumber: parseInt(e.target.value) || 1,
-                })
-              }
-              className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-text-primary focus:outline-none focus:border-accent/50 transition-colors"
-            />
           </div>
         </div>
 
@@ -321,13 +323,14 @@ export function EditTrack({ track, lyrics: initialLyrics, collections }: EditTra
               label={audioUploaded ? "Replace audio" : "Upload audio"}
               accept="audio/*"
               folder="audio/tracks"
+              onStatusChange={(status) => setUploadStatuses((prev) => ({ ...prev, audio: status }))}
               maxSizeMB={150}
               onUploadComplete={({ key, audioDuration, originalKey, converted }) => {
                 setForm((prev) => ({
                   ...prev,
                   audioKey: key,
                   audioFormat: converted ? "mp3" : (key.split(".").pop() || "mp3"),
-                  originalAudioKey: originalKey || prev.originalAudioKey,
+                  originalAudioKey: originalKey || "",
                   ...(audioDuration != null && audioDuration > 0
                     ? { duration: Math.round(audioDuration * 10) / 10 }
                     : {}),
@@ -363,8 +366,9 @@ export function EditTrack({ track, lyrics: initialLyrics, collections }: EditTra
                 label="Upload"
                 accept="image/*"
                 folder="images/artwork"
+                onStatusChange={(status) => setUploadStatuses((prev) => ({ ...prev, artwork: status }))}
                 onUploadComplete={({ key, cdnUrl }) => {
-                  setForm({ ...form, artworkKey: key });
+                  setForm((prev) => ({ ...prev, artworkKey: key }));
                   setArtworkPreview(cdnUrl);
                 }}
               />
@@ -380,8 +384,9 @@ export function EditTrack({ track, lyrics: initialLyrics, collections }: EditTra
               label={videoUploaded ? "Replace video" : "Upload video"}
               accept="video/*"
               folder="video/tracks"
+              onStatusChange={(status) => setUploadStatuses((prev) => ({ ...prev, video: status }))}
               onUploadComplete={({ key }) => {
-                setForm({ ...form, videoKey: key, hasVideo: true });
+                setForm((prev) => ({ ...prev, videoKey: key, hasVideo: true }));
                 setVideoUploaded(true);
               }}
             />
@@ -389,9 +394,10 @@ export function EditTrack({ track, lyrics: initialLyrics, collections }: EditTra
         </div>
 
         {/* Active toggle */}
-        <label className="flex items-center gap-3 cursor-pointer w-fit">
+        {released && <label className="flex items-center gap-3 cursor-pointer w-fit">
           <input
             type="checkbox"
+            disabled={uploadInProgress || (!form.isActive && (audioUploadFailed || !form.audioKey))}
             checked={form.isActive}
             onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
             className="w-4 h-4 rounded accent-accent"
@@ -399,14 +405,15 @@ export function EditTrack({ track, lyrics: initialLyrics, collections }: EditTra
           <span className="text-sm font-medium text-text-secondary">
             Active <span className="text-text-dim font-normal">(visible to users)</span>
           </span>
-        </label>
+        </label>}
+        {!released && <p className="text-sm text-text-muted">Inactive — use Release Track after saving to activate now or schedule a release.</p>}
 
         {error && <p className="text-red-400 text-sm">{error}</p>}
         {success && <p className="text-green-400 text-sm">{success}</p>}
 
         <button
           type="submit"
-          disabled={saving}
+          disabled={saving || uploadInProgress}
           className="flex items-center gap-2 px-4 py-2.5 bg-accent/20 border border-accent/30 text-accent rounded-xl text-sm font-medium hover:bg-accent/30 transition-colors disabled:opacity-50"
         >
           <Save size={14} />
@@ -414,8 +421,15 @@ export function EditTrack({ track, lyrics: initialLyrics, collections }: EditTra
         </button>
       </form>
 
+      {!isNew && <TrackReleasePanel
+        trackId={track.id} title={form.title} artworkUrl={artworkPreview}
+        initialRelease={release} released={released} disabledReason={releaseDisabledReason} onReleased={onReleased}
+      />}
+
+      {isNew && <p className="text-sm text-text-muted">Save the track to prepare its release announcement, push notification, and release time.</p>}
+
       {/* Lyrics editor */}
-      <div className="glass-heavy rounded-xl p-5 space-y-4">
+      {!isNew && <div className="glass-heavy rounded-xl p-5 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <FileText size={16} className="text-accent" />
@@ -476,7 +490,7 @@ export function EditTrack({ track, lyrics: initialLyrics, collections }: EditTra
             </p>
           </div>
         )}
-      </div>
+      </div>}
     </div>
   );
 }

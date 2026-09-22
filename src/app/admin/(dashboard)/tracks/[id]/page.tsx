@@ -1,3 +1,4 @@
+import { getTrackRelease } from "@/lib/tracks/releases";
 import { notFound } from "next/navigation";
 import {
   getTrackById,
@@ -17,13 +18,16 @@ export default async function EditTrackPage({ params }: EditTrackPageProps) {
 
   if (!track) notFound();
 
-  const [lyrics, collections] = await Promise.all([
+  const [lyrics, collections, release] = await Promise.all([
     getLyricsByTrackId(id),
     getAllCollections(),
+    getTrackRelease(id),
   ]);
 
   return (
     <EditTrack
+      key={id}
+      release={release}
       track={{ ...track, ...buildTrackMediaUrls(track), audioUrl: track.audioKey ? `/api/tracks/${track.id}/audio` : null }}
       lyrics={lyrics}
       collections={collections.map((c) => ({ id: c.id, title: c.title }))}

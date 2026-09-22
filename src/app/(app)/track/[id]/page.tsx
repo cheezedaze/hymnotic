@@ -14,7 +14,7 @@ export async function generateMetadata({
   const { id } = await params;
   const track = await getTrackById(id);
 
-  if (!track) {
+  if (!track?.isActive) {
     return { title: "Track Not Found | HYMNZ" };
   }
 
@@ -60,7 +60,7 @@ export default async function TrackPage({ params }: TrackPageProps) {
   const { id } = await params;
   const track = await getTrackById(id);
 
-  if (!track) {
+  if (!track?.isActive) {
     notFound();
   }
 

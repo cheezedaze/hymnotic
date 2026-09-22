@@ -24,9 +24,11 @@ import { uploadViaPresignedUrl } from "@/lib/s3/upload-client";
 interface TipTapEditorProps {
   initialContent?: string;
   onUpdate: (html: string) => void;
+  trackArtworkUrl?: string;
+  onUploadingImageChange?: (uploading: boolean) => void;
 }
 
-export function TipTapEditor({ initialContent = "", onUpdate }: TipTapEditorProps) {
+export function TipTapEditor({ initialContent = "", onUpdate, trackArtworkUrl, onUploadingImageChange }: TipTapEditorProps) {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
@@ -87,6 +89,7 @@ export function TipTapEditor({ initialContent = "", onUpdate }: TipTapEditorProp
 
     setImageError(null);
     setUploadingImage(true);
+    onUploadingImageChange?.(true);
     try {
       const { cdnUrl } = await uploadViaPresignedUrl(file, "images/misc");
       editor.chain().focus().setImage({ src: cdnUrl }).run();
@@ -94,6 +97,7 @@ export function TipTapEditor({ initialContent = "", onUpdate }: TipTapEditorProp
       setImageError(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setUploadingImage(false);
+      onUploadingImageChange?.(false);
     }
   };
 
@@ -205,6 +209,14 @@ export function TipTapEditor({ initialContent = "", onUpdate }: TipTapEditorProp
                   <Upload size={13} />
                   Upload image
                 </button>
+                {trackArtworkUrl && (
+                  <button type="button" onClick={() => {
+                    setShowImageMenu(false);
+                    editor.chain().focus().setImage({ src: trackArtworkUrl, alt: "Track artwork" }).run();
+                  }} className="flex items-center gap-2 w-full px-3 py-2 text-xs text-text-secondary hover:text-accent hover:bg-white/5">
+                    <ImageIcon size={13} /> Use track artwork
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={addImageByUrl}

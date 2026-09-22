@@ -21,7 +21,7 @@ export async function POST(request: Request) {
 
     // Cap at 100 to prevent abuse
     const limitedIds = ids.slice(0, 100);
-    const rawTracks = await getTracksByIds(limitedIds);
+    const rawTracks = (await getTracksByIds(limitedIds)).filter((track) => track.isActive);
 
     // Gather unique collection IDs and fetch their artwork keys
     const collectionIds = [...new Set(rawTracks.map((t) => t.collectionId))];

@@ -39,6 +39,9 @@ export async function GET(
     }
 
     const access = await getAccessContext();
+    if (!track.isActive && !access.isAdmin) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
     const sacred7 = await getSacred7TrackIds();
     const baseFull = canPlayFullTrack(access.tier, id, sacred7); // paid or free+Sacred 7
 

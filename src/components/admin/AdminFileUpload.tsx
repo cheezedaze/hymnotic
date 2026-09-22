@@ -16,6 +16,7 @@ interface AdminFileUploadProps {
     originalKey?: string;
     converted?: boolean;
   }) => void;
+  onStatusChange?: (status: UploadStatus) => void;
   currentFile?: string;
   maxSizeMB?: number;
   error?: string;
@@ -23,7 +24,7 @@ interface AdminFileUploadProps {
   className?: string;
 }
 
-type UploadStatus = "idle" | "uploading" | "success" | "error";
+export type UploadStatus = "idle" | "uploading" | "success" | "error";
 
 type UploadResult = {
   key: string;
@@ -75,6 +76,7 @@ export function AdminFileUpload({
   accept = "*/*",
   folder = "uploads",
   onUploadComplete,
+  onStatusChange,
   currentFile,
   maxSizeMB = 50,
   error,
@@ -94,11 +96,13 @@ export function AdminFileUpload({
 
   const handleFile = useCallback(
     async (file: File) => {
+      if (status === "uploading") return;
       // Validate file size
       const maxBytes = maxSizeMB * 1024 * 1024;
       if (file.size > maxBytes) {
         setUploadError(`File exceeds ${maxSizeMB}MB limit`);
         setStatus("error");
+        onStatusChange?.("error");
         return;
       }
 
@@ -115,6 +119,7 @@ export function AdminFileUpload({
         if (!fileTypeMatch) {
           setUploadError(`File type not accepted. Expected: ${accept}`);
           setStatus("error");
+          onStatusChange?.("error");
           return;
         }
       }
@@ -127,6 +132,7 @@ export function AdminFileUpload({
       setFileName(file.name);
       setUploadError(null);
       setStatus("uploading");
+      onStatusChange?.("uploading");
       setProgress(0);
       setIsConverting(false);
 
@@ -146,15 +152,24 @@ export function AdminFileUpload({
           audioDuration = await new Promise<number>((resolve, reject) => {
             const audioEl = new Audio();
             const objectUrl = URL.createObjectURL(file);
+            const cleanup = () => {
+              clearTimeout(timeout);
+              URL.revokeObjectURL(objectUrl);
+              audioEl.removeAttribute("src");
+            };
+            const timeout = setTimeout(() => {
+              cleanup();
+              reject(new Error("Audio metadata timed out"));
+            }, 5000);
             audioEl.addEventListener("loadedmetadata", () => {
               const dur = audioEl.duration;
-              URL.revokeObjectURL(objectUrl);
+              cleanup();
               resolve(isFinite(dur) ? dur : 0);
-            });
+            }, { once: true });
             audioEl.addEventListener("error", () => {
-              URL.revokeObjectURL(objectUrl);
+              cleanup();
               reject(new Error("Could not read audio duration"));
-            });
+            }, { once: true });
             audioEl.src = objectUrl;
           });
         } catch {
@@ -188,6 +203,7 @@ export function AdminFileUpload({
         const finalDuration = result.duration ?? audioDuration;
 
         setStatus("success");
+        onStatusChange?.("success");
         setProgress(100);
         onUploadComplete({
           key: result.key,
@@ -200,10 +216,11 @@ export function AdminFileUpload({
         const message = err instanceof Error ? err.message : "Upload failed";
         setUploadError(message);
         setStatus("error");
+        onStatusChange?.("error");
         setProgress(0);
       }
     },
-    [accept, folder, maxSizeMB, onUploadComplete]
+    [accept, folder, maxSizeMB, onUploadComplete, onStatusChange, status]
   );
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -233,6 +250,7 @@ export function AdminFileUpload({
 
   const reset = () => {
     setStatus("idle");
+    onStatusChange?.("idle");
     setProgress(0);
     setFileName(null);
     setPreviewUrl(null);
@@ -350,6 +368,7 @@ export function AdminFileUpload({
               <p className="text-xs text-green-400">Upload complete</p>
             </div>
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 reset();
@@ -370,6 +389,7 @@ export function AdminFileUpload({
               <p className="text-xs text-red-400">{uploadError}</p>
             </div>
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 reset();
