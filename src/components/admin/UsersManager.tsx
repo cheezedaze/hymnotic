@@ -155,24 +155,25 @@ export function UsersManager({ users, invitations, stats, tab, surveys }: UsersM
     setSyncingResend(true);
     setMessage(null);
     try {
-      const res = await fetch("/api/admin/newsletter/sync", { method: "POST" });
-      const data = await res.json();
-      if (res.ok) {
-        const failedCount = data.failed?.length ?? 0;
+      let cursor: string | null = null;
+      let synced = 0;
+      let skipped = 0;
+      const failures: { email: string; error: string }[] = [];
+      do {
+        const res: Response = await fetch(`/api/admin/newsletter/sync${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`, { method: "POST" });
+        const data: { synced: number; total: number; skippedUnsubscribed?: number; failed?: { email: string; error: string }[]; nextCursor: string | null; error?: string } = await res.json();
+        if (!res.ok) throw new Error(data.error || "Newsletter sync failed");
+        synced += data.synced;
+        skipped += data.skippedUnsubscribed ?? 0;
+        failures.push(...(data.failed ?? []));
+        cursor = data.nextCursor;
         setMessage({
-          type: failedCount > 0 ? "error" : "success",
-          text: `Synced ${data.synced}/${data.total} opt-ins to Resend${
-            failedCount > 0 ? ` (${failedCount} failed)` : ""
-          }`,
+          type: failures.length > 0 ? "error" : "success",
+          text: `${cursor ? "Syncing" : "Synced"} ${synced}/${data.total} opt-ins to Resend${skipped ? `; ${skipped} previously unsubscribed (kept unsubscribed)` : ""}${failures.length ? `; ${failures.length} failed. ${failures[0].error}` : ""}`,
         });
-        if (failedCount > 0) {
-          console.warn("Newsletter sync failures:", data.failed);
-        }
-      } else {
-        setMessage({ type: "error", text: data.error || "Sync failed" });
-      }
-    } catch {
-      setMessage({ type: "error", text: "Sync request failed" });
+      } while (cursor);
+    } catch (error) {
+      setMessage({ type: "error", text: error instanceof Error ? error.message : "Sync request failed" });
     } finally {
       setSyncingResend(false);
     }

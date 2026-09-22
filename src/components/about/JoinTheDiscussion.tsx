@@ -1,4 +1,5 @@
 import { MessageCircle } from "lucide-react";
+import { FeedbackForm } from "./FeedbackForm";
 import {
   DiscordIcon,
   TikTokIcon,
@@ -14,9 +15,8 @@ type SocialLink = {
   Icon: (props: { size?: number; className?: string }) => React.JSX.Element;
 };
 
-const DISCORD_URL = "https://discord.gg/kdjW3rcau5";
-
 const secondaryLinks: SocialLink[] = [
+  { label: "Discord", href: "https://discord.gg/kdjW3rcau5", Icon: DiscordIcon },
   {
     label: "TikTok",
     href: "https://www.tiktok.com/@hymnzmusic",
@@ -44,9 +44,9 @@ const secondaryLinks: SocialLink[] = [
   },
 ];
 
-export default function JoinTheDiscussion() {
+export default function JoinTheDiscussion({ email }: { email: string | null }) {
   return (
-    <div className="glass-heavy rounded-2xl p-6 space-y-4">
+    <div id="feedback" className="glass-heavy rounded-2xl p-6 space-y-4 scroll-mt-24">
       <div className="flex items-center gap-2">
         <MessageCircle size={16} className="text-accent" />
         <h2 className="text-display text-lg font-semibold text-text-primary">
@@ -54,17 +54,9 @@ export default function JoinTheDiscussion() {
         </h2>
       </div>
 
-      <a
-        href={DISCORD_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="Discord"
-        className="flex items-center justify-center gap-3 w-full py-3 bg-accent/15 border border-accent/25 text-accent rounded-xl hover:bg-accent/25 transition-colors"
-      >
-        <DiscordIcon size={28} />
-      </a>
+      <FeedbackForm email={email} />
 
-      <div className="flex items-center justify-center gap-3 flex-wrap">
+      <div className="flex items-center justify-center gap-2 sm:gap-3 flex-wrap">
         {secondaryLinks.map(({ label, href, Icon }) => (
           <a
             key={label}

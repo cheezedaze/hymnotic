@@ -13,6 +13,7 @@ import {
 import { getActiveContentBlocksByPage } from "@/lib/db/queries";
 import { getMediaUrl } from "@/lib/s3/client";
 import JoinTheDiscussion from "@/components/about/JoinTheDiscussion";
+import { auth } from "@/lib/auth/auth";
 
 const iconMap: Record<string, LucideIcon> = {
   Heart,
@@ -55,6 +56,7 @@ const defaultBlocks = [
 ];
 
 export default async function AboutPage() {
+  const session = await auth();
   let blocks: Awaited<ReturnType<typeof getActiveContentBlocksByPage>> = [];
   try {
     blocks = await getActiveContentBlocksByPage("about");
@@ -137,7 +139,7 @@ export default async function AboutPage() {
           if (block.sectionKey === "story") {
             return (
               <Fragment key={block.id}>
-                <JoinTheDiscussion />
+                <JoinTheDiscussion email={session?.user?.email ?? null} />
                 {card}
               </Fragment>
             );
@@ -145,6 +147,7 @@ export default async function AboutPage() {
 
           return card;
         })}
+        {!sections.some((block) => block.sectionKey === "story") && <JoinTheDiscussion email={session?.user?.email ?? null} />}
       </div>
     </div>
   );

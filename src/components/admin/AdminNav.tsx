@@ -18,6 +18,7 @@ import {
   ImagePlus,
   Image as ImageIcon,
   Bell,
+  MessageSquare,
   type LucideIcon,
 } from "lucide-react";
 import Image from "next/image";
@@ -66,6 +67,7 @@ const navEntries: NavEntry[] = [
     icon: Users,
     items: [
       { href: "/admin/users", label: "Users", icon: Users },
+      { href: "/admin/feedback", label: "Feedback", icon: MessageSquare },
       { href: "/admin/ads", label: "Ads", icon: ImagePlus },
       { href: "/admin/banner-ads", label: "Banners", icon: ImageIcon },
       { href: "/admin/push", label: "Push", icon: Bell },

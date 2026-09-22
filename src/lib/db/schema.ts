@@ -212,6 +212,31 @@ export const onboardingResponses = pgTable("onboarding_responses", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Feedback keeps follow-up consent separate from newsletter preferences.
+export const feedback = pgTable("feedback", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  userId: varchar("user_id", { length: 128 }).notNull().references(() => users.id, { onDelete: "cascade" }),
+  message: text("message").notNull(),
+  allowContact: boolean("allow_contact").default(false).notNull(),
+  contactEmail: varchar("contact_email", { length: 255 }),
+  acknowledgement: text("acknowledgement").notNull(),
+  responseSource: varchar("response_source", { length: 16 }).notNull().default("fallback"),
+  emailNotificationStatus: varchar("email_notification_status", { length: 16 }).notNull().default("pending"),
+  pushNotificationStatus: varchar("push_notification_status", { length: 16 }).notNull().default("pending"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [index("idx_feedback_created").on(table.createdAt, table.id), index("idx_feedback_user_created").on(table.userId, table.createdAt)]);
+
+export const feedbackReplies = pgTable("feedback_replies", {
+  id: varchar("id", { length: 36 }).primaryKey(),
+  feedbackId: varchar("feedback_id", { length: 36 }).notNull().references(() => feedback.id, { onDelete: "cascade" }),
+  body: text("body").notNull(),
+  emailId: text("email_id"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [index("idx_feedback_replies_feedback").on(table.feedbackId)]);
+
+export type Feedback = typeof feedback.$inferSelect;
+export type FeedbackReply = typeof feedbackReplies.$inferSelect;
+
 // =============================================================================
 // Invitations
 // =============================================================================
@@ -420,10 +445,12 @@ export const announcements = pgTable(
     title: text("title").notNull(),
     body: text("body").notNull(), // HTML from TipTap WYSIWYG
     publishedAt: timestamp("published_at"), // null = draft
+    firstPublishedAt: timestamp("first_published_at"), // retained when a newer update replaces this one
+    historyDateEstimated: boolean("history_date_estimated").default(false).notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
-  (table) => [index("idx_announcements_published").on(table.publishedAt)]
+  (table) => [index("idx_announcements_published").on(table.publishedAt), index("idx_announcements_history").on(table.firstPublishedAt, table.id)]
 );
 
 // =============================================================================

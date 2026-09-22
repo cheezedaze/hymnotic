@@ -8,8 +8,10 @@ import {
   Image as ImageIcon,
   Play,
   ExternalLink,
+  History,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+import { UpdateHistoryTab } from "@/components/library/UpdateHistoryTab";
 import { type ApiCollection } from "@/lib/types";
 import {
   extractYouTubeId,
@@ -19,6 +21,7 @@ import {
 const tabs = [
   { id: "videos", label: "Videos", icon: Video },
   { id: "artwork", label: "Artwork", icon: ImageIcon },
+  { id: "updates", label: "Update History", icon: History },
 ] as const;
 
 type TabId = (typeof tabs)[number]["id"];
@@ -209,7 +212,7 @@ export default function LibraryPage() {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "flex items-center gap-1.5 flex-1 justify-center px-3 py-2.5 rounded-lg text-xs font-medium transition-colors",
+                "flex items-center gap-1.5 flex-1 justify-center px-2 py-2.5 rounded-lg text-xs font-medium transition-colors",
                 activeTab === tab.id
                   ? "bg-accent/15 text-accent"
                   : "text-text-muted hover:text-text-secondary hover:bg-white/5"
@@ -222,9 +225,10 @@ export default function LibraryPage() {
         </div>
 
         {/* Tab content */}
-        <div className="glass-heavy rounded-xl p-8">
+        <div className="glass-heavy rounded-xl p-5 sm:p-8">
           {activeTab === "videos" && <VideosTab />}
           {activeTab === "artwork" && <ArtworkTab />}
+          {activeTab === "updates" && <UpdateHistoryTab />}
         </div>
       </div>
     </div>

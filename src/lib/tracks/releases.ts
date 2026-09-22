@@ -44,8 +44,8 @@ export async function processTrackRelease(trackId: string, now = new Date()) {
     await assertTrackAudio(track.audioKey);
     await tx.update(tracks).set({ isActive: true, publishedAt: now, updatedAt: now }).where(eq(tracks.id, trackId));
     if (release.announcementTitle && release.announcementBody) {
-      await tx.update(announcements).set({ publishedAt: null, updatedAt: now });
-      await tx.insert(announcements).values({ title: release.announcementTitle, body: release.announcementBody, publishedAt: now });
+      await tx.update(announcements).set({ firstPublishedAt: sql`coalesce(${announcements.firstPublishedAt}, ${announcements.publishedAt})`, publishedAt: null, updatedAt: now });
+      await tx.insert(announcements).values({ title: release.announcementTitle, body: release.announcementBody, publishedAt: now, firstPublishedAt: now });
     }
     await tx.update(trackReleases).set({
       status: release.pushTitle ? "published" : "completed", error: null, updatedAt: now,

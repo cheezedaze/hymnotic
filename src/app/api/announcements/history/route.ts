@@ -1,23 +1,14 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth/auth";
-import {
-  getPublishedAnnouncements,
-  getUserDismissedAnnouncementIds,
-} from "@/lib/db/queries";
+import { getAnnouncementHistory } from "@/lib/db/queries";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const [items, dismissedIds] = await Promise.all([
-      getPublishedAnnouncements(),
-      getUserDismissedAnnouncementIds(session.user.id),
-    ]);
-
-    return NextResponse.json({ announcements: items, dismissedIds });
+    const rawCursor = new URL(request.url).searchParams.get("cursor");
+    const cursor = rawCursor === null ? undefined : Number(rawCursor);
+    if (cursor !== undefined && (!Number.isSafeInteger(cursor) || cursor <= 0)) return NextResponse.json({ error: "Invalid history cursor" }, { status: 400 });
+    const result = await getAnnouncementHistory(cursor);
+    if (!result) return NextResponse.json({ error: "This update is no longer available. Refresh the history." }, { status: 400 });
+    return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     console.error("Error fetching announcement history:", error);
     return NextResponse.json(

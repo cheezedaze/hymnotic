@@ -1,5 +1,8 @@
 import { adminMessaging } from "./admin";
 import { getActivePushTokens, deactivatePushTokens } from "@/lib/db/queries";
+import { db } from "@/lib/db";
+import { devicePushTokens, users } from "@/lib/db/schema";
+import { and, eq, sql } from "drizzle-orm";
 
 const BATCH = 500; // FCM sendEachForMulticast hard limit
 
@@ -16,7 +19,17 @@ export async function sendBroadcast({
   body: string;
 }) {
   const rows = await getActivePushTokens();
-  const tokens = rows.map((r) => r.token);
+  return sendToTokens(rows.map((r) => r.token), { title, body });
+}
+
+export async function sendUserNotification(email: string, notification: { title: string; body: string }) {
+  const rows = await db.select({ token: devicePushTokens.token }).from(devicePushTokens)
+    .innerJoin(users, eq(devicePushTokens.userId, users.id))
+    .where(and(eq(devicePushTokens.active, true), eq(users.role, "ADMIN"), sql`lower(${users.email}) = ${email.toLowerCase()}`));
+  return sendToTokens(rows.map((row) => row.token), notification);
+}
+
+async function sendToTokens(tokens: string[], { title, body }: { title: string; body: string }) {
   if (tokens.length === 0) return { sentCount: 0, failedCount: 0 };
 
   const messaging = adminMessaging();

@@ -78,7 +78,7 @@ export async function sendNewsletterConfirmEmail(
   const fromEmail = process.env.EMAIL_FROM || "HYMNZ <onboarding@resend.dev>";
 
   const resend = getResend();
-  await resend.emails.send({
+  const { error } = await resend.emails.send({
     from: fromEmail,
     to: email,
     subject: "Confirm your HYMNZ subscription",
@@ -86,4 +86,5 @@ export async function sendNewsletterConfirmEmail(
     // a standalone @react-email/render, which isn't installed.
     html: await render(ConfirmNewsletter({ confirmUrl, firstName })),
   });
+  if (error) throw new Error(`Newsletter confirmation email failed: ${error.message}`);
 }

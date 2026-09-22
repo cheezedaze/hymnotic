@@ -1,4 +1,4 @@
-import { eq, asc, desc, sql, inArray, and, isNotNull, gte, lt } from "drizzle-orm";
+import { eq, asc, desc, sql, inArray, and, isNotNull, gte, lt, lte, or } from "drizzle-orm";
 import { db } from "./index";
 import { assertTrackAudio, TrackReleaseError } from "@/lib/tracks/validation";
 import {
@@ -884,12 +884,29 @@ export async function getLatestPublishedAnnouncement() {
   return result[0] ?? null;
 }
 
+export async function getAnnouncementHistory(beforeId?: number) {
+  const cursor = beforeId ? await getAnnouncementById(beforeId) : null;
+  if (beforeId && !cursor?.firstPublishedAt) return null;
+  const rows = await db.select({
+    id: announcements.id, title: announcements.title, body: announcements.body,
+    publishedAt: announcements.firstPublishedAt, dateEstimated: announcements.historyDateEstimated,
+  }).from(announcements).where(and(
+    lte(announcements.firstPublishedAt, new Date()),
+    cursor?.firstPublishedAt ? or(
+      lt(announcements.firstPublishedAt, cursor.firstPublishedAt),
+      and(eq(announcements.firstPublishedAt, cursor.firstPublishedAt), lt(announcements.id, cursor.id)),
+    ) : undefined,
+  )).orderBy(desc(announcements.firstPublishedAt), desc(announcements.id)).limit(21);
+  const items = rows.slice(0, 20);
+  return { announcements: items, nextCursor: rows.length > 20 ? items[items.length - 1].id : null };
+}
+
 export async function createAnnouncement(data: {
   title: string;
   body: string;
   publishedAt?: Date | null;
 }) {
-  const result = await db.insert(announcements).values(data).returning();
+  const result = await db.insert(announcements).values({ ...data, firstPublishedAt: data.publishedAt }).returning();
   return result[0];
 }
 
@@ -903,7 +920,7 @@ export async function updateAnnouncement(
 ) {
   const result = await db
     .update(announcements)
-    .set({ ...data, updatedAt: new Date() })
+    .set({ ...data, ...(data.publishedAt ? { firstPublishedAt: sql`coalesce(${announcements.firstPublishedAt}, ${data.publishedAt.toISOString()}::timestamp)` } : {}), updatedAt: new Date() })
     .where(eq(announcements.id, id))
     .returning();
   return result[0] ?? null;
