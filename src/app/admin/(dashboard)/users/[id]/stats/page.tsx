@@ -1,16 +1,20 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import { getUserById } from "@/lib/db/queries";
 import { UserTopTracks } from "@/components/admin/UserTopTracks";
+import { UserSurvey } from "@/components/admin/UserSurvey";
+import { requireAuthAdmin } from "@/lib/auth/auth";
+import { getUserSurvey } from "@/lib/surveys/queries";
 
 export default async function UserStatsPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
+  if (!await requireAuthAdmin()) redirect("/auth/signin");
   const { id } = await params;
-  const user = await getUserById(id);
+  const [user, survey] = await Promise.all([getUserById(id), getUserSurvey(id)]);
   if (!user) notFound();
 
   const tier: "free" | "premium" =
@@ -22,11 +26,11 @@ export default async function UserStatsPage({
     <div className="space-y-6">
       <div>
         <Link
-          href="/admin"
+          href="/admin/users?tab=active"
           className="inline-flex items-center gap-1 text-xs text-text-muted hover:text-text-primary transition-colors mb-2"
         >
           <ChevronLeft size={14} />
-          Back to Dashboard
+          Back to Active Users
         </Link>
         <div className="flex items-center gap-3 flex-wrap">
           <h1 className="text-display text-2xl font-bold text-text-primary">
@@ -47,7 +51,9 @@ export default async function UserStatsPage({
         )}
       </div>
 
-      <UserTopTracks userId={user.id} />
+      <UserTopTracks key={user.id} userId={user.id} />
+      <UserSurvey response={survey} completedAt={user.onboardingCompletedAt}
+        dismissedAt={user.onboardingLastDismissedAt} dismissCount={user.onboardingDismissCount} />
     </div>
   );
 }

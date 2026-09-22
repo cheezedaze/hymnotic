@@ -3,12 +3,23 @@ import { db } from "@/lib/db";
 import { invitations } from "@/lib/db/schema";
 import { desc } from "drizzle-orm";
 import { UsersManager } from "@/components/admin/UsersManager";
+import { SurveysDashboard } from "@/components/admin/SurveysDashboard";
+import { requireAuthAdmin } from "@/lib/auth/auth";
+import { redirect } from "next/navigation";
+import { getSurveyResponses } from "@/lib/surveys/queries";
+import { buildSurveyReport } from "@/lib/surveys/report";
 
-export default async function AdminUsersPage() {
-  const [allUsers, allInvitations, deviceStats] = await Promise.all([
+export default async function AdminUsersPage({ searchParams }: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  if (!await requireAuthAdmin()) redirect("/auth/signin");
+  const { tab: requestedTab } = await searchParams;
+  const tab = requestedTab === "active" || requestedTab === "surveys" ? requestedTab : "overview";
+  const [allUsers, allInvitations, deviceStats, responses] = await Promise.all([
     getUserDirectory(),
     db.select().from(invitations).orderBy(desc(invitations.createdAt)),
     getDeviceStats(),
+    tab === "surveys" ? getSurveyResponses() : Promise.resolve([]),
   ]);
 
   const stats = allUsers.reduce(
@@ -50,6 +61,8 @@ export default async function AdminUsersPage() {
 
   return (
     <UsersManager
+      tab={tab}
+      surveys={tab === "surveys" ? <SurveysDashboard report={buildSurveyReport(allUsers, responses)} aiConfigured={Boolean(process.env.GEMINI_API_KEY?.trim())} /> : null}
       stats={{ ...stats, ...deviceStats }}
       users={allUsers.map((u) => ({
         id: u.id,

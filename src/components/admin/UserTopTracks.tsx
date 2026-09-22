@@ -24,17 +24,28 @@ export function UserTopTracks({ userId }: { userId: string }) {
   const [period, setPeriod] = useState<Period>("all");
   const [tracks, setTracks] = useState<TrackEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
-    setLoading(true);
-    fetch(`/api/admin/user-stats/${userId}?period=${period}`)
-      .then((res) => res.json())
+    const controller = new AbortController();
+    fetch(`/api/admin/user-stats/${encodeURIComponent(userId)}?period=${period}`, { signal: controller.signal })
+      .then(async (res) => {
+        if (!res.ok) throw new Error("Could not load listening stats. Please try again.");
+        return res.json();
+      })
       .then((d) => {
+        if (controller.signal.aborted) return;
         setTracks(d.topTracks ?? []);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
-  }, [userId, period]);
+      .catch((error) => {
+        if (controller.signal.aborted) return;
+        setError(error instanceof Error ? error.message : "Could not load listening stats.");
+        setLoading(false);
+      });
+    return () => controller.abort();
+  }, [userId, period, retry]);
 
   return (
     <div className="space-y-4">
@@ -44,7 +55,13 @@ export function UserTopTracks({ userId }: { userId: string }) {
           {(Object.keys(periodLabels) as Period[]).map((p) => (
             <button
               key={p}
-              onClick={() => setPeriod(p)}
+              onClick={() => {
+                if (p === period) return;
+                setLoading(true);
+                setError(null);
+                setPeriod(p);
+              }}
+              aria-pressed={period === p}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                 period === p
                   ? "bg-accent/15 border border-accent/25 text-accent"
@@ -73,6 +90,12 @@ export function UserTopTracks({ userId }: { userId: string }) {
                 className="h-10 rounded-lg bg-white/5 animate-pulse"
               />
             ))}
+          </div>
+        ) : error ? (
+          <div role="alert" className="text-sm text-red-400 py-4 text-center">
+            <p>{error}</p>
+            <button onClick={() => { setLoading(true); setError(null); setRetry((value) => value + 1); }}
+              className="mt-2 text-accent underline">Try again</button>
           </div>
         ) : tracks.length === 0 ? (
           <p className="text-text-muted text-xs py-4 text-center">

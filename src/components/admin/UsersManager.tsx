@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   UserPlus,
@@ -20,6 +21,8 @@ import {
   CreditCard,
   Gift,
   DollarSign,
+  Search,
+  ChevronRight,
 } from "lucide-react";
 import { DonutChart, BarStat, type DonutSegment } from "./charts/Charts";
 
@@ -69,6 +72,8 @@ interface UsersManagerProps {
   users: UserInfo[];
   invitations: InvitationInfo[];
   stats: UserStats;
+  tab: "overview" | "active" | "surveys";
+  surveys: React.ReactNode;
 }
 
 function StatCard({
@@ -99,9 +104,14 @@ function StatCard({
 const pct = (n: number, total: number) =>
   total === 0 ? "0%" : `${Math.round((n / total) * 100)}%`;
 
-export function UsersManager({ users, invitations, stats }: UsersManagerProps) {
+export function UsersManager({ users, invitations, stats, tab, surveys }: UsersManagerProps) {
   const router = useRouter();
   const [visible, setVisible] = useState(50);
+  const [search, setSearch] = useState("");
+  const query = search.trim().toLowerCase();
+  const filteredUsers = users.filter((user) =>
+    user.email.toLowerCase().includes(query) || user.name?.toLowerCase().includes(query)
+  );
   const [email, setEmail] = useState("");
   const [grantPremium, setGrantPremium] = useState(false);
   const [sending, setSending] = useState(false);
@@ -247,16 +257,16 @@ export function UsersManager({ users, invitations, stats }: UsersManagerProps) {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-display text-2xl font-bold text-text-primary">
             Users
           </h1>
           <p className="text-text-muted text-sm mt-1">
-            Manage users and invitations
+            Understand your listeners and manage their accounts
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={handleSyncResend}
             disabled={syncingResend}
@@ -286,20 +296,43 @@ export function UsersManager({ users, invitations, stats }: UsersManagerProps) {
         </div>
       </div>
 
+      <nav aria-label="User management" className="flex gap-1 border-b border-white/10 pb-2 overflow-x-auto">
+        {([
+          ["overview", "Overview"],
+          ["active", "Active Users"],
+          ["surveys", "Surveys"],
+        ] as const).map(([value, label]) => (
+          <Link key={value} href={`/admin/users?tab=${value}`} aria-current={tab === value ? "page" : undefined}
+            className={`whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-accent ${tab === value ? "bg-accent/15 text-accent" : "text-text-muted hover:bg-white/5 hover:text-text-primary"}`}>
+            {label}
+          </Link>
+        ))}
+      </nav>
+
+      {message && (
+        <p role="status" className={`text-sm ${message.type === "success" ? "text-green-400" : "text-red-400"}`}>
+          {message.text}
+        </p>
+      )}
+
+      {tab === "surveys" && surveys}
+
       {/* Invite form */}
+      {tab === "active" && (
       <div className="glass-heavy rounded-xl p-4">
         <h2 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
           <UserPlus size={16} className="text-accent" />
           Invite User
         </h2>
         <form onSubmit={handleInvite} className="space-y-3">
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
               <Mail
                 size={16}
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted"
               />
               <input
+                aria-label="Invitation email address"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -331,17 +364,11 @@ export function UsersManager({ users, invitations, stats }: UsersManagerProps) {
             Grant premium on signup
           </label>
         </form>
-        {message && (
-          <p
-            className={`text-sm mt-3 ${
-              message.type === "success" ? "text-green-400" : "text-red-400"
-            }`}
-          >
-            {message.text}
-          </p>
-        )}
       </div>
+      )}
 
+      {tab === "overview" && (
+      <>
       {/* Subscriptions */}
       <div className="glass-heavy rounded-xl p-4">
         <h2 className="text-sm font-semibold text-text-primary mb-4 flex items-center gap-2">
@@ -490,37 +517,53 @@ export function UsersManager({ users, invitations, stats }: UsersManagerProps) {
         </div>
       </div>
 
+      </>
+      )}
+
+      {tab === "active" && (
+      <>
       {/* Active users */}
       <div className="glass-heavy rounded-xl p-4">
         <h2 className="text-sm font-semibold text-text-primary mb-3">
-          Active Users ({users.length})
+          Active Users ({filteredUsers.length}{query ? ` of ${users.length}` : ""})
         </h2>
-        {users.length === 0 ? (
+        <label htmlFor="user-search" className="sr-only">Search users by name or email</label>
+        <div className="relative mb-4">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+          <input id="user-search" type="search" value={search}
+            onChange={(event) => { setSearch(event.target.value); setVisible(50); }}
+            placeholder="Search users by name or email"
+            className="w-full pl-10 pr-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-text-primary placeholder:text-text-dim focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25" />
+        </div>
+        {filteredUsers.length === 0 ? (
           <p className="text-text-muted text-sm py-4 text-center">
-            No users yet. Send an invitation to get started.
+            {query ? "No users match your search." : "No users yet. Send an invitation to get started."}
           </p>
         ) : (
           <div className="space-y-1">
-            {users.slice(0, visible).map((user) => (
+            {filteredUsers.slice(0, visible).map((user) => (
               <div
                 key={user.id}
-                className="flex items-center justify-between px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors"
+                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors"
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-accent/15 border border-accent/25 flex items-center justify-center">
+                <Link href={`/admin/users/${encodeURIComponent(user.id)}/stats`}
+                  className="flex items-center gap-3 min-w-0 flex-1 rounded-lg focus-visible:outline-2 focus-visible:outline-accent"
+                  aria-label={`View listening stats and survey for ${user.name || user.email}`}>
+                  <div className="shrink-0 w-8 h-8 rounded-full bg-accent/15 border border-accent/25 flex items-center justify-center">
                     {user.role === "ADMIN" ? (
                       <Shield size={14} className="text-accent" />
                     ) : (
                       <User size={14} className="text-accent" />
                     )}
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-text-primary">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-text-primary truncate">
                       {user.name || "Unnamed"}
                     </p>
-                    <p className="text-xs text-text-muted">{user.email}</p>
+                    <p className="text-xs text-text-muted truncate">{user.email}</p>
                   </div>
-                </div>
+                  <ChevronRight size={14} className="shrink-0 text-text-muted" />
+                </Link>
                 <div className="flex items-center gap-2">
                   <div className="flex items-center gap-1.5">
                     {user.platforms.includes("ios") && (
@@ -628,13 +671,13 @@ export function UsersManager({ users, invitations, stats }: UsersManagerProps) {
                 </div>
               </div>
             ))}
-            {visible < users.length && (
+            {visible < filteredUsers.length && (
               <div className="pt-2 flex justify-center">
                 <button
                   onClick={() => setVisible((v) => v + 50)}
                   className="px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 text-text-secondary rounded-xl text-sm transition-colors"
                 >
-                  Load more ({users.length - visible} remaining)
+                  Load more ({filteredUsers.length - visible} remaining)
                 </button>
               </div>
             )}
@@ -710,6 +753,8 @@ export function UsersManager({ users, invitations, stats }: UsersManagerProps) {
             ))}
           </div>
         </div>
+      )}
+      </>
       )}
     </div>
   );
