@@ -12,8 +12,10 @@ export interface ShuffleQueueEntry {
   generatedAt: number;
 }
 
-interface PlayerState {
+export interface PlayerState {
   queue: ApiTrack[];
+  sourceQueue: ApiTrack[];
+  queueCollectionId: string | null;
   currentIndex: number;
   currentTrack: ApiTrack | null;
 
@@ -53,12 +55,13 @@ interface PlayerState {
   play: () => void;
   pause: () => void;
   togglePlayPause: () => void;
-  next: () => void;
+  next: (automatic?: boolean) => void;
   previous: () => void;
   seekTo: (time: number) => void;
-  setQueue: (tracks: ApiTrack[], startIndex?: number) => void;
-  playTrack: (track: ApiTrack, queue?: ApiTrack[]) => void;
+  setQueue: (tracks: ApiTrack[], startIndex?: number, collectionId?: string | null) => void;
+  playTrack: (track: ApiTrack, queue?: ApiTrack[], collectionId?: string | null) => void;
   startShuffledCollection: (collectionId: string, tracks: ApiTrack[]) => void;
+  toggleCollectionShuffle: (collectionId: string, tracks: ApiTrack[]) => void;
   setCurrentTime: (time: number) => void;
   setDuration: (duration: number) => void;
   toggleShuffle: () => void;
@@ -123,6 +126,14 @@ function fisherYates(ids: string[]): string[] {
   return a;
 }
 
+function shuffledIds(ids: string[], avoidFirstId?: string): string[] {
+  const order = fisherYates(ids);
+  if (order.length > 1 && avoidFirstId && order[0] === avoidFirstId) {
+    [order[0], order[1]] = [order[1], order[0]];
+  }
+  return order;
+}
+
 /** Reorder tracks to match a shuffled order of IDs. Tracks not in `order` are dropped. */
 function tracksFromOrder(order: string[], tracks: ApiTrack[]): ApiTrack[] {
   const byId = new Map(tracks.map((t) => [t.id, t]));
@@ -134,10 +145,33 @@ function tracksFromOrder(order: string[], tracks: ApiTrack[]): ApiTrack[] {
   return out;
 }
 
+export function persistedPlayerState(state: PlayerState) {
+  return {
+    queue: state.queue,
+    sourceQueue: state.sourceQueue,
+    queueCollectionId: state.queueCollectionId,
+    currentIndex: state.currentIndex,
+    currentTrack: state.currentTrack,
+    currentTime: state.currentTime,
+    duration: state.duration,
+    isMiniPlayerVisible: state.isMiniPlayerVisible,
+    isPreviewMode: state.isPreviewMode,
+    previewDuration: state.previewDuration,
+    previewCheckpoint: state.previewCheckpoint,
+    shuffleQueues: state.shuffleQueues,
+    activeShuffleCollectionId: state.activeShuffleCollectionId,
+    shuffle: state.shuffle,
+    repeat: state.repeat,
+    volume: state.volume,
+  };
+}
+
 export const usePlayerStore = create<PlayerState>()(
   persist(
     (set, get) => ({
       queue: [],
+      sourceQueue: [],
+      queueCollectionId: null,
       currentIndex: -1,
       currentTrack: null,
 
@@ -181,7 +215,8 @@ export const usePlayerStore = create<PlayerState>()(
           ...(!s.isPlaying && s.isPreviewEnded ? { isPreviewEnded: false } : {}),
         })),
 
-      next: () => {
+      next: (automatic = false) => {
+        const isAutomatic = automatic === true;
         const {
           queue,
           currentIndex,
@@ -208,19 +243,25 @@ export const usePlayerStore = create<PlayerState>()(
 
             if (nextPosition >= order.length) {
               // End of shuffled queue — reshuffle in place.
-              if (queue.length === 1 && repeat === "off") {
-                set({ isPlaying: false });
-                return;
-              }
-              order = fisherYates(queue.map((t) => t.id));
+              const sourceQueue = get().sourceQueue.length > 0
+                ? get().sourceQueue
+                : queue;
+              order = shuffledIds(
+                sourceQueue.map((t) => t.id),
+                currentTrack?.id
+              );
               nextPosition = 0;
-              // For single-track playlists with repeat==="all", this just loops.
+              // A single-track shuffled collection simply starts a new cycle.
             }
 
+            const nextQueue =
+              order === entry.order
+                ? queue
+                : tracksFromOrder(order, get().sourceQueue.length > 0 ? get().sourceQueue : queue);
             const nextTrackId = order[nextPosition];
             const nextTrack =
-              queue.find((t) => t.id === nextTrackId) ?? queue[0];
-            const nextQueueIndex = queue.findIndex((t) => t.id === nextTrack.id);
+              nextQueue.find((t) => t.id === nextTrackId) ?? nextQueue[0];
+            const nextQueueIndex = nextQueue.findIndex((t) => t.id === nextTrack.id);
 
             const newHistory = currentTrack
               ? [...history, currentTrack].slice(-50)
@@ -237,6 +278,7 @@ export const usePlayerStore = create<PlayerState>()(
                     order === entry.order ? entry.generatedAt : Date.now(),
                 },
               },
+              queue: nextQueue,
               currentIndex: nextQueueIndex,
               currentTrack: nextTrack,
               currentTime: 0,
@@ -262,7 +304,7 @@ export const usePlayerStore = create<PlayerState>()(
         } else {
           nextIndex = currentIndex + 1;
           if (nextIndex >= queue.length) {
-            if (repeat === "all") {
+            if (repeat === "all" || !isAutomatic) {
               nextIndex = 0;
             } else {
               set({ isPlaying: false });
@@ -306,35 +348,46 @@ export const usePlayerStore = create<PlayerState>()(
 
         if (history.length > 0) {
           const newHistory = [...history];
-          const prevTrack = newHistory.pop()!;
-          const queueIndex = queue.findIndex((t) => t.id === prevTrack.id);
-
-          // Keep the persistent shuffle position aligned with what's playing.
-          let nextShuffleQueues = shuffleQueues;
-          if (shuffle && activeShuffleCollectionId) {
-            const entry = shuffleQueues[activeShuffleCollectionId];
-            if (entry) {
-              const orderIdx = entry.order.indexOf(prevTrack.id);
-              if (orderIdx !== -1) {
-                nextShuffleQueues = {
-                  ...shuffleQueues,
-                  [activeShuffleCollectionId]: { ...entry, position: orderIdx },
-                };
-              }
+          let prevTrack: ApiTrack | undefined;
+          let queueIndex = -1;
+          while (newHistory.length > 0 && queueIndex === -1) {
+            const candidate = newHistory.pop()!;
+            const candidateIndex = queue.findIndex((t) => t.id === candidate.id);
+            if (candidateIndex !== -1) {
+              prevTrack = candidate;
+              queueIndex = candidateIndex;
             }
           }
 
-          set({
-            currentTrack: prevTrack,
-            currentIndex: queueIndex !== -1 ? queueIndex : currentIndex,
-            currentTime: 0,
-            duration: prevTrack.duration,
-            isPlaying: true,
-            history: newHistory,
-            shuffleQueues: nextShuffleQueues,
-            ...previewStateForTrack(prevTrack, get().freeListenPlayed),
-          });
-          return;
+          if (prevTrack) {
+            // Keep the persistent shuffle position aligned with what's playing.
+            let nextShuffleQueues = shuffleQueues;
+            if (shuffle && activeShuffleCollectionId) {
+              const entry = shuffleQueues[activeShuffleCollectionId];
+              if (entry) {
+                const orderIdx = entry.order.indexOf(prevTrack.id);
+                if (orderIdx !== -1) {
+                  nextShuffleQueues = {
+                    ...shuffleQueues,
+                    [activeShuffleCollectionId]: { ...entry, position: orderIdx },
+                  };
+                }
+              }
+            }
+
+            set({
+              currentTrack: prevTrack,
+              currentIndex: queueIndex,
+              currentTime: 0,
+              duration: prevTrack.duration,
+              isPlaying: true,
+              history: newHistory,
+              shuffleQueues: nextShuffleQueues,
+              ...previewStateForTrack(prevTrack, get().freeListenPlayed),
+            });
+            return;
+          }
+          set({ history: [] });
         }
 
         // No history. Walk back through the shuffled order if one is active.
@@ -388,18 +441,21 @@ export const usePlayerStore = create<PlayerState>()(
 
       seekTo: (time) => set({ currentTime: time }),
 
-      setQueue: (tracks, startIndex = 0) => {
-        const { currentTrack, history } = get();
+      setQueue: (tracks, startIndex = 0, collectionId = null) => {
+        const { currentTrack, history, queueCollectionId } = get();
+        const sameCollection = queueCollectionId === collectionId;
         const newHistory =
-          currentTrack && currentTrack.id !== tracks[startIndex]?.id
+          sameCollection && currentTrack && currentTrack.id !== tracks[startIndex]?.id
             ? [...history, currentTrack].slice(-50)
-            : history;
+            : sameCollection ? history : [];
 
         const startTrack = tracks[startIndex] ?? null;
         // Non-shuffle entry point: detach any persistent shuffle queue so
         // next() doesn't try to drive playback from a stale order.
         set({
           queue: tracks,
+          sourceQueue: tracks,
+          queueCollectionId: collectionId,
           currentIndex: startIndex,
           currentTrack: startTrack,
           currentTime: 0,
@@ -408,58 +464,70 @@ export const usePlayerStore = create<PlayerState>()(
           isMiniPlayerVisible: true,
           history: newHistory,
           activeShuffleCollectionId: null,
+          shuffle: false,
           ...previewStateForTrack(startTrack, get().freeListenPlayed),
         });
       },
 
-      playTrack: (track, queue) => {
+      playTrack: (track, queue, collectionId = null) => {
         const state = get();
+        const requestedCollectionId = collectionId ?? track.collectionId ?? null;
+        const sameCollection = state.queueCollectionId === requestedCollectionId;
 
-        if (state.currentTrack?.id === track.id) {
+        if (state.currentTrack?.id === track.id && sameCollection) {
           if (!state.isPlaying) {
             set({ isPlaying: true });
           }
           return;
         }
 
-        const newHistory = state.currentTrack
+        const newHistory = sameCollection && state.currentTrack && state.currentTrack.id !== track.id
           ? [...state.history, state.currentTrack].slice(-50)
-          : state.history;
+          : sameCollection ? state.history : [];
 
-        const q = queue ?? state.queue;
-        const index = q.findIndex((t) => t.id === track.id);
-
-        // Keep the active per-playlist shuffle queue aligned with what's
-        // actually playing. If the tapped track is part of the active
-        // shuffled order, advance position to match it. If it isn't, detach
-        // the shuffle queue so a subsequent next() doesn't jump from a stale
-        // position into an unrelated song.
+        const sourceQueue = queue ?? (
+          state.sourceQueue.length > 0 ? state.sourceQueue : state.queue
+        );
+        let q = sourceQueue;
+        let nextShuffle = state.shuffle && sameCollection;
+        let nextActiveId = nextShuffle ? state.activeShuffleCollectionId : null;
         let nextShuffleQueues = state.shuffleQueues;
-        let nextActiveId = state.activeShuffleCollectionId;
-        if (state.activeShuffleCollectionId) {
-          const entry = state.shuffleQueues[state.activeShuffleCollectionId];
-          if (entry) {
+
+        if (nextShuffle && nextActiveId === requestedCollectionId) {
+          const entry = state.shuffleQueues[nextActiveId];
+          if (entry && entry.sourceHash === computeSourceHash(sourceQueue)) {
+            q = tracksFromOrder(entry.order, sourceQueue);
             const orderIdx = entry.order.indexOf(track.id);
             if (orderIdx !== -1) {
               nextShuffleQueues = {
                 ...state.shuffleQueues,
-                [state.activeShuffleCollectionId]: { ...entry, position: orderIdx },
+                [nextActiveId]: { ...entry, position: orderIdx },
               };
             } else {
+              nextShuffle = false;
               nextActiveId = null;
+              q = sourceQueue;
             }
+          } else {
+            nextShuffle = false;
+            nextActiveId = null;
           }
         }
 
+        const index = q.findIndex((t) => t.id === track.id);
+
         const baseState = {
+          sourceQueue,
+          queueCollectionId: requestedCollectionId,
           currentTrack: track,
-          currentTime: 0,
+          currentTime: state.currentTrack?.id === track.id ? state.currentTime : 0,
           duration: track.duration,
           isPlaying: true,
           isMiniPlayerVisible: true,
           history: newHistory,
           shuffleQueues: nextShuffleQueues,
           activeShuffleCollectionId: nextActiveId,
+          shuffle: nextShuffle,
           ...previewStateForTrack(track, get().freeListenPlayed),
         };
 
@@ -473,18 +541,26 @@ export const usePlayerStore = create<PlayerState>()(
       startShuffledCollection: (collectionId, tracks) => {
         if (tracks.length === 0) return;
 
-        const { shuffleQueues, currentTrack, history } = get();
+        const state = get();
+        const { shuffleQueues, currentTrack, history } = state;
         const sourceHash = computeSourceHash(tracks);
         const existing = shuffleQueues[collectionId];
+        const currentBelongsToCollection =
+          state.queueCollectionId === collectionId &&
+          !!currentTrack &&
+          tracks.some((track) => track.id === currentTrack.id);
 
         let entry: ShuffleQueueEntry;
 
         if (existing && existing.sourceHash === sourceHash) {
-          // Resume from saved position. Clamp defensively.
-          const clampedPosition = Math.max(
-            0,
-            Math.min(existing.position, existing.order.length - 1)
-          );
+          // Resume the collection's saved cycle. When shuffle is toggled on
+          // for the queue that is already loaded, keep the current song.
+          const currentPosition = currentBelongsToCollection
+            ? existing.order.indexOf(currentTrack.id)
+            : -1;
+          const clampedPosition = currentPosition >= 0
+            ? currentPosition
+            : Math.max(0, Math.min(existing.position, existing.order.length - 1));
           entry = { ...existing, position: clampedPosition };
         } else {
           // Generate a fresh shuffle. Preserve current track if it's still in
@@ -492,7 +568,7 @@ export const usePlayerStore = create<PlayerState>()(
           const ids = tracks.map((t) => t.id);
           let order = fisherYates(ids);
           const preserveId =
-            currentTrack && ids.includes(currentTrack.id)
+            currentBelongsToCollection && currentTrack && ids.includes(currentTrack.id)
               ? currentTrack.id
               : null;
           if (preserveId) {
@@ -508,21 +584,24 @@ export const usePlayerStore = create<PlayerState>()(
 
         const orderedQueue = tracksFromOrder(entry.order, tracks);
         const startTrack = orderedQueue[entry.position] ?? null;
+        const keepPosition = currentBelongsToCollection && startTrack?.id === currentTrack?.id;
 
         const newHistory =
-          currentTrack && currentTrack.id !== startTrack?.id
+          currentBelongsToCollection && currentTrack && currentTrack.id !== startTrack?.id
             ? [...history, currentTrack].slice(-50)
-            : history;
+            : currentBelongsToCollection ? history : [];
 
         set({
           shuffleQueues: { ...shuffleQueues, [collectionId]: entry },
           activeShuffleCollectionId: collectionId,
           queue: orderedQueue,
+          sourceQueue: tracks,
+          queueCollectionId: collectionId,
           currentIndex: entry.position,
           currentTrack: startTrack,
-          currentTime: 0,
+          currentTime: keepPosition ? state.currentTime : 0,
           duration: startTrack?.duration ?? 0,
-          isPlaying: true,
+          isPlaying: currentBelongsToCollection ? state.isPlaying : true,
           isMiniPlayerVisible: true,
           shuffle: true,
           history: newHistory,
@@ -530,12 +609,42 @@ export const usePlayerStore = create<PlayerState>()(
         });
       },
 
+      toggleCollectionShuffle: (collectionId, tracks) => {
+        if (tracks.length === 0) return;
+        const state = get();
+        if (state.shuffle && state.queueCollectionId === collectionId) {
+          const restoredIndex = state.currentTrack
+            ? tracks.findIndex((track) => track.id === state.currentTrack?.id)
+            : 0;
+          const currentIndex = restoredIndex >= 0 ? restoredIndex : 0;
+          const currentTrack = tracks[currentIndex] ?? null;
+          const trackChanged = currentTrack?.id !== state.currentTrack?.id;
+          set({
+            queue: tracks,
+            sourceQueue: tracks,
+            currentIndex,
+            currentTrack,
+            currentTime: trackChanged ? 0 : state.currentTime,
+            duration: currentTrack?.duration ?? 0,
+            activeShuffleCollectionId: null,
+            shuffle: false,
+          });
+          return;
+        }
+        get().startShuffledCollection(collectionId, tracks);
+      },
+
       setCurrentTime: (time) => set({ currentTime: time }),
       setDuration: (duration) => set({ duration }),
-      // Flips the shuffle flag only. Does NOT create a persistent queue —
-      // only startShuffledCollection (the collection-level shuffle-play button)
-      // does that.
-      toggleShuffle: () => set((s) => ({ shuffle: !s.shuffle })),
+      toggleShuffle: () => {
+        const state = get();
+        const source = state.sourceQueue.length > 0 ? state.sourceQueue : state.queue;
+        if (state.queueCollectionId && source.length > 0) {
+          state.toggleCollectionShuffle(state.queueCollectionId, source);
+          return;
+        }
+        set({ shuffle: !state.shuffle });
+      },
       cycleRepeat: () =>
         set((s) => {
           const modes: RepeatMode[] = ["off", "all", "one"];
@@ -574,18 +683,22 @@ export const usePlayerStore = create<PlayerState>()(
     }),
     {
       name: "hymnz-player-v1",
-      version: 1,
+      version: 2,
       storage: createJSONStorage(() => localStorage),
-      // Only persist user preferences and per-playlist shuffle memory.
-      // Runtime playback state (queue, currentTrack, isPlaying, etc.) is
-      // intentionally excluded so audio never auto-starts on cold launch.
-      partialize: (s) => ({
-        shuffleQueues: s.shuffleQueues,
-        activeShuffleCollectionId: s.activeShuffleCollectionId,
-        shuffle: s.shuffle,
-        repeat: s.repeat,
-        volume: s.volume,
-      }),
+      migrate: (persistedState, version) => {
+        const persisted = persistedState as Partial<PlayerState>;
+        if (version < 2) {
+          return {
+            shuffleQueues: persisted.shuffleQueues ?? {},
+            repeat: persisted.repeat ?? "off",
+            volume: persisted.volume ?? 1,
+          } as Partial<PlayerState>;
+        }
+        return persisted;
+      },
+      // Persist a paused, resumable queue. isPlaying is deliberately omitted,
+      // so reopening the app preloads the last song without auto-playing it.
+      partialize: persistedPlayerState,
     }
   )
 );

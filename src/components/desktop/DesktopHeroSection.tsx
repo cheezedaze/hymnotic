@@ -17,7 +17,7 @@ export function DesktopHeroSection({ featuredTrack, queue }: DesktopHeroSectionP
   const artworkUrl = featuredTrack.artworkUrl || featuredTrack.collectionArtworkUrl || "/images/image-1.png";
 
   const handlePlay = () => {
-    playTrack(featuredTrack, queue);
+    playTrack(featuredTrack, queue, featuredTrack.collectionId);
     expandNowPlaying();
   };
 

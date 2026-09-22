@@ -16,12 +16,17 @@ export interface NativePlaybackTrack {
 }
 
 export interface NativePlaybackState {
+  revision?: number;
   trackId?: string;
+  queueId?: string;
+  queueTrackIds?: string[];
   queueIndex: number;
   queueCount: number;
   position: number;
   duration: number;
   isPlaying: boolean;
+  shuffle?: boolean;
+  repeat?: "off" | "all" | "one";
   reason:
     | "loaded"
     | "play"
@@ -36,10 +41,13 @@ export interface NativePlaybackState {
 
 interface NativeIOSPlaybackPlugin {
   loadQueue(options: {
+    revision: number;
     tracks: NativePlaybackTrack[];
+    queueId?: string;
     queueIndex: number;
     position: number;
     isPlaying: boolean;
+    shuffle: boolean;
     repeat: "off" | "all" | "one";
   }): Promise<NativePlaybackState>;
   play(): Promise<NativePlaybackState>;

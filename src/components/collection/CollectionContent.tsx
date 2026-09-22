@@ -54,7 +54,7 @@ export function CollectionContent({
     ? ["latest", "oldest", "title", "collection"]
     : ["latest", "oldest", "title", "trackNumber"];
 
-  const { searchTerm, setSearchTerm, sortBy, setSortBy, filteredTracks } =
+  const { searchTerm, setSearchTerm, sortBy, setSortBy, sortedTracks, filteredTracks } =
     useTrackSearchSort({ tracks: accessTracks, defaultSort: "latest", collectionMap });
 
   // Search UI state
@@ -68,14 +68,16 @@ export function CollectionContent({
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const togglePlayPause = usePlayerStore((s) => s.togglePlayPause);
-  const toggleShuffle = usePlayerStore((s) => s.toggleShuffle);
+  const toggleCollectionShuffle = usePlayerStore((s) => s.toggleCollectionShuffle);
   const startShuffledCollection = usePlayerStore((s) => s.startShuffledCollection);
   const shuffle = usePlayerStore((s) => s.shuffle);
+  const queueCollectionId = usePlayerStore((s) => s.queueCollectionId);
 
   const { share } = useShare();
 
   const isPlayingFromThis =
-    currentTrack && filteredTracks.some((t) => t.id === currentTrack.id);
+    !!currentTrack && queueCollectionId === collectionId;
+  const isShuffleActive = shuffle && queueCollectionId === collectionId;
 
   // Autoplay from share link (?play=trackId)
   const autoPlayedRef = useRef(false);
@@ -84,16 +86,16 @@ export function CollectionContent({
       autoPlayedRef.current = true;
       const index = accessTracks.findIndex((t) => t.id === autoPlayTrackId);
       if (index !== -1) {
-        setQueue(accessTracks, index);
+        setQueue(accessTracks, index, collectionId);
       }
     }
-  }, [autoPlayTrackId, accessTracks, setQueue]);
+  }, [autoPlayTrackId, accessTracks, collectionId, setQueue]);
 
   const handleShare = useCallback(() => {
     if (collectionId && collectionTitle) {
       share({ type: "collection", id: collectionId, title: collectionTitle, artworkUrl: collectionArtworkUrl });
     }
-  }, [collectionId, collectionTitle, share]);
+  }, [collectionId, collectionTitle, collectionArtworkUrl, share]);
 
   useEffect(() => {
     if (searchOpen) {
@@ -128,22 +130,19 @@ export function CollectionContent({
     }
     // Honor shuffle mode: when shuffle is on, Play starts/resumes the
     // persistent shuffled queue instead of sequentially from track #1.
-    if (shuffle && collectionId && accessTracks.length > 0) {
-      startShuffledCollection(collectionId, accessTracks);
+    if (isShuffleActive && collectionId && sortedTracks.length > 0) {
+      startShuffledCollection(collectionId, sortedTracks);
       return;
     }
-    setQueue(filteredTracks, 0);
-  }, [filteredTracks, isPlayingFromThis, togglePlayPause, setQueue, shuffle, collectionId, accessTracks, startShuffledCollection]);
+    setQueue(filteredTracks, 0, collectionId);
+  }, [filteredTracks, isPlayingFromThis, togglePlayPause, setQueue, isShuffleActive, collectionId, sortedTracks, startShuffledCollection]);
 
   const handleShuffle = useCallback(() => {
-    // Shuffle spans the whole collection (accessTracks), not the current
+    // Shuffle spans the whole collection in its visible sort order, not the current
     // search/sort filter — matches the user mental model of "shuffle this playlist".
-    if (!collectionId || accessTracks.length === 0) {
-      toggleShuffle();
-      return;
-    }
-    startShuffledCollection(collectionId, accessTracks);
-  }, [collectionId, accessTracks, toggleShuffle, startShuffledCollection]);
+    if (!collectionId || sortedTracks.length === 0) return;
+    toggleCollectionShuffle(collectionId, sortedTracks);
+  }, [collectionId, sortedTracks, toggleCollectionShuffle]);
 
   return (
     <>
@@ -209,7 +208,7 @@ export function CollectionContent({
         <div className="flex items-center gap-3">
           <IconButton
             label="Shuffle"
-            active={shuffle}
+            active={isShuffleActive}
             onClick={handleShuffle}
           >
             <Shuffle size={20} />
@@ -258,7 +257,11 @@ export function CollectionContent({
         </div>
       </div>
 
-      <TrackList tracks={filteredTracks} />
+      <TrackList
+        tracks={filteredTracks}
+        playbackQueue={sortedTracks}
+        collectionId={collectionId}
+      />
     </>
   );
 }

@@ -16,18 +16,8 @@ export function useTrackSearchSort({
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>(defaultSort);
 
-  const filteredTracks = useMemo(() => {
-    const q = searchTerm.toLowerCase().trim();
-    let result = [...tracks];
-
-    if (q) {
-      result = result.filter(
-        (t) =>
-          t.title.toLowerCase().includes(q) ||
-          t.artist.toLowerCase().includes(q) ||
-          (collectionMap?.get(t.collectionId) ?? "").toLowerCase().includes(q)
-      );
-    }
+  const sortedTracks = useMemo(() => {
+    const result = [...tracks];
 
     switch (sortBy) {
       case "title":
@@ -58,13 +48,25 @@ export function useTrackSearchSort({
     }
 
     return result;
-  }, [tracks, searchTerm, sortBy, collectionMap]);
+  }, [tracks, sortBy, collectionMap]);
+
+  const filteredTracks = useMemo(() => {
+    const q = searchTerm.toLowerCase().trim();
+    if (!q) return sortedTracks;
+    return sortedTracks.filter(
+      (track) =>
+        track.title.toLowerCase().includes(q) ||
+        track.artist.toLowerCase().includes(q) ||
+        (collectionMap?.get(track.collectionId) ?? "").toLowerCase().includes(q)
+    );
+  }, [sortedTracks, searchTerm, collectionMap]);
 
   return {
     searchTerm,
     setSearchTerm,
     sortBy,
     setSortBy,
+    sortedTracks,
     filteredTracks,
   };
 }

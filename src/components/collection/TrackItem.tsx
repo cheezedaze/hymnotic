@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils/cn";
 interface TrackItemProps {
   track: ApiTrack;
   queue: ApiTrack[];
+  collectionId?: string;
 }
 
 function formatCount(n: number): string {
@@ -21,7 +22,7 @@ function formatCount(n: number): string {
   return n.toLocaleString();
 }
 
-export function TrackItem({ track, queue }: TrackItemProps) {
+export function TrackItem({ track, queue, collectionId }: TrackItemProps) {
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const playTrack = usePlayerStore((s) => s.playTrack);
@@ -42,7 +43,7 @@ export function TrackItem({ track, queue }: TrackItemProps) {
     // Recompute access for the effective tier (handles admin view-as)
     const [recomputedTrack] = recomputeTrackAccess([track], effectiveTier, sacred7TrackIds);
     const recomputedQueue = recomputeTrackAccess(queue, effectiveTier, sacred7TrackIds);
-    playTrack(recomputedTrack, recomputedQueue);
+    playTrack(recomputedTrack, recomputedQueue, collectionId);
   };
 
   return (

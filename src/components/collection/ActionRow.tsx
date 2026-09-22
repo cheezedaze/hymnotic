@@ -18,30 +18,27 @@ export function ActionRow({ tracks, collectionId, collectionTitle }: ActionRowPr
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const togglePlayPause = usePlayerStore((s) => s.togglePlayPause);
-  const toggleShuffle = usePlayerStore((s) => s.toggleShuffle);
-  const startShuffledCollection = usePlayerStore((s) => s.startShuffledCollection);
+  const toggleCollectionShuffle = usePlayerStore((s) => s.toggleCollectionShuffle);
   const shuffle = usePlayerStore((s) => s.shuffle);
+  const queueCollectionId = usePlayerStore((s) => s.queueCollectionId);
 
   const { share } = useShare();
 
   const isPlayingFromThisCollection =
-    currentTrack && tracks.some((t) => t.id === currentTrack.id);
+    !!currentTrack && queueCollectionId === collectionId;
+  const isShuffleActive = shuffle && queueCollectionId === collectionId;
 
   const handlePlayAll = () => {
     if (isPlayingFromThisCollection) {
       togglePlayPause();
     } else {
-      setQueue(tracks, 0);
+      setQueue(tracks, 0, collectionId);
     }
   };
 
   const handleShuffle = () => {
-    if (!collectionId || tracks.length === 0) {
-      // No persistent queue possible without a collection — fall back to toggle.
-      toggleShuffle();
-      return;
-    }
-    startShuffledCollection(collectionId, tracks);
+    if (!collectionId || tracks.length === 0) return;
+    toggleCollectionShuffle(collectionId, tracks);
   };
 
   return (
@@ -63,7 +60,7 @@ export function ActionRow({ tracks, collectionId, collectionTitle }: ActionRowPr
       <div className="flex items-center gap-3">
         <IconButton
           label="Shuffle"
-          active={shuffle}
+          active={isShuffleActive}
           onClick={handleShuffle}
         >
           <Shuffle size={20} />

@@ -31,9 +31,10 @@ export function DesktopHomePage({ collections, serverTier, featuredTrack, featur
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const togglePlayPause = usePlayerStore((s) => s.togglePlayPause);
-  const toggleShuffle = usePlayerStore((s) => s.toggleShuffle);
+  const toggleCollectionShuffle = usePlayerStore((s) => s.toggleCollectionShuffle);
   const startShuffledCollection = usePlayerStore((s) => s.startShuffledCollection);
   const shuffle = usePlayerStore((s) => s.shuffle);
+  const queueCollectionId = usePlayerStore((s) => s.queueCollectionId);
 
   // Use server-provided tier until client store loads, preventing hydration mismatch
   const effectiveTier = isLoaded ? storeTier : (serverTier ?? storeTier);
@@ -85,13 +86,13 @@ export function DesktopHomePage({ collections, serverTier, featuredTrack, featur
     }
   }, [filteredCollections, selectedCollectionId]);
 
-  const isPlayingFromThisSet =
-    currentTrack && filteredTracks.some((t) => t.id === currentTrack.id);
-
   // Synthetic shuffle key: real collection ID if a filter is active, else
   // the "all-tracks" virtual ID so the persistent shuffle queue scope matches
   // the visible track set.
   const shuffleScopeId = selectedCollectionId ?? "all-tracks";
+  const isPlayingFromThisSet =
+    !!currentTrack && queueCollectionId === shuffleScopeId;
+  const isShuffleActive = shuffle && queueCollectionId === shuffleScopeId;
 
   const handlePlayAll = () => {
     if (isPlayingFromThisSet) {
@@ -99,19 +100,18 @@ export function DesktopHomePage({ collections, serverTier, featuredTrack, featur
       return;
     }
     if (filteredTracks.length === 0) return;
-    if (shuffle) {
+    if (isShuffleActive) {
       startShuffledCollection(shuffleScopeId, filteredTracks);
       return;
     }
-    setQueue(filteredTracks, 0);
+    setQueue(filteredTracks, 0, shuffleScopeId);
   };
 
   const handleShuffle = () => {
     if (filteredTracks.length === 0) {
-      toggleShuffle();
       return;
     }
-    startShuffledCollection(shuffleScopeId, filteredTracks);
+    toggleCollectionShuffle(shuffleScopeId, filteredTracks);
   };
 
   return (
@@ -144,7 +144,7 @@ export function DesktopHomePage({ collections, serverTier, featuredTrack, featur
             <button
               onClick={handleShuffle}
               className={`w-10 h-10 flex items-center justify-center rounded-full transition-colors ${
-                shuffle ? "text-accent" : "text-text-secondary hover:text-text-primary"
+                isShuffleActive ? "text-accent" : "text-text-secondary hover:text-text-primary"
               }`}
             >
               <Shuffle size={24} />
@@ -158,7 +158,7 @@ export function DesktopHomePage({ collections, serverTier, featuredTrack, featur
                 <p className="text-text-muted text-sm">Loading tracks...</p>
               </div>
             ) : (
-              <DesktopTrackList tracks={filteredTracks} />
+              <DesktopTrackList tracks={filteredTracks} collectionId={shuffleScopeId} />
             )}
           </div>
         </div>

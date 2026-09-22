@@ -199,7 +199,7 @@ export function useAudioPlayer() {
         }
       };
       const onEnded = () => {
-        usePlayerStore.getState().next();
+        usePlayerStore.getState().next(true);
       };
       const onError = () => {
         // Skip past a broken track so a single failure can't strand playback.
@@ -293,7 +293,7 @@ export function useAudioPlayer() {
 
           if (next >= state.duration) {
             clearSimulation();
-            state.next();
+            state.next(true);
           } else {
             state.setCurrentTime(next);
           }

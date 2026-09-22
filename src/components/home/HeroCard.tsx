@@ -19,7 +19,7 @@ export function HeroCard({ featuredTrack, queue }: HeroCardProps) {
   const displayArtworkUrl = featuredTrack.artworkUrl || featuredTrack.collectionArtworkUrl;
 
   const handlePlay = () => {
-    playTrack(featuredTrack, queue);
+    playTrack(featuredTrack, queue, featuredTrack.collectionId);
     expandNowPlaying();
   };
 

@@ -6,9 +6,10 @@ import { TrackItem } from "@/components/collection/TrackItem";
 
 interface DesktopTrackListProps {
   tracks: ApiTrack[];
+  collectionId?: string;
 }
 
-export function DesktopTrackList({ tracks }: DesktopTrackListProps) {
+export function DesktopTrackList({ tracks, collectionId }: DesktopTrackListProps) {
   if (tracks.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -21,7 +22,7 @@ export function DesktopTrackList({ tracks }: DesktopTrackListProps) {
   return (
     <div className="divide-y divide-white/5">
       {tracks.map((track) => (
-        <TrackItem key={track.id} track={track} queue={tracks} />
+        <TrackItem key={track.id} track={track} queue={tracks} collectionId={collectionId} />
       ))}
     </div>
   );

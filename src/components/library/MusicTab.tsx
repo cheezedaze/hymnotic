@@ -50,7 +50,7 @@ function TracksList({
           <button
             key={track.id}
             onClick={() => {
-              playTrack(track, allTracks);
+              playTrack(track, allTracks, "all-tracks");
               expandNowPlaying();
             }}
             className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition-colors w-full text-left"
@@ -156,9 +156,10 @@ export function MusicTab() {
   const isPlaying = usePlayerStore((s) => s.isPlaying);
   const currentTrack = usePlayerStore((s) => s.currentTrack);
   const togglePlayPause = usePlayerStore((s) => s.togglePlayPause);
-  const toggleShuffle = usePlayerStore((s) => s.toggleShuffle);
+  const toggleCollectionShuffle = usePlayerStore((s) => s.toggleCollectionShuffle);
   const startShuffledCollection = usePlayerStore((s) => s.startShuffledCollection);
   const shuffle = usePlayerStore((s) => s.shuffle);
+  const queueCollectionId = usePlayerStore((s) => s.queueCollectionId);
 
   // Synthetic collection ID so the persistent shuffle queue works on the
   // virtual "all tracks" view (same key the route uses for /collection/all-tracks).
@@ -250,7 +251,8 @@ export function MusicTab() {
   }, [collections, searchTerm]);
 
   const isPlayingFromList =
-    currentTrack && filteredTracks.some((t) => t.id === currentTrack.id);
+    !!currentTrack && queueCollectionId === LIBRARY_MUSIC_ID;
+  const isShuffleActive = shuffle && queueCollectionId === LIBRARY_MUSIC_ID;
 
   const handlePlayAll = useCallback(() => {
     if (filteredTracks.length === 0) return;
@@ -258,20 +260,17 @@ export function MusicTab() {
       togglePlayPause();
       return;
     }
-    if (shuffle && tracks.length > 0) {
+    if (isShuffleActive && tracks.length > 0) {
       startShuffledCollection(LIBRARY_MUSIC_ID, tracks);
       return;
     }
-    setQueue(filteredTracks, 0);
-  }, [filteredTracks, tracks, isPlayingFromList, togglePlayPause, setQueue, shuffle, startShuffledCollection]);
+    setQueue(filteredTracks, 0, LIBRARY_MUSIC_ID);
+  }, [filteredTracks, tracks, isPlayingFromList, togglePlayPause, setQueue, isShuffleActive, startShuffledCollection]);
 
   const handleShuffle = useCallback(() => {
-    if (tracks.length === 0) {
-      toggleShuffle();
-      return;
-    }
-    startShuffledCollection(LIBRARY_MUSIC_ID, tracks);
-  }, [tracks, toggleShuffle, startShuffledCollection]);
+    if (tracks.length === 0) return;
+    toggleCollectionShuffle(LIBRARY_MUSIC_ID, tracks);
+  }, [tracks, toggleCollectionShuffle]);
 
   const toggleSearch = useCallback(() => {
     setSearchOpen((prev) => {
@@ -356,7 +355,7 @@ export function MusicTab() {
           <div className="flex items-center gap-3">
             <IconButton
               label="Shuffle"
-              active={shuffle}
+              active={isShuffleActive}
               onClick={handleShuffle}
             >
               <Shuffle size={20} />
@@ -415,7 +414,7 @@ export function MusicTab() {
         ) : activeTab === "tracks" ? (
           <TracksList
             tracks={filteredTracks}
-            allTracks={filteredTracks}
+            allTracks={tracks}
             collectionMap={collectionMap}
           />
         ) : (

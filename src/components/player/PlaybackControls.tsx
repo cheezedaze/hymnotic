@@ -131,7 +131,7 @@ export function PlaybackControls({ compact = false, variant = "mobile" }: Playba
             )}
           </button>
 
-          <IconButton onClick={next} size="sm" label="Next">
+          <IconButton onClick={() => next()} size="sm" label="Next">
             <SkipForward size={18} fill="white" className="text-white" />
           </IconButton>
 
@@ -246,7 +246,7 @@ export function PlaybackControls({ compact = false, variant = "mobile" }: Playba
           )}
         </button>
 
-        <IconButton onClick={next} size="md" label="Next">
+        <IconButton onClick={() => next()} size="md" label="Next">
           <SkipForward size={compact ? 22 : 26} fill="white" className="text-white" />
         </IconButton>
 
