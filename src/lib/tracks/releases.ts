@@ -14,12 +14,12 @@ export async function scheduleTrackRelease(trackId: string, body: Record<string,
   return db.transaction(async (tx) => {
     const [track] = await tx.select().from(tracks).where(eq(tracks.id, trackId)).for("update");
     if (!track) throw new TrackReleaseError("Track not found", 404);
-    if (track.publishedAt || track.isActive) throw new TrackReleaseError("This track has already been released. Use its Active control.", 409);
+    if (track.isActive) throw new TrackReleaseError("This track is already active. Deactivate it before scheduling another release.", 409);
     await assertTrackAudio(track.audioKey);
     const [existing] = await tx.select().from(trackReleases).where(eq(trackReleases.trackId, trackId));
-    if (existing && existing.status !== "scheduled") throw new TrackReleaseError("The release has already started.", 409);
+    if (existing && ["published", "sending"].includes(existing.status)) throw new TrackReleaseError("Push delivery is still in progress. Wait for it to finish before scheduling another release.", 409);
     const [release] = await tx.insert(trackReleases).values({ trackId, ...input })
-      .onConflictDoUpdate({ target: trackReleases.trackId, set: { ...input, error: null, updatedAt: new Date() } }).returning();
+      .onConflictDoUpdate({ target: trackReleases.trackId, set: { ...input, status: "scheduled", error: null, sentCount: 0, failedCount: 0, updatedAt: new Date() } }).returning();
     return release;
   });
 }
@@ -65,7 +65,7 @@ export async function processTrackRelease(trackId: string, now = new Date()) {
           status: counts.failedCount > 0 ? "attention" : "completed",
           error: counts.failedCount > 0 ? `Push delivery failed for ${counts.failedCount} device(s). ${counts.sentCount} sent.` : null,
           ...counts, updatedAt: new Date(),
-        }).where(eq(trackReleases.trackId, trackId));
+        }).where(and(eq(trackReleases.trackId, trackId), eq(trackReleases.status, "sending"), eq(trackReleases.updatedAt, claimed.updatedAt)));
       });
     } catch (error) {
       console.error("Track release push failed:", error);
@@ -73,7 +73,7 @@ export async function processTrackRelease(trackId: string, now = new Date()) {
         status: "attention",
         error: "The track was released, but push delivery could not be confirmed. Check Push Notifications before sending again; some devices may already have received it.",
         updatedAt: new Date(),
-      }).where(eq(trackReleases.trackId, trackId));
+      }).where(and(eq(trackReleases.trackId, trackId), eq(trackReleases.status, "sending"), eq(trackReleases.updatedAt, claimed.updatedAt)));
     }
   }
   return getTrackRelease(trackId);

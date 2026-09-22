@@ -203,6 +203,9 @@ export async function updateTrack(
     if (data.isActive === true && !existing.publishedAt) {
       throw new TrackReleaseError("Use Release Track to activate this track for the first time.", 409);
     }
+    if (data.isActive === true && release?.status === "scheduled") {
+      throw new TrackReleaseError("Use Release now to activate the scheduled release, or cancel its schedule first.", 409);
+    }
     const audioKey = data.audioKey !== undefined ? data.audioKey : existing.audioKey;
     if (((data.isActive ?? existing.isActive) || release?.status === "scheduled") &&
         (data.audioKey !== undefined || (data.isActive === true && !existing.isActive))) {

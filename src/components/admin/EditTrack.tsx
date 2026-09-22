@@ -423,7 +423,7 @@ export function EditTrack({ track, lyrics: initialLyrics, collections, release =
 
       {!isNew && <TrackReleasePanel
         trackId={track.id} title={form.title} artworkUrl={artworkPreview}
-        initialRelease={release} released={released} disabledReason={releaseDisabledReason} onReleased={onReleased}
+        initialRelease={release} isActive={JSON.parse(savedForm).isActive} disabledReason={releaseDisabledReason} onReleased={onReleased}
       />}
 
       {isNew && <p className="text-sm text-text-muted">Save the track to prepare its release announcement, push notification, and release time.</p>}

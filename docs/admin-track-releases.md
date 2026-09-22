@@ -16,13 +16,18 @@ and time (the browser's time zone is shown). Announcement and push notification
 are optional. The announcement uses the same rich text editor as Updates; its
 image menu offers the track artwork, file upload, and image URL. Scheduling saves
 the announcement and push content without publishing or sending anything yet.
-Schedules can be edited or canceled until publication starts.
+Schedules can be edited or canceled until publication starts. Every inactive
+track can use these options, including previously released tracks. A new release
+can be scheduled after any previous push delivery finishes.
 
 At release time the server checks the saved playback audio in S3, activates the
 track, and replaces all published announcements with the release announcement in
 one database transaction. If announcement is disabled, existing announcements are
 left alone. A push goes to active device tokens after publication and is recorded
-in Push Notifications. Later activation/deactivation never repeats the campaign.
+in Push Notifications. The Active toggle never repeats the campaign. To send a
+new announcement or push, deactivate the track and explicitly use Release Track
+again. If a release is scheduled, use Release now or cancel the schedule before
+activating through the Active toggle.
 
 ## Deployment
 

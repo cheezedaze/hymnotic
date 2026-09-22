@@ -19,15 +19,15 @@ interface Props {
   title: string;
   artworkUrl: string;
   initialRelease: TrackRelease | null;
-  released: boolean;
+  isActive: boolean;
   disabledReason: string;
   onReleased: () => void;
 }
 
-export function TrackReleasePanel({ trackId, title, artworkUrl, initialRelease, released, disabledReason, onReleased }: Props) {
+export function TrackReleasePanel({ trackId, title, artworkUrl, initialRelease, isActive, disabledReason, onReleased }: Props) {
   const [release, setRelease] = useState(initialRelease);
-  const [mode, setMode] = useState<"now" | "later">(initialRelease ? "later" : "now");
-  const [dateTime, setDateTime] = useState(initialRelease ? localDateTime(initialRelease.scheduledAt) : "");
+  const [mode, setMode] = useState<"now" | "later">(initialRelease?.status === "scheduled" ? "later" : "now");
+  const [dateTime, setDateTime] = useState(initialRelease?.status === "scheduled" ? localDateTime(initialRelease.scheduledAt) : "");
   const [withAnnouncement, setWithAnnouncement] = useState(initialRelease ? !!initialRelease.announcementTitle : true);
   const [withPush, setWithPush] = useState(initialRelease ? !!initialRelease.pushTitle : true);
   const [announcementTitle, setAnnouncementTitle] = useState(initialRelease?.announcementTitle || `New release: ${title}`);
@@ -38,7 +38,8 @@ export function TrackReleasePanel({ trackId, title, artworkUrl, initialRelease, 
   const [uploadingImage, setUploadingImage] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const hasReleased = released || (!!release && release.status !== "scheduled");
+  const deliveryInProgress = release?.status === "published" || release?.status === "sending";
+  const showStatus = isActive || deliveryInProgress;
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   useEffect(() => {
@@ -104,14 +105,14 @@ export function TrackReleasePanel({ trackId, title, artworkUrl, initialRelease, 
 
   return (
     <section id="release" className="glass-heavy rounded-xl p-5 space-y-4 scroll-mt-6">
-      <h2 className="text-sm font-semibold text-text-primary">{hasReleased ? "Release status" : "Release Track"}</h2>
+      <h2 className="text-sm font-semibold text-text-primary">{showStatus ? "Release status" : "Release Track"}</h2>
       {release?.error && <p role="alert" className="text-sm text-red-400">{release.error}</p>}
-      {hasReleased ? (
+      {release?.status === "attention" && <Link href="/admin/push" className="text-sm text-accent underline">Review push notifications</Link>}
+      {showStatus ? (
         <div className="space-y-2 text-sm text-text-secondary">
-          <p>The track has been released. Use Active above to activate or deactivate it.</p>
+          <p>{isActive ? "The track is active. Use Active above to deactivate it. Once inactive, you can release it now or schedule another release." : "The track is inactive. Wait for the current push delivery to finish before scheduling another release."}</p>
           {release?.status === "completed" && release.pushTitle && <p>Push sent to {release.sentCount} device{release.sentCount === 1 ? "" : "s"}.</p>}
           {(release?.status === "sending" || release?.status === "published") && <p>Push notification delivery is in progress.</p>}
-          {release?.status === "attention" && <Link href="/admin/push" className="text-accent underline">Review push notifications</Link>}
         </div>
       ) : (
         <form onSubmit={submit} className="space-y-5">
@@ -148,7 +149,7 @@ export function TrackReleasePanel({ trackId, title, artworkUrl, initialRelease, 
           <div className="flex flex-wrap gap-3">
             <button type="submit" disabled={busy || !!disabledReason || uploadingImage}
               className="px-4 py-2.5 bg-gold/15 border border-gold/25 text-gold rounded-xl text-sm font-medium hover:bg-gold/25 disabled:opacity-50">
-              {busy ? "Saving release…" : mode === "now" ? "Release now" : release ? "Update schedule" : "Schedule release"}
+              {busy ? "Saving release…" : mode === "now" ? "Release now" : release?.status === "scheduled" ? "Update schedule" : "Schedule release"}
             </button>
             {release?.status === "scheduled" && <button type="button" disabled={busy} onClick={cancel} className="px-4 py-2.5 bg-white/5 text-text-secondary rounded-xl text-sm">Cancel schedule</button>}
           </div>

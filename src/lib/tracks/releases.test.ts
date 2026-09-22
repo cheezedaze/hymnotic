@@ -79,7 +79,90 @@ describe.skipIf(!url)("track releases (local PostgreSQL)", () => {
     await queries.updateTrack("track", { isActive: true });
     await releases.processDueTrackReleases();
     expect(mocks.sendBroadcast).toHaveBeenCalledTimes(1);
-    await expect(releases.scheduleTrackRelease("track", campaign)).rejects.toThrow("already been released");
+    await expect(releases.scheduleTrackRelease("track", campaign)).rejects.toThrow("already active");
+  });
+  it("schedules a previously activated inactive track and can activate it immediately", async () => {
+    await track("track", { publishedAt: new Date(), isActive: false });
+    const future = new Date(Date.now() + 86_400_000);
+    await releases.scheduleTrackRelease("track", { ...campaign, immediate: false, scheduledAt: future.toISOString() });
+    await releases.processDueTrackReleases();
+    expect((await getTrack()).isActive).toBe(false);
+    expect(mocks.sendBroadcast).not.toHaveBeenCalled();
+    await expect(queries.updateTrack("track", { isActive: true })).rejects.toThrow("Release now");
+    await releases.scheduleTrackRelease("track", campaign);
+    await releases.processTrackRelease("track");
+    expect((await getTrack()).isActive).toBe(true);
+    expect(mocks.sendBroadcast).toHaveBeenCalledTimes(1);
+  });
+  it("starts a fresh campaign after deactivation and sends it once when due", async () => {
+    await track();
+    await releases.scheduleTrackRelease("track", campaign);
+    await releases.processTrackRelease("track");
+    await queries.updateTrack("track", { isActive: false });
+    const future = new Date(Date.now() + 86_400_000);
+    const scheduled = await releases.scheduleTrackRelease("track", { ...campaign, announcementTitle: "Another release", immediate: false, scheduledAt: future.toISOString() });
+    expect(scheduled.status).toBe("scheduled");
+    expect(scheduled.sentCount).toBe(0);
+    expect(scheduled.failedCount).toBe(0);
+    await releases.processDueTrackReleases();
+    expect((await getTrack()).isActive).toBe(false);
+    expect(mocks.sendBroadcast).toHaveBeenCalledTimes(1);
+    await Promise.all([releases.processDueTrackReleases(future), releases.processTrackRelease("track", future)]);
+    expect((await getTrack()).isActive).toBe(true);
+    expect(mocks.sendBroadcast).toHaveBeenCalledTimes(2);
+    expect((await db.select().from(schema.announcements)).filter((a) => a.publishedAt).map((a) => a.title)).toEqual(["Another release"]);
+  });
+  it("can cancel a repeat release and activate normally without repeating its campaign", async () => {
+    await track();
+    await releases.scheduleTrackRelease("track", campaign);
+    await releases.processTrackRelease("track");
+    await queries.updateTrack("track", { isActive: false });
+    const future = new Date(Date.now() + 86_400_000);
+    await releases.scheduleTrackRelease("track", { ...campaign, immediate: false, scheduledAt: future.toISOString() });
+    await releases.cancelTrackRelease("track");
+    await releases.processDueTrackReleases(future);
+    expect((await getTrack()).isActive).toBe(false);
+    await queries.updateTrack("track", { isActive: true });
+    expect(mocks.sendBroadcast).toHaveBeenCalledTimes(1);
+  });
+  it("allows a new release after a previous push failure and clears its delivery state", async () => {
+    await track();
+    mocks.sendBroadcast.mockResolvedValueOnce({ sentCount: 4, failedCount: 1 });
+    await releases.scheduleTrackRelease("track", campaign);
+    await releases.processTrackRelease("track");
+    await queries.updateTrack("track", { isActive: false });
+    const scheduled = await releases.scheduleTrackRelease("track", { immediate: true });
+    expect(scheduled).toMatchObject({ status: "scheduled", sentCount: 0, failedCount: 0, error: null, pushTitle: null, announcementTitle: null });
+    await releases.processTrackRelease("track");
+    expect((await getTrack()).isActive).toBe(true);
+    expect(mocks.sendBroadcast).toHaveBeenCalledTimes(1);
+  });
+  it.each(["published", "sending"] as const)("does not replace a %s release while push delivery is in progress", async (status) => {
+    await track("track", { publishedAt: new Date(), isActive: false });
+    await db.insert(schema.trackReleases).values({ trackId: "track", scheduledAt: new Date(), status, pushTitle: "Original", pushBody: "Original message" });
+    await expect(releases.scheduleTrackRelease("track", campaign)).rejects.toThrow("delivery is still in progress");
+    expect((await releases.getTrackRelease("track"))?.pushTitle).toBe("Original");
+  });
+  it("does not let a late push result overwrite a newly scheduled release", async () => {
+    await track();
+    let finishPush!: (counts: { sentCount: number; failedCount: number }) => void;
+    mocks.sendBroadcast.mockImplementationOnce(() => new Promise((resolve) => { finishPush = resolve; }));
+    await releases.scheduleTrackRelease("track", campaign);
+    const processing = releases.processTrackRelease("track");
+    await vi.waitFor(() => expect(mocks.sendBroadcast).toHaveBeenCalledTimes(1));
+    try {
+      await queries.updateTrack("track", { isActive: false });
+      await db.update(schema.trackReleases).set({ updatedAt: new Date(Date.now() - 11 * 60_000) });
+      await releases.processDueTrackReleases();
+      expect((await releases.getTrackRelease("track"))?.status).toBe("attention");
+      const future = new Date(Date.now() + 86_400_000);
+      await releases.scheduleTrackRelease("track", { immediate: false, scheduledAt: future.toISOString() });
+    } finally {
+      finishPush({ sentCount: 5, failedCount: 0 });
+      await processing;
+    }
+    expect(await releases.getTrackRelease("track")).toMatchObject({ status: "scheduled", sentCount: 0, failedCount: 0 });
+    expect((await getTrack()).isActive).toBe(false);
   });
   it("rechecks audio at release time and retries safely after the audio is fixed", async () => {
     await track();
