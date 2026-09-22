@@ -13,42 +13,26 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const {
-      id,
-      collectionId,
-      title,
-      artist,
-      audioKey,
-      artworkKey,
-      duration,
-      trackNumber,
-      hasVideo,
-      videoKey,
-      hasLyrics,
-    } = body;
-
-    if (!id || !collectionId || !title || duration == null || trackNumber == null) {
-      return NextResponse.json(
-        {
-          error:
-            "id, collectionId, title, duration, and trackNumber are required",
-        },
-        { status: 400 }
-      );
+    const title = typeof body.title === "string" ? body.title.trim() : "";
+    if (!title || typeof body.collectionId !== "string" || !body.collectionId) {
+      return NextResponse.json({ error: "Title and collection are required" }, { status: 400 });
     }
-
+    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "track";
     const track = await createTrack({
-      id,
-      collectionId,
+      id: `${slug}-${crypto.randomUUID().slice(0, 8)}`,
+      collectionId: body.collectionId,
       title,
-      artist: artist ?? "HYMNZ",
-      audioKey: audioKey ?? undefined,
-      artworkKey: artworkKey ?? undefined,
-      duration,
-      trackNumber,
-      hasVideo: hasVideo ?? false,
-      videoKey: videoKey ?? undefined,
-      hasLyrics: hasLyrics ?? false,
+      artist: body.artist || "HYMNZ",
+      audioKey: body.audioKey || undefined,
+      audioFormat: body.audioFormat || undefined,
+      originalAudioKey: body.originalAudioKey || undefined,
+      artworkKey: body.artworkKey || undefined,
+      duration: typeof body.duration === "number" && Number.isFinite(body.duration) ? Math.max(0, body.duration) : 0,
+      trackNumber: 1,
+      isActive: false,
+      videoKey: body.videoKey || undefined,
+      hasVideo: !!body.videoKey,
+      youtubeUrl: body.youtubeUrl || undefined,
     });
 
     return NextResponse.json(

@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuthAdmin } from "@/lib/auth/auth";
 import { getMediaUrl } from "@/lib/s3/client";
 import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
-import { convertWavToMp3 } from "@/lib/audio/convertWavToMp3";
 
 // Allow up to 2 minutes for large WAV conversion
 export const maxDuration = 120;
@@ -61,6 +60,11 @@ export async function POST(request: NextRequest) {
     let mp3Buffer: Buffer;
     let durationSeconds: number;
     try {
+      // Load FFmpeg inside the guarded conversion step so a missing native
+      // binary returns a useful response instead of crashing route startup.
+      const { convertWavToMp3 } = await import(
+        "@/lib/audio/convertWavToMp3"
+      );
       const result = await convertWavToMp3(wavBuffer);
       mp3Buffer = result.mp3Buffer;
       durationSeconds = result.durationSeconds;

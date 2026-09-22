@@ -1,4 +1,4 @@
-import { S3Client, GetObjectCommand, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, GetObjectCommand, PutObjectCommand, DeleteObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { getSignedUrl as getCloudFrontSignedUrl } from "@aws-sdk/cloudfront-signer";
 
@@ -34,6 +34,15 @@ function getS3Client(): S3Client {
 }
 
 const BUCKET = process.env.AWS_S3_BUCKET || "hymnotic-media";
+
+export async function mediaExists(key: string): Promise<boolean> {
+  try {
+    const result = await getS3Client().send(new HeadObjectCommand({ Bucket: BUCKET, Key: key }));
+    return (result.ContentLength ?? 0) > 0;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Get the CDN URL for a media file.

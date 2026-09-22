@@ -31,6 +31,10 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 
 ## Deploy on Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Deploy source with `vercel --prod` so Vercel builds the application on Linux.
+Do not deploy locally generated `.vercel/output` artifacts with `--prebuilt`:
+the audio conversion function depends on a platform-specific FFmpeg binary.
+The Vercel build command intentionally rejects non-Linux builds to prevent a
+macOS FFmpeg binary from reaching production.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

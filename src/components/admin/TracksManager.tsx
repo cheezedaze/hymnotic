@@ -10,6 +10,7 @@ import {
   Music,
   FileText,
   Video,
+  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 import { formatTime } from "@/lib/utils/formatTime";
@@ -23,6 +24,9 @@ interface TrackRow {
   trackNumber: number;
   playCount: number;
   isActive: boolean;
+  publishedAt: Date | null;
+  releaseScheduledAt?: string | null;
+  releaseError?: string | null;
   hasVideo: boolean;
   hasLyrics: boolean;
   artworkUrl: string | null;
@@ -42,56 +46,17 @@ export function TracksManager({ tracks: initialTracks, collections }: TracksMana
   const [filter, setFilter] = useState("");
   const [deleting, setDeleting] = useState<string | null>(null);
   const [togglingActive, setTogglingActive] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    id: "",
-    collectionId: collections[0]?.id || "",
-    title: "",
-    artist: "HYMNZ",
-    duration: 0,
-    trackNumber: 1,
-  });
-  const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
+  const [title, setTitle] = useState("");
+  const [search, setSearch] = useState("");
+  const query = search.trim().toLowerCase();
+  const filteredTracks = tracks.filter((track) =>
+    (!filter || track.collectionId === filter) &&
+    (!query || [track.title, track.artist, track.id, collections.find((c) => c.id === track.collectionId)?.title || ""].some((value) => value.toLowerCase().includes(query)))
+  );
 
-  const titleToSlug = (title: string) =>
-    title
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 60);
-
-  const filteredTracks = filter
-    ? tracks.filter((t) => t.collectionId === filter)
-    : tracks;
-
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    setSaving(true);
-
-    try {
-      const res = await fetch("/api/admin/tracks", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        setError(data.error || "Failed to create track");
-        return;
-      }
-
-      const created = await res.json();
-      setShowForm(false);
-      router.push(`/admin/tracks/${created.id}`);
-      router.refresh();
-    } catch {
-      setError("Something went wrong");
-    } finally {
-      setSaving(false);
-    }
+    if (title.trim()) router.push(`/admin/tracks/new?title=${encodeURIComponent(title.trim())}`);
   };
 
   const handleDelete = async (id: string) => {
@@ -124,7 +89,8 @@ export function TracksManager({ tracks: initialTracks, collections }: TracksMana
         body: JSON.stringify({ isActive: !currentValue }),
       });
       if (!res.ok) {
-        alert("Failed to update track");
+        const data = await res.json();
+        alert(data.error || "Failed to update track");
         return;
       }
       setTracks((prev) =>
@@ -152,15 +118,20 @@ export function TracksManager({ tracks: initialTracks, collections }: TracksMana
         <button
           onClick={() => {
             setShowForm(!showForm);
-            setSlugManuallyEdited(false);
-            setForm({ id: "", collectionId: collections[0]?.id || "", title: "", artist: "HYMNZ", duration: 0, trackNumber: 1 });
-            setError("");
+            setTitle("");
           }}
           className="flex items-center gap-2 px-4 py-2.5 bg-gold/15 border border-gold/25 text-gold rounded-xl text-sm font-medium hover:bg-gold/25 transition-colors"
         >
           <Plus size={16} />
           New Track
         </button>
+      </div>
+
+      <div className="relative">
+        <Search size={16} className="absolute left-3 top-3 text-text-muted" />
+        <input aria-label="Search tracks" type="search" value={search} onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search tracks, artists, or collections…"
+          className="w-full pl-10 pr-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-text-primary focus:outline-none focus:border-accent/50" />
       </div>
 
       {/* Filter */}
@@ -201,122 +172,23 @@ export function TracksManager({ tracks: initialTracks, collections }: TracksMana
           <h3 className="text-sm font-semibold text-text-primary">
             New Track
           </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1.5">
-                Title *
-              </label>
-              <input
-                type="text"
-                value={form.title}
-                onChange={(e) => {
-                  const title = e.target.value;
-                  setForm((prev) => ({
-                    ...prev,
-                    title,
-                    id: slugManuallyEdited ? prev.id : titleToSlug(title),
-                  }));
-                }}
-                placeholder="Track title"
-                required
-                className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-text-primary placeholder:text-text-dim focus:outline-none focus:border-accent/50 transition-colors"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1.5">
-                ID (slug) *
-              </label>
-              <input
-                type="text"
-                value={form.id}
-                onChange={(e) => {
-                  setSlugManuallyEdited(true);
-                  setForm((prev) => ({
-                    ...prev,
-                    id: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"),
-                  }));
-                }}
-                placeholder="auto-derived from title"
-                required
-                className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-text-primary placeholder:text-text-dim focus:outline-none focus:border-accent/50 transition-colors"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1.5">
-                Collection *
-              </label>
-              <select
-                value={form.collectionId}
-                onChange={(e) =>
-                  setForm({ ...form, collectionId: e.target.value })
-                }
-                required
-                className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-text-primary focus:outline-none focus:border-accent/50 transition-colors"
-              >
-                {collections.map((c) => (
-                  <option key={c.id} value={c.id} className="bg-midnight">
-                    {c.title}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1.5">
-                Artist
-              </label>
-              <input
-                type="text"
-                value={form.artist}
-                onChange={(e) => setForm({ ...form, artist: e.target.value })}
-                className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-text-primary focus:outline-none focus:border-accent/50 transition-colors"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1.5">
-                Duration (seconds) *
-              </label>
-              <input
-                type="number"
-                value={form.duration}
-                onChange={(e) =>
-                  setForm({ ...form, duration: parseFloat(e.target.value) || 0 })
-                }
-                required
-                className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-text-primary focus:outline-none focus:border-accent/50 transition-colors"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-text-secondary mb-1.5">
-                Track Number *
-              </label>
-              <input
-                type="number"
-                value={form.trackNumber}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    trackNumber: parseInt(e.target.value) || 1,
-                  })
-                }
-                required
-                className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-text-primary focus:outline-none focus:border-accent/50 transition-colors"
-              />
-            </div>
+          <div>
+            <label htmlFor="new-track-title" className="block text-xs font-medium text-text-secondary mb-1.5">Track name</label>
+            <input id="new-track-title" type="text" value={title} onChange={(e) => setTitle(e.target.value)} required autoFocus
+              placeholder="Track title"
+              className="w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-text-primary focus:outline-none focus:border-accent/50" />
           </div>
-
-          {error && <p className="text-red-400 text-sm">{error}</p>}
-
           <div className="flex gap-3">
             <button
               type="submit"
-              disabled={saving}
+              disabled={!title.trim()}
               className="px-4 py-2 bg-gold/20 border border-gold/30 text-gold rounded-xl text-sm font-medium hover:bg-gold/30 transition-colors disabled:opacity-50"
             >
-              {saving ? "Creating..." : "Create & Edit Track"}
+              Continue to Track
             </button>
             <button
               type="button"
-              onClick={() => { setShowForm(false); setSlugManuallyEdited(false); setError(""); }}
+              onClick={() => setShowForm(false)}
               className="px-4 py-2 bg-white/5 border border-white/10 text-text-secondary rounded-xl text-sm font-medium hover:bg-white/10 transition-colors"
             >
               Cancel
@@ -331,7 +203,7 @@ export function TracksManager({ tracks: initialTracks, collections }: TracksMana
           <div className="glass-heavy rounded-xl p-8 text-center">
             <Music size={32} className="text-text-muted mx-auto mb-3" />
             <p className="text-text-muted text-sm">
-              No tracks yet. Add your first one!
+              {search || filter ? "No tracks match your search or collection filter." : "No tracks yet. Add your first one!"}
             </p>
           </div>
         ) : (
@@ -377,6 +249,8 @@ export function TracksManager({ tracks: initialTracks, collections }: TracksMana
                 </div>
               </div>
 
+              {track.releaseError && <span className="text-xs text-red-400" title={track.releaseError}>Release needs attention</span>}
+
               {/* Badges */}
               <div className="flex items-center gap-1.5">
                 {track.hasLyrics && (
@@ -398,9 +272,9 @@ export function TracksManager({ tracks: initialTracks, collections }: TracksMana
 
               {/* Active toggle */}
               <button
-                onClick={() => handleToggleActive(track.id, track.isActive)}
+                onClick={() => track.publishedAt ? handleToggleActive(track.id, track.isActive) : router.push(`/admin/tracks/${track.id}#release`)}
                 disabled={togglingActive === track.id}
-                title={track.isActive ? "Active (click to deactivate)" : "Inactive (click to activate)"}
+                title={track.publishedAt ? (track.isActive ? "Active (click to deactivate)" : "Inactive (click to activate)") : "Open release settings"}
                 className={cn(
                   "flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors disabled:opacity-50",
                   track.isActive
@@ -409,7 +283,7 @@ export function TracksManager({ tracks: initialTracks, collections }: TracksMana
                 )}
               >
                 <span className={cn("w-1.5 h-1.5 rounded-full", track.isActive ? "bg-green-400" : "bg-white/30")} />
-                {track.isActive ? "Active" : "Inactive"}
+                {track.isActive ? "Active" : track.releaseScheduledAt ? "Scheduled" : track.publishedAt ? "Inactive" : "Draft"}
               </button>
 
               {/* Actions */}

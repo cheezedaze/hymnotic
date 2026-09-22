@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuthAdmin } from "@/lib/auth/auth";
 import { getTrackById, updateTrack, deleteTrack } from "@/lib/db/queries";
+import { TrackReleaseError } from "@/lib/tracks/validation";
 import { buildTrackMediaUrls } from "@/lib/s3/client";
 
 /**
@@ -16,7 +17,13 @@ export async function PATCH(
 
   try {
     const { id } = await params;
-    const body = await request.json();
+    const input = await request.json();
+    // Release state and publication dates can only be changed by the release workflow.
+    const fields = ["title", "artist", "collectionId", "artworkKey", "audioKey", "audioFormat", "originalAudioKey", "duration", "trackNumber", "isActive", "hasVideo", "videoKey", "videoThumbnailKey", "hasLyrics", "youtubeUrl"];
+    const body = Object.fromEntries(fields.filter((field) => input[field] !== undefined).map((field) => [field, input[field]]));
+    if (body.isActive !== undefined && typeof body.isActive !== "boolean") {
+      return NextResponse.json({ error: "isActive must be true or false" }, { status: 400 });
+    }
 
     // Normalize empty strings to null for nullable fields
     if (body.youtubeUrl === "") body.youtubeUrl = null;
@@ -38,8 +45,8 @@ export async function PATCH(
   } catch (error) {
     console.error("Error updating track:", error);
     return NextResponse.json(
-      { error: "Failed to update track" },
-      { status: 500 }
+      { error: error instanceof TrackReleaseError ? error.message : "Failed to update track" },
+      { status: error instanceof TrackReleaseError ? error.status : 500 }
     );
   }
 }

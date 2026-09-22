@@ -14,7 +14,7 @@ export async function GET(
     const { id } = await params;
     const track = await getTrackById(id);
 
-    if (!track) {
+    if (!track?.isActive) {
       return NextResponse.json(
         { error: "Track not found" },
         { status: 404 }
