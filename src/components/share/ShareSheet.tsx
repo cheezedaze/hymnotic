@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Copy, Check, MessageCircle } from "lucide-react";
+import { X, Copy, Check, MessageCircle, Share } from "lucide-react";
 import { useShareStore } from "@/lib/store/shareStore";
 import { useShare } from "@/lib/hooks/useShare";
+import { canSystemShare, systemShare } from "@/lib/share/system";
+import { trackPath } from "@/lib/deep-links/urls";
 
 function TwitterIcon({ size = 18 }: { size?: number }) {
   return (
@@ -37,11 +39,20 @@ export function ShareSheet() {
   const { buildShareUrl, buildShareText } = useShare();
 
   const [copied, setCopied] = useState(false);
+  const [canShare, setCanShare] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [error, setError] = useState("");
+  const [imageFailed, setImageFailed] = useState(false);
+  useEffect(() => {
+    setCopied(false); setError(""); setImageFailed(false);
+    setCanShare(canSystemShare());
+  }, [isOpen, shareData]);
 
   const url = shareData ? buildShareUrl(shareData) : "";
   const text = shareData ? buildShareText(shareData) : "";
 
   const handleCopy = useCallback(async () => {
+    setError("");
     try {
       await navigator.clipboard.writeText(url);
     } catch {
@@ -50,12 +61,25 @@ export function ShareSheet() {
       input.value = url;
       document.body.appendChild(input);
       input.select();
-      document.execCommand("copy");
-      document.body.removeChild(input);
+      let success = false;
+      try { success = document.execCommand("copy"); }
+      catch { /* Leave the selectable link available if clipboard access is denied. */ }
+      finally { document.body.removeChild(input); }
+      if (!success) { setError("Could not copy automatically. Select and copy the link below."); return; }
     }
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }, [url]);
+
+  const handleShare = async () => {
+    if (!shareData || sharing) return;
+    setSharing(true); setError("");
+    try {
+      const result = await systemShare(shareData);
+      if (result === "unavailable") { setCanShare(false); setError("Sharing is unavailable here. You can copy the link instead."); }
+    } catch { setError("Could not open sharing. You can copy the link instead."); }
+    finally { setSharing(false); }
+  };
 
   const socialLinks = [
     {
@@ -106,19 +130,28 @@ export function ShareSheet() {
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
             transition={{ type: "spring", damping: 28, stiffness: 300 }}
-            className="relative rounded-t-3xl sm:rounded-3xl p-6 w-full sm:max-w-sm border border-white/10 pb-8"
+            className="relative rounded-t-3xl sm:rounded-3xl p-6 w-full sm:max-w-sm border border-white/10 pb-8 max-h-[90dvh] overflow-y-auto"
             style={{ background: "rgba(20, 26, 36, 1)" }}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Share HYMNZ"
           >
             {/* Close button */}
             <button
               onClick={closeShare}
+              aria-label="Close sharing"
               className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center text-text-muted hover:text-text-primary transition-colors"
             >
               <X size={18} />
             </button>
 
-            {/* Track/Collection preview */}
-            <div className="flex items-center gap-3 mb-5 pr-8">
+            <h2 className="text-sm font-semibold text-text-primary mb-4 pr-8">Share {shareData.type === "track" ? "this song" : "this collection"}</h2>
+            {shareData.type === "track" && !imageFailed ? <img
+              src={`${trackPath(shareData.id)}/opengraph-image`}
+              alt={`${shareData.title} — ${shareData.artist || "HYMNZ"} | Listen on HYMNZ`}
+              width={1200} height={630} onError={() => setImageFailed(true)}
+              className="w-full aspect-[1200/630] rounded-xl border border-white/10 mb-5"
+            /> : <div className="flex items-center gap-3 mb-5 pr-8">
               {shareData.artworkUrl ? (
                 <img
                   src={shareData.artworkUrl}
@@ -138,7 +171,12 @@ export function ShareSheet() {
                   </p>
                 )}
               </div>
-            </div>
+            </div>}
+
+            {canShare && <button onClick={handleShare} disabled={sharing}
+              className="w-full flex items-center justify-center gap-2 py-3 bg-accent/15 hover:bg-accent/25 border border-accent/20 text-accent font-medium rounded-xl transition-colors mb-3 disabled:opacity-50">
+              <Share size={16} />{sharing ? "Opening…" : "Share…"}
+            </button>}
 
             {/* Copy Link */}
             <button
@@ -158,8 +196,12 @@ export function ShareSheet() {
               )}
             </button>
 
+            {error && <p role="alert" className="text-sm text-red-400 mb-3">{error}</p>}
+            <input aria-label="Share link" readOnly value={url} onFocus={(event) => event.target.select()}
+              className="w-full min-w-0 text-xs text-text-muted bg-white/5 rounded-lg px-3 py-2 mb-4" />
+
             {/* Social share buttons */}
-            <div className="flex items-center justify-center gap-3">
+            {!canShare && <div className="flex items-center justify-center gap-3">
               {socialLinks.map((link) => (
                 <a
                   key={link.name}
@@ -174,7 +216,7 @@ export function ShareSheet() {
                   </span>
                 </a>
               ))}
-            </div>
+            </div>}
           </motion.div>
         </motion.div>
       )}

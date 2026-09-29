@@ -130,7 +130,7 @@ export function TrackReleasePanel({ trackId, title, artworkUrl, initialRelease, 
             <div className="space-y-3">
               <label className="flex items-center gap-2 text-sm text-text-secondary"><input type="checkbox" checked={withAnnouncement} onChange={(e) => setWithAnnouncement(e.target.checked)} />Publish a release announcement</label>
               {withAnnouncement && <>
-                <p className="text-xs text-text-muted">This will become the only published announcement when the track releases.</p>
+                <p className="text-xs text-text-muted">This will become the only published announcement when the track releases, with Play Now and Add to Up Next buttons for this song.</p>
                 <AdminInput label="Announcement title" value={announcementTitle} onChange={setAnnouncementTitle} required />
                 <TipTapEditor initialContent={announcementBody} onUpdate={setAnnouncementBody} trackArtworkUrl={artworkUrl} onUploadingImageChange={setUploadingImage} />
                 <p className="text-xs text-text-muted">Use the image menu to {artworkUrl ? "select the track artwork, " : ""}upload an image or paste an image URL.</p>

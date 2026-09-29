@@ -2,8 +2,10 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Megaphone } from "lucide-react";
+import { AnnouncementAction } from "./AnnouncementAction";
+import type { AnnouncementAction as Action } from "@/lib/announcements/actions";
 
-interface AnnouncementData {
+interface AnnouncementData extends Partial<Action> {
   id: number;
   title: string;
   body: string;
@@ -13,6 +15,7 @@ interface AnnouncementData {
 interface WhatsNewModalProps {
   announcement: AnnouncementData;
   onDismiss: () => void;
+  onActionComplete?: (message: string) => void;
 }
 
 function formatDate(date: string | Date | null) {
@@ -24,7 +27,7 @@ function formatDate(date: string | Date | null) {
   });
 }
 
-export function WhatsNewModal({ announcement, onDismiss }: WhatsNewModalProps) {
+export function WhatsNewModal({ announcement, onDismiss, onActionComplete }: WhatsNewModalProps) {
   return (
     <AnimatePresence>
       <motion.div
@@ -49,10 +52,15 @@ export function WhatsNewModal({ announcement, onDismiss }: WhatsNewModalProps) {
           exit={{ scale: 0.9, opacity: 0, y: 20 }}
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
           className="relative glass-heavy rounded-3xl p-8 w-full max-w-sm text-center border border-white/10"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="announcement-title"
+          style={{ maxHeight: "90dvh", overflowY: "auto" }}
         >
           {/* Close button */}
           <button
             onClick={onDismiss}
+            aria-label="Dismiss announcement"
             className="absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center text-text-muted hover:text-text-primary transition-colors"
           >
             <X size={18} />
@@ -63,7 +71,7 @@ export function WhatsNewModal({ announcement, onDismiss }: WhatsNewModalProps) {
             <Megaphone size={28} className="text-accent" />
           </div>
 
-          <h2 className="text-display text-xl font-bold text-text-primary mb-1">
+          <h2 id="announcement-title" className="text-display text-xl font-bold text-text-primary mb-1">
             What&apos;s New
           </h2>
           <p className="text-sm font-semibold text-accent">{announcement.title}</p>
@@ -77,12 +85,12 @@ export function WhatsNewModal({ announcement, onDismiss }: WhatsNewModalProps) {
             dangerouslySetInnerHTML={{ __html: announcement.body }}
           />
 
-          {/* Dismiss button */}
+          <AnnouncementAction announcement={announcement} onComplete={onActionComplete ?? onDismiss} />
           <button
             onClick={onDismiss}
-            className="w-full py-3 bg-accent/15 text-accent rounded-xl text-sm font-medium hover:bg-accent/25 transition-colors"
+            className="w-full mt-2 py-3 text-text-muted rounded-xl text-sm font-medium hover:bg-white/5 transition-colors"
           >
-            Got it!
+            Dismiss
           </button>
         </motion.div>
       </motion.div>

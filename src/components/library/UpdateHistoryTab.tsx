@@ -1,8 +1,10 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { AnnouncementAction } from "@/components/announcements/AnnouncementAction";
+import type { AnnouncementAction as Action } from "@/lib/announcements/actions";
 
-type Update = { id: number; title: string; body: string; publishedAt: string; dateEstimated: boolean };
+type Update = Partial<Action> & { id: number; title: string; body: string; publishedAt: string; dateEstimated: boolean };
 
 export function UpdateHistoryTab() {
   const [updates, setUpdates] = useState<Update[]>([]);
@@ -38,6 +40,7 @@ export function UpdateHistoryTab() {
             <p className="text-xs text-text-dim mt-1">{update.dateEstimated ? "Approx. " : ""}<time dateTime={update.publishedAt}>{new Date(update.publishedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</time></p>
           </header>
           <div className="prose prose-invert prose-sm max-w-none break-words [&_p]:text-text-secondary [&_ul]:text-text-secondary [&_ol]:text-text-secondary [&_a]:text-accent [&_img]:rounded-lg [&_img]:max-w-full" dangerouslySetInnerHTML={{ __html: update.body }} />
+          <AnnouncementAction announcement={update} />
         </article>
       </Fragment>)}
       {loading && <p role="status" className="text-sm text-text-muted">Loading updates…</p>}

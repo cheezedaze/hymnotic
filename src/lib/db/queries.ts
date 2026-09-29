@@ -889,6 +889,8 @@ export async function getAnnouncementHistory(beforeId?: number) {
   if (beforeId && !cursor?.firstPublishedAt) return null;
   const rows = await db.select({
     id: announcements.id, title: announcements.title, body: announcements.body,
+    actionType: announcements.actionType, actionTrackId: announcements.actionTrackId,
+    actionUrl: announcements.actionUrl, actionLabel: announcements.actionLabel,
     publishedAt: announcements.firstPublishedAt, dateEstimated: announcements.historyDateEstimated,
   }).from(announcements).where(and(
     lte(announcements.firstPublishedAt, new Date()),
@@ -905,6 +907,10 @@ export async function createAnnouncement(data: {
   title: string;
   body: string;
   publishedAt?: Date | null;
+  actionType?: "track" | "link" | null;
+  actionTrackId?: string | null;
+  actionUrl?: string | null;
+  actionLabel?: string | null;
 }) {
   const result = await db.insert(announcements).values({ ...data, firstPublishedAt: data.publishedAt }).returning();
   return result[0];
@@ -916,6 +922,10 @@ export async function updateAnnouncement(
     title: string;
     body: string;
     publishedAt: Date | null;
+    actionType: "track" | "link" | null;
+    actionTrackId: string | null;
+    actionUrl: string | null;
+    actionLabel: string | null;
   }>
 ) {
   const result = await db

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuthAdmin } from "@/lib/auth/auth";
-import { getAllAnnouncements, createAnnouncement } from "@/lib/db/queries";
+import { getAllAnnouncements, createAnnouncement, getTrackById } from "@/lib/db/queries";
+import { AnnouncementActionError, parseAnnouncementAction } from "@/lib/announcements/actions";
 
 export async function GET() {
   const session = await requireAuthAdmin();
@@ -35,7 +36,12 @@ export async function POST(request: Request) {
       );
     }
 
+    const action = parseAnnouncementAction(body);
+    if (action.actionTrackId && !(await getTrackById(action.actionTrackId))?.isActive) {
+      throw new AnnouncementActionError("Choose a released track.");
+    }
     const announcement = await createAnnouncement({
+      ...action,
       title,
       body: bodyHtml,
       publishedAt: publishedAt ? new Date(publishedAt) : null,
@@ -43,6 +49,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(announcement, { status: 201 });
   } catch (error) {
+    if (error instanceof AnnouncementActionError) return NextResponse.json({ error: error.message }, { status: 400 });
     console.error("Error creating announcement:", error);
     return NextResponse.json(
       { error: "Failed to create announcement" },

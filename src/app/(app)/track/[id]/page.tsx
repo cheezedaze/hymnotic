@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { getTrackById, getCollectionById } from "@/lib/db/queries";
-import { getMediaUrl } from "@/lib/s3/client";
+import { getPublicTrack } from "@/lib/tracks/public-track";
+import { trackUrl } from "@/lib/deep-links/urls";
 import { TrackLanding } from "./TrackLanding";
 
 interface TrackPageProps {
@@ -12,75 +12,46 @@ export async function generateMetadata({
   params,
 }: TrackPageProps): Promise<Metadata> {
   const { id } = await params;
-  const track = await getTrackById(id);
+  const track = await getPublicTrack(id);
 
-  if (!track?.isActive) {
-    return { title: "Track Not Found | HYMNZ" };
+  if (!track) {
+    return { title: "Track Not Found | HYMNZ", robots: { index: false } };
   }
 
-  const collection = track.collectionId
-    ? await getCollectionById(track.collectionId)
-    : null;
-
-  const artworkUrl =
-    getMediaUrl(track.artworkKey) ||
-    getMediaUrl(collection?.artworkKey) ||
-    null;
-
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://hymnz.com";
+  const url = trackUrl(id);
   const artist = track.artist || "HYMNZ";
   const title = `${track.title} - ${artist}`;
   const description = `Listen to "${track.title}" by ${artist} on HYMNZ`;
+  const image = { url: `${url}/opengraph-image`, width: 1200, height: 630, alt: `${track.title} — ${artist} | HYMNZ` };
 
   return {
     title: `${title} | HYMNZ`,
     description,
+    alternates: { canonical: url },
     openGraph: {
       title: track.title,
       description: `${artist} | HYMNZ`,
       type: "music.song",
-      url: `${appUrl}/track/${id}`,
+      url,
       siteName: "HYMNZ",
-      ...(artworkUrl && {
-        images: [
-          { url: artworkUrl, width: 800, height: 800, alt: track.title },
-        ],
-      }),
+      images: [image],
     },
     twitter: {
       card: "summary_large_image",
       title: track.title,
       description: `${artist} | HYMNZ`,
-      ...(artworkUrl && { images: [artworkUrl] }),
+      images: [image],
     },
   };
 }
 
 export default async function TrackPage({ params }: TrackPageProps) {
   const { id } = await params;
-  const track = await getTrackById(id);
+  const track = await getPublicTrack(id);
 
-  if (!track?.isActive) {
+  if (!track) {
     notFound();
   }
 
-  const collection = track.collectionId
-    ? await getCollectionById(track.collectionId)
-    : null;
-
-  const artworkUrl =
-    getMediaUrl(track.artworkKey) ||
-    getMediaUrl(collection?.artworkKey) ||
-    null;
-
-  return (
-    <TrackLanding
-      trackId={track.id}
-      title={track.title}
-      artist={track.artist || "HYMNZ"}
-      artworkUrl={artworkUrl}
-      collectionId={track.collectionId}
-      collectionTitle={collection?.title || null}
-    />
-  );
+  return <TrackLanding key={track.trackId} {...track} />;
 }

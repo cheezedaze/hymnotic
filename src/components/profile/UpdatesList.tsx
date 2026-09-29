@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown } from "lucide-react";
+import { AnnouncementAction } from "@/components/announcements/AnnouncementAction";
+import type { AnnouncementAction as Action } from "@/lib/announcements/actions";
 
-interface AnnouncementItem {
+interface AnnouncementItem extends Partial<Action> {
   id: number;
   title: string;
   body: string;
@@ -74,6 +76,7 @@ export function UpdatesList({ announcements }: UpdatesListProps) {
                     className="px-3 pb-3 prose prose-invert prose-sm max-w-none [&_h2]:text-base [&_h2]:font-semibold [&_h3]:text-sm [&_h3]:font-semibold [&_p]:text-text-secondary [&_ul]:text-text-secondary [&_ol]:text-text-secondary [&_a]:text-accent [&_img]:rounded-lg [&_img]:max-w-full"
                     dangerouslySetInnerHTML={{ __html: a.body }}
                   />
+                  <div className="px-3 pb-3"><AnnouncementAction announcement={a} /></div>
                 </motion.div>
               )}
             </AnimatePresence>

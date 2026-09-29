@@ -60,6 +60,7 @@ export interface PlayerState {
   seekTo: (time: number) => void;
   setQueue: (tracks: ApiTrack[], startIndex?: number, collectionId?: string | null) => void;
   playTrack: (track: ApiTrack, queue?: ApiTrack[], collectionId?: string | null) => void;
+  insertTrack: (track: ApiTrack, playNow: boolean) => void;
   startShuffledCollection: (collectionId: string, tracks: ApiTrack[]) => void;
   toggleCollectionShuffle: (collectionId: string, tracks: ApiTrack[]) => void;
   setCurrentTime: (time: number) => void;
@@ -536,6 +537,51 @@ export const usePlayerStore = create<PlayerState>()(
         } else {
           set({ queue: q, currentIndex: index, ...baseState });
         }
+      },
+
+      insertTrack: (track, playNow) => {
+        const state = get();
+        if (!state.currentTrack || !state.queue.length) {
+          state.setQueue([track], 0, track.collectionId);
+          return;
+        }
+        if (state.currentTrack.id === track.id) {
+          if (playNow) state.play();
+          return;
+        }
+
+        // Move an existing occurrence instead of duplicating it. Keep every
+        // other song in order, including when the current queue is shuffled.
+        const insert = (tracks: ApiTrack[]) => {
+          const result = tracks.filter((item) => item.id !== track.id);
+          const index = result.findIndex((item) => item.id === state.currentTrack!.id);
+          result.splice(index + 1, 0, track);
+          return result;
+        };
+        const queue = insert(state.queue);
+        const sourceQueue = insert(state.sourceQueue.length ? state.sourceQueue : state.queue);
+        const currentIndex = queue.findIndex((item) => item.id === (playNow ? track.id : state.currentTrack!.id));
+        const shuffleId = state.shuffle ? state.activeShuffleCollectionId ?? state.queueCollectionId ?? "up-next" : null;
+        set({
+          queue,
+          sourceQueue,
+          currentIndex,
+          // Explicitly choosing another song ends repeat-one so Up Next can run.
+          repeat: state.repeat === "one" ? "off" : state.repeat,
+          ...(shuffleId ? {
+            activeShuffleCollectionId: shuffleId,
+            shuffleQueues: { ...state.shuffleQueues, [shuffleId]: {
+              order: queue.map((item) => item.id), position: currentIndex,
+              sourceHash: computeSourceHash(sourceQueue), generatedAt: Date.now(),
+            } },
+          } : {}),
+          ...(playNow ? {
+            currentTrack: track, currentTime: 0, duration: track.duration,
+            isPlaying: true, isMiniPlayerVisible: true,
+            history: [...state.history, state.currentTrack].slice(-50),
+            ...previewStateForTrack(track, state.freeListenPlayed),
+          } : {}),
+        });
       },
 
       startShuffledCollection: (collectionId, tracks) => {

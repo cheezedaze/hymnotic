@@ -444,6 +444,10 @@ export const announcements = pgTable(
     id: serial("id").primaryKey(),
     title: text("title").notNull(),
     body: text("body").notNull(), // HTML from TipTap WYSIWYG
+    actionType: varchar("action_type", { length: 10 }).$type<"track" | "link">(),
+    actionTrackId: varchar("action_track_id", { length: 128 }),
+    actionUrl: text("action_url"),
+    actionLabel: varchar("action_label", { length: 60 }),
     publishedAt: timestamp("published_at"), // null = draft
     firstPublishedAt: timestamp("first_published_at"), // retained when a newer update replaces this one
     historyDateEstimated: boolean("history_date_estimated").default(false).notNull(),

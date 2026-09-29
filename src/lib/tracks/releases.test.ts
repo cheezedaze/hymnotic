@@ -72,6 +72,7 @@ describe.skipIf(!url)("track releases (local PostgreSQL)", () => {
     expect((await getTrack()).publishedAt).not.toBeNull();
     const announcements = await db.select().from(schema.announcements);
     expect(announcements.filter((a) => a.publishedAt).map((a) => a.title)).toEqual(["New song"]);
+    expect(announcements.find((a) => a.publishedAt)).toMatchObject({ actionType: "track", actionTrackId: "track" });
     expect(mocks.sendBroadcast).toHaveBeenCalledTimes(1);
     expect(await db.select().from(schema.pushNotifications)).toHaveLength(1);
     expect((await releases.getTrackRelease("track"))?.status).toBe("completed");

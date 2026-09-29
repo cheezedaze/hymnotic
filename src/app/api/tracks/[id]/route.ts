@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { getTrackById, getCollectionById } from "@/lib/db/queries";
+import { getTrackById, getCollectionById, getConsumedFreeListenTrackIds } from "@/lib/db/queries";
 import { buildTrackMediaUrlsWithFallback } from "@/lib/s3/client";
+import { getAccessContext, getSacred7TrackIds, canPlayFullTrack, getPreviewDuration } from "@/lib/auth/access";
 
 /**
  * GET /api/tracks/:id
@@ -22,6 +23,12 @@ export async function GET(
     }
 
     const collection = await getCollectionById(track.collectionId);
+    const access = await getAccessContext();
+    const sacred7TrackIds = await getSacred7TrackIds();
+    const consumed = access.tier === "free" && access.userId
+      ? await getConsumedFreeListenTrackIds(access.userId, [id]) : [];
+    const isFreeListen = access.tier === "free" && !sacred7TrackIds.includes(id) && !consumed.includes(id);
+    const isFull = canPlayFullTrack(access.tier, id, sacred7TrackIds, isFreeListen);
 
     const response = {
       id: track.id,
@@ -35,11 +42,17 @@ export async function GET(
       hasVideo: track.hasVideo,
       videoCount: track.videoCount,
       hasLyrics: track.hasLyrics,
+      isActive: track.isActive,
+      youtubeUrl: track.youtubeUrl,
+      isLocked: !isFull,
+      previewDuration: isFull ? track.duration : getPreviewDuration(access.tier),
+      isFreeListen,
+      isSacred7: sacred7TrackIds.includes(id),
       ...buildTrackMediaUrlsWithFallback(track, collection?.artworkKey ?? null),
       audioUrl: track.audioKey ? `/api/tracks/${track.id}/audio` : null,
     };
 
-    return NextResponse.json(response);
+    return NextResponse.json(response, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
     console.error("Error fetching track:", error);
     return NextResponse.json(
