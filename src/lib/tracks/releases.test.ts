@@ -82,6 +82,33 @@ describe.skipIf(!url)("track releases (local PostgreSQL)", () => {
     expect(mocks.sendBroadcast).toHaveBeenCalledTimes(1);
     await expect(releases.scheduleTrackRelease("track", campaign)).rejects.toThrow("already active");
   });
+  it("keeps a custom release link through scheduling and publication", async () => {
+    await track();
+    const action = { actionType: "link", actionUrl: "https://example.com/video", actionLabel: "Watch Video" };
+    const scheduled = await releases.scheduleTrackRelease("track", { ...campaign, ...action });
+    expect(scheduled).toMatchObject(action);
+    await releases.processTrackRelease("track");
+    const [published] = await db.select().from(schema.announcements);
+    expect(published).toMatchObject({ ...action, actionTrackId: null });
+  });
+  it("preserves an explicit None when a release schedule is edited", async () => {
+    await track();
+    await releases.scheduleTrackRelease("track", campaign);
+    const scheduled = await releases.scheduleTrackRelease("track", { ...campaign, actionType: null });
+    expect(scheduled).toMatchObject({ actionType: null, actionTrackId: null });
+    await releases.processTrackRelease("track");
+    const [published] = await db.select().from(schema.announcements);
+    expect(published).toMatchObject({ actionType: null, actionTrackId: null });
+  });
+  it("allows another released track and rejects inactive or unsafe destinations", async () => {
+    await track();
+    await track("other");
+    await expect(releases.scheduleTrackRelease("track", { ...campaign, actionType: "track", actionTrackId: "other" })).rejects.toThrow("Choose a released track");
+    await db.update(schema.tracks).set({ isActive: true }).where(eq(schema.tracks.id, "other"));
+    const scheduled = await releases.scheduleTrackRelease("track", { ...campaign, actionType: "track", actionTrackId: "other" });
+    expect(scheduled).toMatchObject({ actionType: "track", actionTrackId: "other" });
+    await expect(releases.scheduleTrackRelease("track", { ...campaign, actionType: "link", actionUrl: "javascript:alert(1)", actionLabel: "Watch" })).rejects.toThrow("HTTPS URL");
+  });
   it("schedules a previously activated inactive track and can activate it immediately", async () => {
     await track("track", { publishedAt: new Date(), isActive: false });
     const future = new Date(Date.now() + 86_400_000);
@@ -229,6 +256,7 @@ describe.skipIf(!url)("track releases (local PostgreSQL)", () => {
     const connection = await client!.reserve();
     try {
       await connection.unsafe(await readFile(new URL("../../../drizzle/0013_track_releases.sql", import.meta.url), "utf8"));
+      await connection.unsafe(await readFile(new URL("../../../drizzle/0016_track_release_actions.sql", import.meta.url), "utf8"));
     } finally { connection.release(); }
     expect((await getTrack("active")).isActive).toBe(true);
     expect((await getTrack("inactive")).isActive).toBe(false);

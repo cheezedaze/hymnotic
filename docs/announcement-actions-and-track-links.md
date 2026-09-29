@@ -12,9 +12,9 @@ In **Admin → Updates**, create or edit an announcement and choose **Optional b
 
 **Add to Up Next** inserts the selected song immediately after the current one, preserving playback position and the remaining queue. An existing occurrence is moved rather than duplicated. **Play Now** starts/resumes the song and preserves the remaining queue. Choosing another song clears repeat-one; shuffle order is otherwise retained. Existing visitor/free/paid access rules still apply.
 
-The same actions appear in Library → Updates and Profile → Recent Updates. New announcements created by the track-release workflow automatically include their track action. Existing announcements are not republished or modified automatically.
+The same actions appear in Library → Updates and Profile → Recent Updates. **Release Track** uses the same Optional button editor when a release announcement is enabled. It defaults to the track being released; the admin can choose None, another released track, or a custom link/video. A scheduled release keeps this selection when edited and publishes it with the announcement. Existing announcements are not republished or modified automatically.
 
-The additive migration is `drizzle/0015_announcement_actions.sql`. Apply it before deploying to another environment; it is safe to reapply. It was applied to production before the CTA deployment. This repository's manually numbered migrations are not all registered in Drizzle's old journal, so do not assume the journal runner applies this file.
+The additive migrations are `drizzle/0015_announcement_actions.sql` and `drizzle/0016_track_release_actions.sql`. Apply both before deploying to another environment; both are safe to reapply. The second migration preserves the default track button on existing scheduled releases. Both were applied to production before their respective deployments. This repository's manually numbered migrations are not all registered in Drizzle's old journal, so do not assume the journal runner applies these files.
 
 ## Track links and sharing
 
@@ -49,7 +49,7 @@ Before mobile release:
 
 ## Verification notes
 
-- All **225 tests passed**, including the 30 opt-in integration tests, using a disposable localhost PostgreSQL database with external messaging mocked. The test database was stopped afterward; production data was not used.
+- All **230 tests passed**, including the 33 opt-in integration tests, using a disposable localhost PostgreSQL database with external messaging mocked. Production data was not used for tests.
 - Unit coverage includes queue preservation/deduplication/shuffle, button states, admin validation, access-aware track metadata, URL parsing, native lifecycle handling, association documents, share payloads, public metadata, and valid/fallback/corrupt-artwork PNGs.
 - Browser checks cover no-autoplay landing, explicit Play Now, Up Next preserving current playback and subsequent queue, branded preview, Copy Link, and phone-size layout.
 - Production Next.js build, TypeScript checking, iOS simulator compilation, and Android debug compilation passed.
@@ -60,5 +60,6 @@ Before mobile release:
 
 - CTA deployed first: `dpl_DpabbYKXFSkZEp2UBfPTExm2ToL6`.
 - Deep-link web experience deployed next: `dpl_BtAzxXDQbYgZtX5kFgdMEQDKMLQu`, aliased to `https://www.hymnz.com`.
+- Shared Optional button editor for Release Track deployed: `dpl_BQd3bJP4hrMqTG56K1w5QXet3Gz6`, aliased to `https://www.hymnz.com`.
 - Unauthenticated production checks: active track page 200 with canonical/OG tags, branded PNG 200 at 1200×630, nonexistent track 404, Apple association 200 JSON without redirects/cookies.
 - Android association currently returns the intended 503/no-store response because the Play signing fingerprint has not yet been supplied. This is a remaining rollout requirement, not a verified Android App Links release.

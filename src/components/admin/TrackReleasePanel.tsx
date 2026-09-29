@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import type { TrackRelease } from "@/lib/db/schema";
+import { AnnouncementActionError, noAnnouncementAction, parseAnnouncementAction } from "@/lib/announcements/actions";
 import { AdminInput } from "./AdminInput";
 import { AdminTextarea } from "./AdminTextarea";
+import { AnnouncementActionFields } from "./AnnouncementActionFields";
 
 const TipTapEditor = dynamic(() => import("./TipTapEditor").then((mod) => mod.TipTapEditor), { ssr: false });
 
@@ -32,6 +34,9 @@ export function TrackReleasePanel({ trackId, title, artworkUrl, initialRelease, 
   const [withPush, setWithPush] = useState(initialRelease ? !!initialRelease.pushTitle : true);
   const [announcementTitle, setAnnouncementTitle] = useState(initialRelease?.announcementTitle || `New release: ${title}`);
   const [announcementBody, setAnnouncementBody] = useState(initialRelease?.announcementBody || "");
+  const [action, setAction] = useState(() => initialRelease?.announcementTitle
+    ? { actionType: initialRelease.actionType, actionTrackId: initialRelease.actionTrackId, actionUrl: initialRelease.actionUrl, actionLabel: initialRelease.actionLabel }
+    : { ...noAnnouncementAction, actionType: "track" as const, actionTrackId: trackId });
   const [pushTitle, setPushTitle] = useState(initialRelease?.pushTitle || "New music on HYMNZ");
   const [pushBody, setPushBody] = useState(initialRelease?.pushBody || `Listen to ${title}, available now.`);
   const [busy, setBusy] = useState(false);
@@ -68,6 +73,7 @@ export function TrackReleasePanel({ trackId, title, artworkUrl, initialRelease, 
         setError("Choose a valid future date and time.");
         return;
       }
+      const selectedAction = withAnnouncement ? parseAnnouncementAction(action) : noAnnouncementAction;
       const res = await fetch(`/api/admin/tracks/${trackId}/release`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -75,6 +81,7 @@ export function TrackReleasePanel({ trackId, title, artworkUrl, initialRelease, 
           immediate: mode === "now", scheduledAt: scheduledAt?.toISOString(),
           announcementTitle: withAnnouncement ? announcementTitle : null,
           announcementBody: withAnnouncement ? announcementBody : null,
+          ...selectedAction,
           pushTitle: withPush ? pushTitle : null,
           pushBody: withPush ? pushBody : null,
         }),
@@ -84,8 +91,8 @@ export function TrackReleasePanel({ trackId, title, artworkUrl, initialRelease, 
       setRelease(data);
       if (data.status !== "scheduled") onReleased();
       setMessage(data.status === "scheduled" ? "Release scheduled. You can close this page." : "Track released.");
-    } catch {
-      setError("Could not confirm the release. Refresh to check its status before trying again.");
+    } catch (error) {
+      setError(error instanceof AnnouncementActionError ? error.message : "Could not confirm the release. Refresh to check its status before trying again.");
     } finally {
       setBusy(false);
     }
@@ -130,10 +137,11 @@ export function TrackReleasePanel({ trackId, title, artworkUrl, initialRelease, 
             <div className="space-y-3">
               <label className="flex items-center gap-2 text-sm text-text-secondary"><input type="checkbox" checked={withAnnouncement} onChange={(e) => setWithAnnouncement(e.target.checked)} />Publish a release announcement</label>
               {withAnnouncement && <>
-                <p className="text-xs text-text-muted">This will become the only published announcement when the track releases, with Play Now and Add to Up Next buttons for this song.</p>
+                <p className="text-xs text-text-muted">This will become the only published announcement when the track releases.</p>
                 <AdminInput label="Announcement title" value={announcementTitle} onChange={setAnnouncementTitle} required />
                 <TipTapEditor initialContent={announcementBody} onUpdate={setAnnouncementBody} trackArtworkUrl={artworkUrl} onUploadingImageChange={setUploadingImage} />
                 <p className="text-xs text-text-muted">Use the image menu to {artworkUrl ? "select the track artwork, " : ""}upload an image or paste an image URL.</p>
+                <AnnouncementActionFields action={action} onChange={setAction} currentTrack={{ id: trackId, title }} />
               </>}
             </div>
             <div className="space-y-3">

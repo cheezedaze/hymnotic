@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { announcements, pushNotifications, trackReleases, tracks } from "@/lib/db/schema";
 import { sendBroadcast } from "@/lib/push/send";
 import { assertTrackAudio, parseReleaseInput, TrackReleaseError } from "./validation";
+import { AnnouncementActionError, noAnnouncementAction, parseAnnouncementAction } from "@/lib/announcements/actions";
 
 export async function getTrackRelease(trackId: string) {
   const [release] = await db.select().from(trackReleases).where(eq(trackReleases.trackId, trackId));
@@ -11,6 +12,16 @@ export async function getTrackRelease(trackId: string) {
 
 export async function scheduleTrackRelease(trackId: string, body: Record<string, unknown>) {
   const input = parseReleaseInput(body);
+  let action = { ...noAnnouncementAction };
+  if (input.announcementTitle) {
+    try {
+      action = "actionType" in body ? parseAnnouncementAction(body)
+        : { ...noAnnouncementAction, actionType: "track", actionTrackId: trackId };
+    } catch (error) {
+      if (error instanceof AnnouncementActionError) throw new TrackReleaseError(error.message);
+      throw error;
+    }
+  }
   return db.transaction(async (tx) => {
     const [track] = await tx.select().from(tracks).where(eq(tracks.id, trackId)).for("update");
     if (!track) throw new TrackReleaseError("Track not found", 404);
@@ -18,8 +29,12 @@ export async function scheduleTrackRelease(trackId: string, body: Record<string,
     await assertTrackAudio(track.audioKey);
     const [existing] = await tx.select().from(trackReleases).where(eq(trackReleases.trackId, trackId));
     if (existing && ["published", "sending"].includes(existing.status)) throw new TrackReleaseError("Push delivery is still in progress. Wait for it to finish before scheduling another release.", 409);
-    const [release] = await tx.insert(trackReleases).values({ trackId, ...input })
-      .onConflictDoUpdate({ target: trackReleases.trackId, set: { ...input, status: "scheduled", error: null, sentCount: 0, failedCount: 0, updatedAt: new Date() } }).returning();
+    if (action.actionTrackId && action.actionTrackId !== trackId) {
+      const [selected] = await tx.select({ isActive: tracks.isActive }).from(tracks).where(eq(tracks.id, action.actionTrackId));
+      if (!selected?.isActive) throw new TrackReleaseError("Choose a released track.");
+    }
+    const [release] = await tx.insert(trackReleases).values({ trackId, ...input, ...action })
+      .onConflictDoUpdate({ target: trackReleases.trackId, set: { ...input, ...action, status: "scheduled", error: null, sentCount: 0, failedCount: 0, updatedAt: new Date() } }).returning();
     return release;
   });
 }
@@ -45,7 +60,7 @@ export async function processTrackRelease(trackId: string, now = new Date()) {
     await tx.update(tracks).set({ isActive: true, publishedAt: now, updatedAt: now }).where(eq(tracks.id, trackId));
     if (release.announcementTitle && release.announcementBody) {
       await tx.update(announcements).set({ firstPublishedAt: sql`coalesce(${announcements.firstPublishedAt}, ${announcements.publishedAt})`, publishedAt: null, updatedAt: now });
-      await tx.insert(announcements).values({ title: release.announcementTitle, body: release.announcementBody, publishedAt: now, firstPublishedAt: now, actionType: "track", actionTrackId: trackId });
+      await tx.insert(announcements).values({ title: release.announcementTitle, body: release.announcementBody, publishedAt: now, firstPublishedAt: now, actionType: release.actionType, actionTrackId: release.actionTrackId, actionUrl: release.actionUrl, actionLabel: release.actionLabel });
     }
     await tx.update(trackReleases).set({
       status: release.pushTitle ? "published" : "completed", error: null, updatedAt: now,

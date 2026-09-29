@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import dynamic from "next/dynamic";
 import {
   Megaphone,
@@ -13,6 +13,7 @@ import {
 import { AdminModal } from "./AdminModal";
 import type { Announcement } from "@/lib/db/schema";
 import { noAnnouncementAction, parseAnnouncementAction } from "@/lib/announcements/actions";
+import { AnnouncementActionFields } from "./AnnouncementActionFields";
 
 // Dynamic import TipTap to avoid SSR issues
 const TipTapEditor = dynamic(
@@ -52,22 +53,6 @@ export function AnnouncementsManager({
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [tracks, setTracks] = useState<{ id: string; title: string; artist: string }[]>([]);
-  const [trackError, setTrackError] = useState("");
-
-  useEffect(() => {
-    if (!showModal || form.actionType !== "track") return;
-    const controller = new AbortController();
-    setTrackError("");
-    fetch("/api/tracks", { signal: controller.signal }).then(async (res) => {
-      if (!res.ok) throw new Error("Could not load tracks. Close and reopen this form to retry.");
-      setTracks(await res.json());
-    }).catch((err) => {
-      if (!controller.signal.aborted) setTrackError(err.message);
-    });
-    return () => controller.abort();
-  }, [showModal, form.actionType]);
-
   const openCreate = () => {
     setError("");
     setEditingId(null);
@@ -257,38 +242,7 @@ export function AnnouncementsManager({
                 onUpdate={(html) => setForm((prev) => ({ ...prev, body: html }))}
               />
             </div>
-            <div className="space-y-3">
-              <label className="block text-xs font-medium text-text-secondary">
-                Optional button
-                <select value={form.actionType ?? ""} onChange={(e) => setForm({ ...form, ...noAnnouncementAction, actionType: (e.target.value || null) as typeof form.actionType })}
-                  className="mt-1.5 w-full px-3 py-2.5 bg-midnight border border-white/10 rounded-xl text-sm text-text-primary">
-                  <option value="">None</option><option value="track">Play a track</option><option value="link">Open a link / video</option>
-                </select>
-              </label>
-              {form.actionType === "track" && <>
-                <label className="block text-xs font-medium text-text-secondary">
-                  Track
-                  <select value={form.actionTrackId ?? ""} onChange={(e) => setForm({ ...form, actionTrackId: e.target.value })}
-                    className="mt-1.5 w-full px-3 py-2.5 bg-midnight border border-white/10 rounded-xl text-sm text-text-primary">
-                    <option value="">Choose a released track…</option>
-                    {form.actionTrackId && !tracks.some((track) => track.id === form.actionTrackId) && <option value={form.actionTrackId}>Selected track: {form.actionTrackId}</option>}
-                    {tracks.map((track) => <option key={track.id} value={track.id}>{track.title} — {track.artist}</option>)}
-                  </select>
-                </label>
-                <p className="text-xs text-text-muted">Shows Play Now and Dismiss. While a song is playing, also shows Add to Up Next.</p>
-                {trackError && <p role="alert" className="text-xs text-red-400">{trackError}</p>}
-              </>}
-              {form.actionType === "link" && <>
-                <label className="block text-xs font-medium text-text-secondary">Button text
-                  <input value={form.actionLabel ?? ""} maxLength={60} placeholder="Watch Video" onChange={(e) => setForm({ ...form, actionLabel: e.target.value })}
-                    className="mt-1.5 w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-text-primary" />
-                </label>
-                <label className="block text-xs font-medium text-text-secondary">Destination
-                  <input value={form.actionUrl ?? ""} placeholder="https://… or /about" onChange={(e) => setForm({ ...form, actionUrl: e.target.value })}
-                    className="mt-1.5 w-full px-3 py-2.5 bg-white/5 border border-white/10 rounded-xl text-sm text-text-primary" />
-                </label>
-              </>}
-            </div>
+            <AnnouncementActionFields action={form} onChange={(action) => setForm((prev) => ({ ...prev, ...action }))} />
             {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
             <button
               onClick={handleSave}
