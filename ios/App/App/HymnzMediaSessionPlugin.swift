@@ -47,8 +47,11 @@ public final class HymnzMediaSessionPlugin: CAPPlugin, CAPBridgedPlugin {
     private let player = AVPlayer()
     private lazy var nowPlayingSession = MPNowPlayingSession(players: [player])
     private var tracks: [HymnzPlaybackTrack] = []
+    private var queueID: String?
     private var queueIndex = 0
+    private var queueRevision = 0
     private var repeatMode = "off"
+    private var shuffleEnabled = false
     private var wantsPlayback = false
     private var isConfigured = false
     private var periodicObserver: Any?
@@ -86,36 +89,57 @@ public final class HymnzMediaSessionPlugin: CAPPlugin, CAPBridgedPlugin {
         let position = max(0, call.getDouble("position") ?? 0)
         let shouldPlay = call.getBool("isPlaying") ?? false
         let requestedRepeat = call.getString("repeat") ?? "off"
+        let requestedShuffle = call.getBool("shuffle") ?? false
+        let requestedQueueID = call.getString("queueId")
+        let requestedRevision = max(0, call.getInt("revision") ?? 0)
 
-        syncWebCookies { [weak self] in
+        DispatchQueue.main.async { [weak self] in
             guard let self else {
                 call.reject("Native player is unavailable", "PLAYER_UNAVAILABLE")
                 return
             }
-
-            self.ensureConfigured()
-            let requestedTrack = parsedTracks[requestedIndex]
-            let needsNewItem = self.currentTrack?.id != requestedTrack.id ||
-                self.currentTrack?.audioURL != requestedTrack.audioURL ||
-                self.player.currentItem == nil
-
-            self.tracks = parsedTracks
-            self.queueIndex = requestedIndex
-            self.repeatMode = ["off", "all", "one"].contains(requestedRepeat)
-                ? requestedRepeat
-                : "off"
-            self.wantsPlayback = shouldPlay
-            self.installRemoteCommands()
-
-            if needsNewItem {
-                self.loadCurrentTrack(position: position, reason: "loaded")
-            } else if shouldPlay {
-                self.startPlayback(reason: "play")
-            } else {
-                self.pausePlayback(reason: "pause")
+            guard requestedRevision >= self.queueRevision else {
+                call.resolve(self.playbackState(reason: "loaded"))
+                return
             }
+            self.queueRevision = requestedRevision
 
-            call.resolve(self.playbackState(reason: "loaded"))
+            self.syncWebCookies { [weak self] in
+                guard let self else {
+                    call.reject("Native player is unavailable", "PLAYER_UNAVAILABLE")
+                    return
+                }
+                guard requestedRevision == self.queueRevision else {
+                    call.resolve(self.playbackState(reason: "loaded"))
+                    return
+                }
+
+                self.ensureConfigured()
+                let requestedTrack = parsedTracks[requestedIndex]
+                let needsNewItem = self.currentTrack?.id != requestedTrack.id ||
+                    self.currentTrack?.audioURL != requestedTrack.audioURL ||
+                    self.player.currentItem == nil
+
+                self.tracks = parsedTracks
+                self.queueID = requestedQueueID
+                self.queueIndex = requestedIndex
+                self.repeatMode = ["off", "all", "one"].contains(requestedRepeat)
+                    ? requestedRepeat
+                    : "off"
+                self.shuffleEnabled = requestedShuffle
+                self.wantsPlayback = shouldPlay
+                self.installRemoteCommands()
+
+                if needsNewItem {
+                    self.loadCurrentTrack(position: position, reason: "loaded")
+                } else if shouldPlay {
+                    self.startPlayback(reason: "play")
+                } else {
+                    self.pausePlayback(reason: "pause")
+                }
+
+                call.resolve(self.playbackState(reason: "loaded"))
+            }
         }
     }
 
@@ -379,10 +403,17 @@ public final class HymnzMediaSessionPlugin: CAPPlugin, CAPBridgedPlugin {
             return
         }
 
+        let completedTrackID = currentTrack?.id
         let nextIndex = queueIndex + 1
         if nextIndex < tracks.count {
             queueIndex = nextIndex
-        } else if repeatMode == "all" {
+        } else if shuffleEnabled {
+            tracks.shuffle()
+            if tracks.count > 1, tracks.first?.id == completedTrackID {
+                tracks.swapAt(0, 1)
+            }
+            queueIndex = 0
+        } else if repeatMode == "all" || reason == "next" {
             queueIndex = 0
         } else {
             pausePlayback(reason: "ended")
@@ -572,12 +603,17 @@ public final class HymnzMediaSessionPlugin: CAPPlugin, CAPBridgedPlugin {
 
     private func playbackState(reason: String) -> JSObject {
         return [
+            "revision": queueRevision,
             "trackId": currentTrack?.id ?? "",
+            "queueId": queueID ?? "",
+            "queueTrackIds": tracks.map(\.id),
             "queueIndex": queueIndex,
             "queueCount": tracks.count,
             "position": playbackPosition(),
             "duration": playbackDuration(),
             "isPlaying": player.rate > 0 || (wantsPlayback && player.timeControlStatus == .waitingToPlayAtSpecifiedRate),
+            "shuffle": shuffleEnabled,
+            "repeat": repeatMode,
             "reason": reason
         ]
     }
