@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		CE1111111111111111111101 /* PlaybackStallRecovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE1111111111111111111102 /* PlaybackStallRecovery.swift */; };
 		134E86EB2FCA0453008110AA /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 134E86EA2FCA0453008110AA /* GoogleService-Info.plist */; };
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
@@ -22,6 +23,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		CE1111111111111111111102 /* PlaybackStallRecovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackStallRecovery.swift; sourceTree = "<group>"; };
 		133798642F88C9E900DC51D4 /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
 		134E86EA2FCA0453008110AA /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
@@ -87,6 +89,7 @@
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				7E86A7B231FA48929E54BA02 /* AppViewController.swift */,
 				7E86A7B231FA48929E54BA04 /* HymnzMediaSessionPlugin.swift */,
+				CE1111111111111111111102 /* PlaybackStallRecovery.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
 				504EC30E1FED79650016851F /* Assets.xcassets */,
 				504EC3101FED79650016851F /* LaunchScreen.storyboard */,
@@ -229,6 +232,7 @@
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				7E86A7B231FA48929E54BA01 /* AppViewController.swift in Sources */,
 				7E86A7B231FA48929E54BA03 /* HymnzMediaSessionPlugin.swift in Sources */,
+				CE1111111111111111111101 /* PlaybackStallRecovery.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

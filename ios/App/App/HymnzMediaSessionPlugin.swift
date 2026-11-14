@@ -57,6 +57,11 @@ public final class HymnzMediaSessionPlugin: CAPPlugin, CAPBridgedPlugin {
     private var endedObserver: NSObjectProtocol?
     private var interruptionObserver: NSObjectProtocol?
     private var routeObserver: NSObjectProtocol?
+    private var stallTimer: Timer?
+    private var stallRecovery = PlaybackStallRecovery()
+    private var recoveryPosition: Double = 0
+    private var resumeAfterStall = false
+    private var interrupted = false
     private var artworkTask: URLSessionDataTask?
     private var artworkCache: [URL: MPMediaItemArtwork] = [:]
     private var fallbackArtwork: MPMediaItemArtwork?
@@ -184,6 +189,7 @@ public final class HymnzMediaSessionPlugin: CAPPlugin, CAPBridgedPlugin {
             queue: .main
         ) { [weak self] _ in
             guard let self, self.currentTrack != nil else { return }
+            if self.player.rate > 0 { self.recoveryPosition = self.playbackPosition() }
             if let limit = self.currentTrack?.previewLimit,
                self.wantsPlayback,
                self.playbackPosition() >= limit {
@@ -246,9 +252,12 @@ public final class HymnzMediaSessionPlugin: CAPPlugin, CAPBridgedPlugin {
         installRemoteCommands()
     }
 
-    private func loadCurrentTrack(position: Double, reason: String) {
+    private func loadCurrentTrack(position: Double, reason: String, recovering: Bool = false) {
         guard let track = currentTrack else { return }
 
+        recoveryPosition = position
+        if !recovering { stallRecovery.reset() }
+        resumeAfterStall = false
         itemStatusObservation?.invalidate()
         artworkTask?.cancel()
 
@@ -270,10 +279,7 @@ public final class HymnzMediaSessionPlugin: CAPPlugin, CAPBridgedPlugin {
                     self.publishNowPlaying()
                     self.emitState(reason: reason)
                 } else if observedItem.status == .failed {
-                    self.wantsPlayback = false
-                    self.player.pause()
-                    self.publishNowPlaying()
-                    self.emitState(reason: "error")
+                    self.stopAfterPlaybackFailure()
                 }
             }
         }
@@ -286,6 +292,13 @@ public final class HymnzMediaSessionPlugin: CAPPlugin, CAPBridgedPlugin {
 
     private func startPlayback(reason: String) {
         guard currentTrack != nil else { return }
+        if resumeAfterStall || player.currentItem?.status == .failed {
+            wantsPlayback = true
+            loadCurrentTrack(position: max(playbackPosition(), recoveryPosition), reason: reason)
+            return
+        }
+        interrupted = false
+        ensureStallTimer()
         do {
             let session = AVAudioSession.sharedInstance()
             try session.setCategory(.playback, mode: .default, options: [])
@@ -309,8 +322,37 @@ public final class HymnzMediaSessionPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
+    private func ensureStallTimer() {
+        guard stallTimer == nil else { return }
+        stallTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] timer in
+            guard let self else { timer.invalidate(); return }
+            let action = self.stallRecovery.evaluate(
+                waiting: self.player.timeControlStatus == .waitingToPlayAtSpecifiedRate || self.player.rate == 0,
+                wantsPlayback: self.wantsPlayback && !self.interrupted,
+                now: ProcessInfo.processInfo.systemUptime
+            )
+            switch action {
+            case .none: break
+            case .reload:
+                let position = max(self.playbackPosition(), self.recoveryPosition)
+                self.loadCurrentTrack(position: position, reason: "loaded", recovering: true)
+            case .stop:
+                self.stopAfterPlaybackFailure()
+            }
+        }
+    }
+
+    private func stopAfterPlaybackFailure() {
+        wantsPlayback = false
+        resumeAfterStall = true
+        player.pause()
+        publishNowPlaying()
+        emitState(reason: "error")
+    }
+
     private func pausePlayback(reason: String) {
         wantsPlayback = false
+        _ = stallRecovery.evaluate(waiting: false, wantsPlayback: false, now: 0)
         player.pause()
         publishNowPlaying()
         emitState(reason: reason)
@@ -319,6 +361,7 @@ public final class HymnzMediaSessionPlugin: CAPPlugin, CAPBridgedPlugin {
     private func seek(to position: Double) {
         let duration = playbackDuration()
         let clamped = duration > 0 ? min(position, duration) : position
+        recoveryPosition = clamped
         player.seek(
             to: CMTime(seconds: clamped, preferredTimescale: 600),
             toleranceBefore: .zero,
@@ -362,12 +405,15 @@ public final class HymnzMediaSessionPlugin: CAPPlugin, CAPBridgedPlugin {
               let type = AVAudioSession.InterruptionType(rawValue: rawType) else { return }
 
         if type == .began {
+            interrupted = true
+            _ = stallRecovery.evaluate(waiting: false, wantsPlayback: false, now: 0)
             player.pause()
             publishNowPlaying()
             emitState(reason: "pause")
             return
         }
 
+        interrupted = false
         let rawOptions = notification.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0
         let options = AVAudioSession.InterruptionOptions(rawValue: rawOptions)
         if wantsPlayback && options.contains(.shouldResume) {
