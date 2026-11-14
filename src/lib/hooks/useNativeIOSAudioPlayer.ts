@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { stopAudio } from "@/lib/audio/audioContext";
 import {
   hasNativeIOSPlayback,
@@ -11,6 +11,7 @@ import {
 import {
   type DesiredNativePlaybackState,
   shouldApplyNativePlaybackState,
+  nativeRevisionFloor,
 } from "@/lib/audio/nativePlaybackSync";
 import { type PlayerState, usePlayerStore } from "@/lib/store/playerStore";
 
@@ -55,6 +56,7 @@ export function useNativeIOSAudioPlayer() {
   const applyingNativeStateRef = useRef(false);
   const pendingLocalCommandRef = useRef(false);
   const queueRevisionRef = useRef(1);
+  const [nativeReady, setNativeReady] = useState(false);
 
   const applyNativeState = useCallback((nativeState: NativePlaybackState) => {
     const store = usePlayerStore.getState();
@@ -187,7 +189,16 @@ export function useNativeIOSAudioPlayer() {
       void NativeIOSPlayback.getState().then(applyNativeState).catch(() => {});
     };
     document.addEventListener("visibilitychange", syncState);
-    syncState();
+    // The native player may survive a WebView/controller remount. Read its
+    // revision even if the retained queue no longer matches the current UI.
+    // Do not send a lower-revision load while this handshake is in flight.
+    void NativeIOSPlayback.getState().then((state) => {
+      if (cancelled) return;
+      queueRevisionRef.current = nativeRevisionFloor(queueRevisionRef.current, state.revision);
+      applyNativeState(state);
+    }).catch(() => {}).finally(() => {
+      if (!cancelled) setNativeReady(true);
+    });
 
     return () => {
       cancelled = true;
@@ -197,7 +208,7 @@ export function useNativeIOSAudioPlayer() {
   }, [applyNativeState]);
 
   useEffect(() => {
-    if (!hasNativeIOSPlayback() || !currentTrack) return;
+    if (!hasNativeIOSPlayback() || !nativeReady || !currentTrack) return;
 
     // A WKWebView audio element and AVPlayer cannot safely share ownership of
     // the same iOS Now Playing session. Native playback is the sole iOS owner.
@@ -252,5 +263,5 @@ export function useNativeIOSAudioPlayer() {
     })
       .then(applyNativeState)
       .catch(() => usePlayerStore.getState().pause());
-  }, [queue, sourceQueue, queueCollectionId, currentIndex, currentTrack, isPlaying, repeat, shuffle, applyNativeState]);
+  }, [queue, sourceQueue, queueCollectionId, currentIndex, currentTrack, isPlaying, repeat, shuffle, nativeReady, applyNativeState]);
 }
